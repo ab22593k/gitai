@@ -1,0 +1,9 @@
+[workspace]
+members = [
+    "crates/git-wire",
+    "crates/git-iris"
+]
+resolver = "3"
+
+[workspace.dependencies]
+# Shared dependencies can be defined here
