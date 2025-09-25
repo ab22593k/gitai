@@ -20,6 +20,7 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
+          components: rustfmt, clippy
       - name: Create release
         uses: actions/create-release@v1
         env:
@@ -40,6 +41,7 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
+          components: rustfmt, clippy
       - name: Cache dependencies
         uses: actions/cache@v4
         with:
