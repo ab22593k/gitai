@@ -38,7 +38,7 @@ fn benchmark_cache_operations() {
     let _result = cache_manager.plan_fetch_operations(&configs).unwrap();
     let duration = start.elapsed();
 
-    println!("Cache planning operation took: {:?}", duration);
+    println!("Cache planning operation took: {duration:?}");
     println!(
         "Processed {} configurations into unique operations",
         configs.len()
@@ -55,7 +55,7 @@ fn benchmark_repository_deduplication() {
         configs.push(RepositoryConfiguration::new(
             format!("https://github.com/example/repo{}.git", i % 10), // Only 10 unique repos
             "main".to_string(),
-            format!("./src/module{}", i),
+            format!("./src/module{i}"),
             vec!["src/".to_string()],
             None,
         ));
@@ -70,7 +70,16 @@ fn benchmark_repository_deduplication() {
     println!("  - Input: {} repository configurations", configs.len());
     println!("  - Unique: {} repositories to fetch", unique_configs.len());
     println!("  - Operations: {} wire operations", operations.len());
-    println!("  - Time taken: {:?}", duration);
+    println!("  - Time taken: {duration:?}");
+}
+
+// TODO: For actual benchmarking, we would use the criterion crate
+// but for this implementation, we'll just run the functions in tests
+fn main() {
+    println!("Running git-wire performance benchmarks...");
+    benchmark_cache_operations();
+    benchmark_repository_deduplication();
+    println!("Benchmarks completed.");
 }
 
 #[cfg(test)]
@@ -86,13 +95,4 @@ mod bench_tests {
     fn test_repository_deduplication_benchmark() {
         benchmark_repository_deduplication();
     }
-}
-
-// TODO: For actual benchmarking, we would use the criterion crate
-// but for this implementation, we'll just run the functions in tests
-fn main() {
-    println!("Running git-wire performance benchmarks...");
-    benchmark_cache_operations();
-    benchmark_repository_deduplication();
-    println!("Benchmarks completed.");
 }

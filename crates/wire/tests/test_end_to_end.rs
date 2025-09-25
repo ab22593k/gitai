@@ -78,8 +78,8 @@ fn test_cache_performance_improvement_simulation() {
         configs.push(RepositoryConfiguration::new(
             "https://github.com/example/repo.git".to_string(), // Same repo
             "main".to_string(),
-            format!("./src/module{}", i),
-            vec![format!("src{}", i)],
+            format!("./src/module{i}"),
+            vec![format!("src{i}")],
             None,
         ));
     }
@@ -104,7 +104,7 @@ fn test_cache_performance_improvement_simulation() {
         "Should have 10 wire operations for different targets"
     );
 
-    println!("Performance test completed in {:?}", elapsed);
+    println!("Performance test completed in {elapsed:?}");
     println!(
         "Would have required {} separate git pulls without caching, now only requires 1",
         configs.len()

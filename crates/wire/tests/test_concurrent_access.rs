@@ -33,8 +33,8 @@ fn test_concurrent_access_to_same_repository() {
             let config = RepositoryConfiguration {
                 url: repo.url.clone(),
                 branch: repo.branch.clone(),
-                target_path: format!("./src/module{}", thread_id),
-                filters: vec![format!("src{}", thread_id)],
+                target_path: format!("./src/module{thread_id}"),
+                filters: vec![format!("src{thread_id}")],
                 commit_hash: None,
             };
 
@@ -45,7 +45,7 @@ fn test_concurrent_access_to_same_repository() {
             thread::sleep(Duration::from_millis(10));
 
             // Return a completion message
-            format!("Operation {} completed", thread_id)
+            format!("Operation {thread_id} completed")
         });
 
         handles.push(handle);
@@ -58,7 +58,7 @@ fn test_concurrent_access_to_same_repository() {
     assert_eq!(results.len(), NUM_THREADS);
 
     for (i, result) in results.iter().enumerate() {
-        assert_eq!(result.as_str(), format!("Operation {} completed", i));
+        assert_eq!(result.as_str(), format!("Operation {i} completed"));
     }
 }
 
@@ -92,11 +92,11 @@ fn test_concurrent_repository_access_simulation() {
                     // Release the lock
                     repo_in_use_clone.store(false, Ordering::SeqCst);
 
-                    format!("Thread {} acquired and released repo", thread_id)
+                    format!("Thread {thread_id} acquired and released repo")
                 }
                 Err(_) => {
                     // Failed to acquire; in a real scenario, would wait or handle differently
-                    format!("Thread {} could not acquire repo", thread_id)
+                    format!("Thread {thread_id} could not acquire repo")
                 }
             }
         });

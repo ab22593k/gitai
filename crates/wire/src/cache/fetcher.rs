@@ -94,7 +94,7 @@ mod tests {
     #[test]
     fn test_fetcher_creation() {
         let _fetcher = RepositoryFetcher;
-        assert!(true); // Just checking the struct can be instantiated
+        // Just checking the struct can be instantiated
     }
 
     #[test]
@@ -112,6 +112,6 @@ mod tests {
         let result = _fetcher.is_cache_valid(&_config, "/definitely/does/not/exist");
         // It should return Ok(false) since the path doesn't exist
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), false);
+        assert!(!result.unwrap());
     }
 }

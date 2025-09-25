@@ -14,8 +14,8 @@ fn test_repository_deduplication_performance() {
         configs.push(RepositoryConfiguration {
             url: "https://github.com/example/repo.git".to_string(), // Same repo
             branch: "main".to_string(),
-            target_path: format!("./src/module{}", i),
-            filters: vec![format!("src{}", i)],
+            target_path: format!("./src/module{i}"),
+            filters: vec![format!("src{i}")],
             commit_hash: None,
         });
     }
@@ -32,8 +32,8 @@ fn test_repository_deduplication_performance() {
     std::thread::sleep(std::time::Duration::from_millis(100 + 10 * 10));
     let duration_with_dedup = start_time_with_dedup.elapsed();
 
-    println!("Time without deduplication: {:?}", duration_no_dedup);
-    println!("Time with deduplication: {:?}", duration_with_dedup);
+    println!("Time without deduplication: {duration_no_dedup:?}");
+    println!("Time with deduplication: {duration_with_dedup:?}");
 
     // With deduplication, the time should be significantly less
     assert!(
@@ -43,7 +43,7 @@ fn test_repository_deduplication_performance() {
 
     // Performance improvement should be significant (at least 50% faster in this simulation)
     let improvement = duration_no_dedup.as_millis() as f64 / duration_with_dedup.as_millis() as f64;
-    println!("Performance improvement: {:.2}x", improvement);
+    println!("Performance improvement: {improvement:.2}x");
     assert!(
         improvement > 1.5,
         "Performance should be at least 1.5x better with deduplication"
