@@ -102,7 +102,7 @@ impl GitIrisTool for CommitTool {
 
         // Run pre-commit hook
         if let Err(e) = service.pre_commit() {
-            return Err(anyhow::anyhow!("Pre-commit failed: {}", e));
+            return Err(anyhow::anyhow!("Pre-commit failed: {e}"));
         }
 
         // Generate a commit message
@@ -137,7 +137,7 @@ impl GitIrisTool for CommitTool {
                     return Ok(create_text_result(result_text));
                 }
                 Err(e) => {
-                    return Err(anyhow::anyhow!("Failed to commit: {}", e));
+                    return Err(anyhow::anyhow!("Failed to commit: {e}"));
                 }
             }
         }

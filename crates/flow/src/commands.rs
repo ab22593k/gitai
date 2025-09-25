@@ -49,7 +49,7 @@ fn apply_config_changes(
     // Handle provider change - but skip if already handled by apply_to_config
     if let Some(provider) = &common.provider {
         if !get_available_provider_names().iter().any(|p| p == provider) {
-            return Err(anyhow!("Invalid provider: {}", provider));
+            return Err(anyhow!("Invalid provider: {provider}"));
         }
         // Only check for provider insertion if it wasn't already handled
         if !config.providers.contains_key(provider) {
@@ -123,7 +123,7 @@ fn apply_config_changes(
                 changes_made = true;
             }
         } else {
-            return Err(anyhow!("Invalid preset: {}", preset));
+            return Err(anyhow!("Invalid preset: {preset}"));
         }
     }
 
@@ -487,8 +487,7 @@ pub async fn handle_serve_command(
         "sse" => MCPTransportType::SSE,
         _ => {
             return Err(anyhow::anyhow!(
-                "Invalid transport type: {}. Valid options are: stdio, sse",
-                transport
+                "Invalid transport type: {transport}. Valid options are: stdio, sse"
             ));
         }
     };

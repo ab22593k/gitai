@@ -3,19 +3,18 @@
 use anyhow::Result;
 use dotenv::dotenv;
 use git2::Repository;
-use ritex_flow::changes::models::{ChangelogResponse, ReleaseNotesResponse};
-use ritex_flow::changes::{ChangelogGenerator, ReleaseNotesGenerator};
-use ritex_flow::common::DetailLevel;
-use ritex_flow::config::Config;
-use ritex_flow::logger;
+use gwtflow::changes::models::{ChangelogResponse, ReleaseNotesResponse};
+use gwtflow::changes::{ChangelogGenerator, ReleaseNotesGenerator};
+use gwtflow::common::DetailLevel;
+use gwtflow::config::Config;
+use gwtflow::logger;
 use std::env;
-use std::path::Path;
 use tempfile::TempDir;
 
 // Use our centralized test infrastructure
 #[path = "test_utils.rs"]
 mod test_utils;
-use test_utils::{TestEnvironment, setup_git_repo_with_tags};
+use test_utils::setup_git_repo_with_tags;
 
 fn setup_test_repo() -> Result<(TempDir, Repository)> {
     let _ = logger::init(); // Initialize the logger
@@ -45,7 +44,7 @@ async fn test_changelog_generation() -> Result<()> {
     let (temp_dir, _repo) = setup_test_repo()?;
     let config = setup_config();
 
-    let repo_path = std::sync::Arc::new(git_iris::git::GitRepo::new(temp_dir.path())?);
+    let repo_path = std::sync::Arc::new(gwtflow::git::GitRepo::new(temp_dir.path())?);
     let changelog = ChangelogGenerator::generate(
         repo_path,
         "v1.0.0",
@@ -86,7 +85,7 @@ async fn test_release_notes_generation() -> Result<()> {
     let (temp_dir, _repo) = setup_test_repo()?;
     let config = setup_config();
 
-    let repo_path = std::sync::Arc::new(git_iris::git::GitRepo::new(temp_dir.path())?);
+    let repo_path = std::sync::Arc::new(gwtflow::git::GitRepo::new(temp_dir.path())?);
     let release_notes = ReleaseNotesGenerator::generate(
         repo_path,
         "v1.0.0",
@@ -130,7 +129,7 @@ async fn test_changelog_generation_with_custom_version() -> Result<()> {
     let custom_version = "v2.0.0-beta";
 
     // We need to provide a path to GitRepo for this integration test
-    let repo_path = std::sync::Arc::new(git_iris::git::GitRepo::new(temp_dir.path())?);
+    let repo_path = std::sync::Arc::new(gwtflow::git::GitRepo::new(temp_dir.path())?);
 
     // Generate changelog with custom version name
     let changelog = ChangelogGenerator::generate(
@@ -171,7 +170,7 @@ async fn test_release_notes_generation_with_custom_version() -> Result<()> {
     let custom_version = "v2.0.0-rc1";
 
     // We need to provide a path to GitRepo for this integration test
-    let repo_path = std::sync::Arc::new(git_iris::git::GitRepo::new(temp_dir.path())?);
+    let repo_path = std::sync::Arc::new(gwtflow::git::GitRepo::new(temp_dir.path())?);
 
     // Generate release notes with custom version name
     let release_notes = ReleaseNotesGenerator::generate(

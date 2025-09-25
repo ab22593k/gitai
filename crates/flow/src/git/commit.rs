@@ -687,9 +687,7 @@ fn resolve_branch_strict<'a>(
     match repo.revparse_single(branch_name) {
         Ok(obj) => Ok(obj.peel_to_commit()?),
         Err(e) => Err(anyhow!(
-            "Could not resolve branch reference '{}': {}",
-            branch_name,
-            e
+            "Could not resolve branch reference '{branch_name}': {e}"
         )),
     }
 }
@@ -723,9 +721,7 @@ fn resolve_branch<'a>(repo: &'a Repository, branch_name: &'a str) -> Result<git2
         }
 
         Err(anyhow!(
-            "Could not resolve branch reference '{}'. Tried alternatives: {:?}",
-            branch_name,
-            possible_branches
+            "Could not resolve branch reference '{branch_name}'. Tried alternatives: {possible_branches:?}"
         ))
     }
 }

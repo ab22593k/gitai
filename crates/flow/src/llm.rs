@@ -107,13 +107,13 @@ where
     let backend = if provider_name.to_lowercase() == "openrouter" {
         LLMBackend::OpenRouter
     } else {
-        LLMBackend::from_str(provider_name).map_err(|e| anyhow!("Invalid provider: {}", e))?
+        LLMBackend::from_str(provider_name).map_err(|e| anyhow!("Invalid provider: {e}"))?
     };
 
     // Get provider configuration
     let provider_config = config
         .get_provider_config(provider_name)
-        .ok_or_else(|| anyhow!("Provider '{}' not found in configuration", provider_name))?;
+        .ok_or_else(|| anyhow!("Provider '{provider_name}' not found in configuration"))?;
 
     // Build the provider
     let mut builder = LLMBuilder::new().backend(backend.clone());
@@ -165,7 +165,7 @@ where
     // Build the provider
     let provider = builder
         .build()
-        .map_err(|e| anyhow!("Failed to build provider: {}", e))?;
+        .map_err(|e| anyhow!("Failed to build provider: {e}"))?;
 
     // Generate the message
     get_message_with_provider(provider, user_prompt, provider_name).await
@@ -215,7 +215,7 @@ where
                             // For String type, we need to handle differently
                             #[allow(clippy::unnecessary_to_owned)]
                             let string_result: T = serde_json::from_value(serde_json::Value::String(response_text.clone()))
-                                .map_err(|e| anyhow!("String conversion error: {}", e))?;
+                                .map_err(|e| anyhow!("String conversion error: {e}"))?;
                             Ok(string_result)
                         } else {
                             parse_json_response_with_brace_prefix::<T>(&response_text)
@@ -228,7 +228,7 @@ where
                             // For String type, we need to handle differently
                             #[allow(clippy::unnecessary_to_owned)]
                             let string_result: T = serde_json::from_value(serde_json::Value::String(response_text.clone()))
-                                .map_err(|e| anyhow!("String conversion error: {}", e))?;
+                                .map_err(|e| anyhow!("String conversion error: {e}"))?;
                             Ok(string_result)
                         } else {
                             // First try direct parsing, then fall back to extraction
@@ -241,13 +241,13 @@ where
                     Ok(message) => Ok(message),
                     Err(e) => {
                         log_debug!("JSON parse error: {} text: {}", e, response_text);
-                        Err(anyhow!("JSON parse error: {}", e))
+                        Err(anyhow!("JSON parse error: {e}"))
                     }
                 }
             }
             Ok(Err(e)) => {
                 log_debug!("Provider error: {}", e);
-                Err(anyhow!("Provider error: {}", e))
+                Err(anyhow!("Provider error: {e}"))
             }
             Err(_) => {
                 log_debug!("Provider timed out");
@@ -264,7 +264,7 @@ where
         }
         Err(e) => {
             log_debug!("Failed to generate message after retries: {}", e);
-            Err(anyhow!("Failed to generate message: {}", e))
+            Err(anyhow!("Failed to generate message: {e}"))
         }
     }
 }
@@ -303,7 +303,7 @@ fn parse_json_response_with_brace_prefix<T: DeserializeOwned>(text: &str) -> Res
 /// Extracts and parses JSON from a potentially non-JSON response
 fn extract_and_parse_json<T: DeserializeOwned>(text: &str) -> Result<T> {
     let cleaned_json = clean_json_from_llm(text);
-    serde_json::from_str(&cleaned_json).map_err(|e| anyhow!("JSON parse error: {}", e))
+    serde_json::from_str(&cleaned_json).map_err(|e| anyhow!("JSON parse error: {e}"))
 }
 
 /// Returns a list of available LLM providers as strings
@@ -360,10 +360,10 @@ pub fn validate_provider_config(config: &Config, provider_name: &str) -> Result<
     if provider_requires_api_key(provider_name) {
         let provider_config = config
             .get_provider_config(provider_name)
-            .ok_or_else(|| anyhow!("Provider '{}' not found in configuration", provider_name))?;
+            .ok_or_else(|| anyhow!("Provider '{provider_name}' not found in configuration"))?;
 
         if provider_config.api_key.is_empty() {
-            return Err(anyhow!("API key required for provider: {}", provider_name));
+            return Err(anyhow!("API key required for provider: {provider_name}"));
         }
     }
 

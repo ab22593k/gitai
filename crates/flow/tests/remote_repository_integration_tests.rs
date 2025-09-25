@@ -1,9 +1,9 @@
 #![cfg(feature = "integration")]
 
 use anyhow::Result;
-use git_iris::cli::Commands;
-use git_iris::common::CommonParams;
-use git_iris::git::GitRepo;
+use gwtflow::cli::Commands;
+use gwtflow::common::CommonParams;
+use gwtflow::git::GitRepo;
 use std::env;
 
 // Test the CLI with a remote repository URL
@@ -42,7 +42,7 @@ async fn test_cli_with_remote_repository() -> Result<()> {
     };
 
     // Just testing that it doesn't panic, we're not making actual API calls
-    let result = git_iris::cli::handle_command(release_notes_command, None).await;
+    let result = gwtflow::cli::handle_command(release_notes_command, None).await;
     assert!(
         result.is_err(),
         "Command should fail because we're using a mock provider"
@@ -59,7 +59,7 @@ async fn test_cli_with_remote_repository() -> Result<()> {
     };
 
     // Just testing that it doesn't panic
-    let result = git_iris::cli::handle_command(changelog_command, None).await;
+    let result = gwtflow::cli::handle_command(changelog_command, None).await;
     assert!(
         result.is_err(),
         "Command should fail because we're using a mock provider"
@@ -71,17 +71,19 @@ async fn test_cli_with_remote_repository() -> Result<()> {
         print: true,
         commit: None,
         include_unstaged: false,
+        from: None,
+        to: None,
     };
 
     // Just testing that it doesn't panic
-    let result = git_iris::cli::handle_command(review_command, None).await;
+    let result = gwtflow::cli::handle_command(review_command, None).await;
     assert!(
         result.is_err(),
         "Command should fail because we're using a mock provider"
     );
 
     // 4. Test cmsg command with repository URL
-    let gen_command = Commands::Gen {
+    let gen_command = Commands::Msg {
         common,
         auto_commit: false,
         no_gitmoji: true,
@@ -90,7 +92,7 @@ async fn test_cli_with_remote_repository() -> Result<()> {
     };
 
     // Just testing that it doesn't panic
-    let result = git_iris::cli::handle_command(gen_command, None).await;
+    let result = gwtflow::cli::handle_command(gen_command, None).await;
     assert!(
         result.is_err(),
         "Command should fail because we're using a mock provider"

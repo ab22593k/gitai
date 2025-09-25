@@ -67,14 +67,12 @@ pub fn validate_repository_parameter(repo: &str) -> Result<(), anyhow::Error> {
         let path = std::path::Path::new(repo);
         if !path.exists() {
             return Err(anyhow::anyhow!(format!(
-                "The specified repository path does not exist: {}",
-                repo
+                "The specified repository path does not exist: {repo}"
             )));
         }
         if !path.join(".git").exists() {
             return Err(anyhow::anyhow!(format!(
-                "The specified path is not a git repository: {}",
-                repo
+                "The specified path is not a git repository: {repo}"
             )));
         }
     }

@@ -211,18 +211,19 @@ impl ReleaseNotesWrapper {
         // Add header with either custom version or original version
         let version = version_name.unwrap_or_else(|| self.0.version.clone().unwrap_or_default());
 
-        write!(formatted, "# Release Notes - v{version}\n\n").unwrap();
+        write!(formatted, "# Release Notes - v{version}\n\n")
+            .expect("Failed to write release notes header");
 
         // Add release date (minimal implementation for test purposes)
         write!(
             formatted,
-            "Release Date: {}\n\n",
+            "Release Date: {}",
             self.0.release_date.clone().unwrap_or_default()
         )
-        .unwrap();
+        .expect("Failed to write release date");
 
         // Add summary (minimal implementation for test purposes)
-        write!(formatted, "{}\n\n", self.0.summary).unwrap();
+        write!(formatted, "{}", self.0.summary).expect("Failed to write summary");
 
         formatted
     }

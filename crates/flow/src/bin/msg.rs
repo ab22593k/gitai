@@ -5,6 +5,7 @@ use gwtflow::common::CommonParams;
 
 #[derive(Parser)]
 #[command(name = "git-flow-msg", about = "Generate a commit message using AI")]
+#[allow(clippy::struct_excessive_bools)]
 struct MsgArgs {
     #[command(flatten)]
     common: CommonParams,

@@ -75,7 +75,7 @@ impl GitRepo {
         log_debug!("Cloning remote repository from URL: {}", url);
 
         // Validate URL
-        let _ = Url::parse(url).map_err(|e| anyhow!("Invalid repository URL: {}", e))?;
+        let _ = Url::parse(url).map_err(|e| anyhow!("Invalid repository URL: {e}"))?;
 
         // Create a temporary directory for the clone
         let temp_dir = TempDir::new()?;
@@ -86,7 +86,7 @@ impl GitRepo {
         // Clone the repository into the temporary directory
         let repo = match Repository::clone(url, temp_path) {
             Ok(repo) => repo,
-            Err(e) => return Err(anyhow!("Failed to clone repository: {}", e)),
+            Err(e) => return Err(anyhow!("Failed to clone repository: {e}")),
         };
 
         log_debug!("Successfully cloned repository to {:?}", repo.path());

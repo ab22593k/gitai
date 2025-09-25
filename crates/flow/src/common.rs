@@ -21,7 +21,7 @@ impl FromStr for DetailLevel {
             "minimal" => Ok(Self::Minimal),
             "standard" => Ok(Self::Standard),
             "detailed" => Ok(Self::Detailed),
-            _ => Err(anyhow::anyhow!("Invalid detail level: {}", s)),
+            _ => Err(anyhow::anyhow!("Invalid detail level: {s}")),
         }
     }
 }

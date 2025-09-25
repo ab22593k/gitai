@@ -95,7 +95,7 @@ impl Config {
         // Read the config file with improved error handling
         let config_str = match fs::read_to_string(&config_path) {
             Ok(content) => content,
-            Err(e) => return Err(anyhow::anyhow!("Failed to read project config file: {}", e)),
+            Err(e) => return Err(anyhow::anyhow!("Failed to read project config file: {e}")),
         };
 
         // Parse the TOML with improved error handling
@@ -103,9 +103,7 @@ impl Config {
             Ok(config) => config,
             Err(e) => {
                 return Err(anyhow::anyhow!(
-                    "Invalid project configuration file format: {}. Please check your {} file for syntax errors.",
-                    e,
-                    PROJECT_CONFIG_FILENAME
+                    "Invalid project configuration file format: {e}. Please check your {PROJECT_CONFIG_FILENAME} file for syntax errors."
                 ));
             }
         };
