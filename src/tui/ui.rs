@@ -146,7 +146,12 @@ fn draw_nav_bar(f: &mut Frame, area: Rect, theme: &super::theme::Theme) {
 
 fn draw_user_info(f: &mut Frame, state: &TuiState, area: Rect, theme: &super::theme::Theme) {
     let user_info = Paragraph::new(Line::from(vec![
-        Span::styled("👤 ", Style::default().fg(theme.plasma_cyan).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "👤 ",
+            Style::default()
+                .fg(theme.plasma_cyan)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled(
             &state.user_name,
             Style::default()
@@ -154,7 +159,12 @@ fn draw_user_info(f: &mut Frame, state: &TuiState, area: Rect, theme: &super::th
                 .add_modifier(Modifier::BOLD),
         ),
         Span::raw(" | "),
-        Span::styled("✉️ ", Style::default().fg(theme.plasma_cyan).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "✉️ ",
+            Style::default()
+                .fg(theme.plasma_cyan)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled(
             &state.user_email,
             Style::default()
@@ -244,7 +254,12 @@ fn draw_emoji_preset(f: &mut Frame, state: &TuiState, area: Rect, theme: &super:
         EmojiMode::Custom(emoji) => emoji.clone(),
     };
     let emoji_preset = Paragraph::new(Line::from(vec![
-        Span::styled("Emoji: ", Style::default().fg(theme.nebula_purple).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "Emoji: ",
+            Style::default()
+                .fg(theme.nebula_purple)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled(
             emoji_display,
             Style::default()
@@ -252,7 +267,12 @@ fn draw_emoji_preset(f: &mut Frame, state: &TuiState, area: Rect, theme: &super:
                 .add_modifier(Modifier::BOLD),
         ),
         Span::raw("  |  "),
-        Span::styled("Preset: ", Style::default().fg(theme.nebula_purple).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "Preset: ",
+            Style::default()
+                .fg(theme.nebula_purple)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled(
             preset_with_emoji,
             Style::default()
@@ -260,7 +280,12 @@ fn draw_emoji_preset(f: &mut Frame, state: &TuiState, area: Rect, theme: &super:
                 .add_modifier(Modifier::BOLD),
         ),
         Span::raw("  |  "),
-        Span::styled("Theme: ", Style::default().fg(theme.nebula_purple).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "Theme: ",
+            Style::default()
+                .fg(theme.nebula_purple)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled(
             &state.theme.name,
             Style::default()

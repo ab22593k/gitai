@@ -70,11 +70,11 @@ impl Theme {
             nebula_purple: Color::Rgb(186, 104, 200),  // Lighter purple
             plasma_cyan: Color::Rgb(77, 208, 225),     // Lighter cyan
             solar_yellow: Color::Rgb(255, 238, 88),    // Bright yellow
-            starlight: Color::Rgb(224, 224, 224),     // Light gray text
-            border: Color::Rgb(81, 81, 81),           // Dark gray border
-            text: Color::Rgb(224, 224, 224),          // Light text
-            highlight_bg: Color::Rgb(66, 66, 66),     // Dark highlight bg
-            highlight_fg: Color::Rgb(255, 255, 255),  // White highlight text
+            starlight: Color::Rgb(224, 224, 224),      // Light gray text
+            border: Color::Rgb(81, 81, 81),            // Dark gray border
+            text: Color::Rgb(224, 224, 224),           // Light text
+            highlight_bg: Color::Rgb(66, 66, 66),      // Dark highlight bg
+            highlight_fg: Color::Rgb(255, 255, 255),   // White highlight text
         }
     }
 
@@ -86,18 +86,18 @@ impl Theme {
                 Color::Rgb(50, 50, 50),
                 Color::Rgb(100, 100, 100),
             ],
-            celestial_blue: Color::Rgb(0, 86, 179),  // Darker blue for better contrast
-            aurora_green: Color::Rgb(21, 101, 192),  // Darker green
-            comet_orange: Color::Rgb(255, 152, 0),   // Darker orange
-            galaxy_pink: Color::Rgb(216, 27, 96),    // Darker pink
-            meteor_red: Color::Rgb(211, 47, 47),     // Darker red
-            nebula_purple: Color::Rgb(69, 39, 160),  // Darker purple
-            plasma_cyan: Color::Rgb(0, 131, 143),    // Darker cyan
-            solar_yellow: Color::Rgb(255, 193, 7),   // Keep bright for visibility
-            starlight: Color::Rgb(33, 33, 33),       // Dark gray for text
-            border: Color::Rgb(189, 189, 189),       // Light gray border
-            text: Color::Rgb(33, 33, 33),            // Dark text
-            highlight_bg: Color::Rgb(0, 123, 255),   // Bright blue highlight
+            celestial_blue: Color::Rgb(0, 86, 179), // Darker blue for better contrast
+            aurora_green: Color::Rgb(21, 101, 192), // Darker green
+            comet_orange: Color::Rgb(255, 152, 0),  // Darker orange
+            galaxy_pink: Color::Rgb(216, 27, 96),   // Darker pink
+            meteor_red: Color::Rgb(211, 47, 47),    // Darker red
+            nebula_purple: Color::Rgb(69, 39, 160), // Darker purple
+            plasma_cyan: Color::Rgb(0, 131, 143),   // Darker cyan
+            solar_yellow: Color::Rgb(255, 193, 7),  // Keep bright for visibility
+            starlight: Color::Rgb(33, 33, 33),      // Dark gray for text
+            border: Color::Rgb(189, 189, 189),      // Light gray border
+            text: Color::Rgb(33, 33, 33),           // Dark text
+            highlight_bg: Color::Rgb(0, 123, 255),  // Bright blue highlight
             highlight_fg: Color::Rgb(255, 255, 255), // White text on highlight
         }
     }
@@ -105,27 +105,29 @@ impl Theme {
     pub fn high_contrast() -> Self {
         Self {
             name: "High Contrast".to_string(),
-            title_gradient: vec![
-                Color::Rgb(255, 255, 255),
-                Color::Rgb(255, 255, 255),
-            ],
-            celestial_blue: Color::Rgb(0, 0, 255),     // Pure blue
-            aurora_green: Color::Rgb(0, 255, 0),       // Pure green
-            comet_orange: Color::Rgb(255, 165, 0),     // Orange
-            galaxy_pink: Color::Rgb(255, 0, 255),      // Magenta
-            meteor_red: Color::Rgb(255, 0, 0),         // Pure red
-            nebula_purple: Color::Rgb(128, 0, 128),    // Purple
-            plasma_cyan: Color::Rgb(0, 255, 255),      // Cyan
-            solar_yellow: Color::Rgb(255, 255, 0),     // Yellow
-            starlight: Color::Rgb(255, 255, 255),     // White text
-            border: Color::Rgb(255, 255, 255),        // White borders
-            text: Color::Rgb(255, 255, 255),          // White text
-            highlight_bg: Color::Rgb(255, 255, 255),  // White highlight bg
-            highlight_fg: Color::Rgb(0, 0, 0),        // Black highlight text
+            title_gradient: vec![Color::Rgb(255, 255, 255), Color::Rgb(255, 255, 255)],
+            celestial_blue: Color::Rgb(0, 0, 255),  // Pure blue
+            aurora_green: Color::Rgb(0, 255, 0),    // Pure green
+            comet_orange: Color::Rgb(255, 165, 0),  // Orange
+            galaxy_pink: Color::Rgb(255, 0, 255),   // Magenta
+            meteor_red: Color::Rgb(255, 0, 0),      // Pure red
+            nebula_purple: Color::Rgb(128, 0, 128), // Purple
+            plasma_cyan: Color::Rgb(0, 255, 255),   // Cyan
+            solar_yellow: Color::Rgb(255, 255, 0),  // Yellow
+            starlight: Color::Rgb(255, 255, 255),   // White text
+            border: Color::Rgb(255, 255, 255),      // White borders
+            text: Color::Rgb(255, 255, 255),        // White text
+            highlight_bg: Color::Rgb(255, 255, 255), // White highlight bg
+            highlight_fg: Color::Rgb(0, 0, 0),      // Black highlight text
         }
     }
 
     pub fn all_themes() -> Vec<Self> {
-        vec![Self::cosmic(), Self::dark(), Self::light(), Self::high_contrast()]
+        vec![
+            Self::cosmic(),
+            Self::dark(),
+            Self::light(),
+            Self::high_contrast(),
+        ]
     }
 }

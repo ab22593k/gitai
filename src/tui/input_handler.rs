@@ -117,7 +117,8 @@ fn handle_normal_mode(app: &mut TuiCommit, key: KeyEvent) -> InputResult {
         }
         KeyCode::Char('?') => {
             app.state.mode = Mode::Help;
-            app.state.set_status(String::from("Viewing help. Press any key to close."));
+            app.state
+                .set_status(String::from("Viewing help. Press any key to close."));
             InputResult::Continue
         }
         KeyCode::Esc => InputResult::Exit,
@@ -340,10 +341,8 @@ fn handle_selecting_theme(app: &mut TuiCommit, key: KeyEvent) -> InputResult {
             if let Some(selected) = app.state.theme_list_state.selected() {
                 app.state.theme = app.state.theme_list[selected].clone();
                 app.state.mode = Mode::Normal;
-                app.state.set_status(format!(
-                    "Theme changed to: {}",
-                    app.state.theme.name
-                ));
+                app.state
+                    .set_status(format!("Theme changed to: {}", app.state.theme.name));
             }
             InputResult::Continue
         }
