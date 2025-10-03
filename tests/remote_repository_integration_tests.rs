@@ -29,7 +29,7 @@ async fn test_cli_with_remote_repository() -> Result<()> {
         provider: Some("mock".to_string()), // Use mock provider to avoid real API calls
         instructions: None,
         preset: None,
-        gitmoji: Some(false),
+        emoji: Some(false),
         detail_level: "minimal".to_string(),
         repository_url: Some(repo_url.to_string()),
     };
@@ -86,7 +86,7 @@ async fn test_cli_with_remote_repository() -> Result<()> {
     let gen_command = Commands::Msg {
         common,
         auto_commit: false,
-        no_gitmoji: true,
+        no_emoji: true,
         print: true,
         no_verify: true,
     };

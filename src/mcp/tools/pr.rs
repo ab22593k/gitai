@@ -97,7 +97,7 @@ impl PilotTool for PrTool {
             config.clone(),
             &repo_path,
             provider_name,
-            false, // gitmoji not needed for PR
+            false, // emoji not needed for PR
             false, // verification not needed for PR
             GitRepo::new(&repo_path)?,
         )?;

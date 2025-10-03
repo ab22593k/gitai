@@ -15,9 +15,9 @@ struct MsgArgs {
     #[arg(short, long, help = "Automatically commit with the generated message")]
     auto_commit: bool,
 
-    /// Disable Gitmoji for this commit
-    #[arg(long, help = "Disable Gitmoji for this commit")]
-    no_gitmoji: bool,
+    /// Disable emoji for this commit
+    #[arg(long, help = "Disable emoji for this commit")]
+    no_emoji: bool,
 
     /// Print the generated message to stdout and exit
     #[arg(short, long, help = "Print the generated message to stdout and exit")]
@@ -40,7 +40,7 @@ async fn main() -> Result<()> {
         args.common,
         CmsgConfig {
             auto_commit: args.auto_commit,
-            use_gitmoji: !args.no_gitmoji,
+            use_emoji: !args.no_emoji,
             print_only: args.print,
             verify: !args.no_verify,
         },

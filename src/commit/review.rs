@@ -621,7 +621,7 @@ fn setup_review_service(
             config.clone(),
             &repo_path,
             provider_name,
-            false, // gitmoji not needed for review
+            false, // emoji not needed for review
             false, // verification not needed for review
             git_repo,
         )

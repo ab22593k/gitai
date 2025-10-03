@@ -163,7 +163,7 @@ gitv commit
 ```bash
 cd my-project
 git config --local alias.instructions "Use conventional commits format"
-git config --local alias.usegitmoji true
+git config --local alias.useemoji true
 ```
 
 ### Advanced Usage

@@ -90,11 +90,11 @@ fn apply_config_changes(
         }
     }
 
-    // Apply gitmoji setting
-    if let Some(use_gitmoji) = common.gitmoji
-        && config.use_emoji != use_gitmoji
+    // Apply emoji setting
+    if let Some(use_emoji) = common.emoji
+        && config.use_emoji != use_emoji
     {
-        config.use_emoji = use_gitmoji;
+        config.use_emoji = use_emoji;
         changes_made = true;
     }
 

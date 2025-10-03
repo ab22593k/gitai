@@ -91,7 +91,7 @@ pub enum Commands {
         #[arg(short, long, help = "Automatically commit with the generated message")]
         auto_commit: bool,
 
-        /// Disable Gitmoji for this commit
+        /// Disable emoji for this commit
         #[arg(long, help = "Disable emojis for this commit")]
         no_emoji: bool,
 
@@ -343,7 +343,7 @@ pub async fn main() -> anyhow::Result<()> {
 #[allow(clippy::struct_excessive_bools)]
 pub struct CmsgConfig {
     pub auto_commit: bool,
-    pub use_gitmoji: bool,
+    pub use_emoji: bool,
     pub print_only: bool,
     pub verify: bool,
 }
@@ -354,10 +354,10 @@ pub async fn handle_message(
     repository_url: Option<String>,
 ) -> anyhow::Result<()> {
     log_debug!(
-        "Handling 'message' command with common: {:?}, auto_commit: {}, use_gitmoji: {}, print: {}, verify: {}",
+        "Handling 'message' command with common: {:?}, auto_commit: {}, use_emoji: {}, print: {}, verify: {}",
         common,
         config.auto_commit,
-        config.use_gitmoji,
+        config.use_emoji,
         config.print_only,
         config.verify
     );
@@ -368,7 +368,7 @@ pub async fn handle_message(
     commit::handle_message_command(
         common,
         config.auto_commit,
-        config.use_gitmoji,
+        config.use_emoji,
         config.print_only,
         config.verify,
         repository_url,
@@ -495,7 +495,7 @@ pub async fn handle_command(
         Commands::Message {
             common,
             auto_commit,
-            no_emoji: no_gitmoji,
+            no_emoji,
             print,
             no_verify,
         } => {
@@ -503,7 +503,7 @@ pub async fn handle_command(
                 common,
                 CmsgConfig {
                     auto_commit,
-                    use_gitmoji: !no_gitmoji,
+                    use_emoji: !no_emoji,
                     print_only: print,
                     verify: !no_verify,
                 },

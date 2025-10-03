@@ -118,7 +118,7 @@ fn test_project_config_security() {
         provider: Some("openai".to_string()),
         instructions: Some("Test instructions".to_string()),
         preset: Some("default".to_string()),
-        gitmoji: Some(true),
+        emoji: Some(true),
         detail_level: "standard".to_string(),
         repository_url: None,
     };

@@ -45,16 +45,16 @@ fn create_emoji_map() -> HashMap<&'static str, (&'static str, &'static str)> {
 static EMOJI_MAP: LazyLock<HashMap<&'static str, (&'static str, &'static str)>> =
     LazyLock::new(create_emoji_map);
 
-pub fn get_gitmoji(commit_type: &str) -> Option<&'static str> {
+pub fn get_emoji(commit_type: &str) -> Option<&'static str> {
     EMOJI_MAP.get(commit_type).map(|&(emoji, _)| emoji)
 }
 
 pub fn apply_emoji(commit_message: &str) -> String {
     let parts: Vec<&str> = commit_message.splitn(2, ':').collect();
     if parts.len() == 2
-        && let Some((gitmoji, _)) = EMOJI_MAP.get(parts[0].trim())
+        && let Some((emoji, _)) = EMOJI_MAP.get(parts[0].trim())
     {
-        return format!("{} {}: {}", gitmoji, parts[0].trim(), parts[1].trim());
+        return format!("{emoji} {}: {}", parts[0].trim(), parts[1].trim());
     }
 
     commit_message.to_string()

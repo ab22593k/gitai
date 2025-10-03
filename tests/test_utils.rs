@@ -437,8 +437,8 @@ impl MockDataBuilder {
         Config::default()
     }
 
-    /// Create a mock Config with gitmoji enabled
-    pub fn config_with_gitmoji() -> Config {
+    /// Create a mock Config with emoji enabled
+    pub fn config_with_emoji() -> Config {
         Config {
             use_emoji: true,
             ..Default::default()
@@ -568,12 +568,12 @@ impl TestAssertions {
         assert!(!context.staged_files.is_empty(), "Should have staged files");
     }
 
-    /// Assert that a string contains gitmoji
-    pub fn assert_contains_gitmoji(text: &str) {
-        let gitmoji_chars = ["✨", "🐛", "📝", "💄", "♻️", "✅", "🔨"];
+    /// Assert that a string contains emoji
+    pub fn assert_contains_emoji(text: &str) {
+        let emoji_chars = ["✨", "🐛", "📝", "💄", "♻️", "✅", "🔨"];
         assert!(
-            gitmoji_chars.iter().any(|&emoji| text.contains(emoji)),
-            "Text should contain gitmoji: {text}"
+            emoji_chars.iter().any(|&emoji| text.contains(emoji)),
+            "Text should contain emoji: {text}"
         );
     }
 

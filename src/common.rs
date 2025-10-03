@@ -53,9 +53,9 @@ pub struct CommonParams {
     )]
     pub preset: Option<String>,
 
-    /// Enable or disable Gitmoji
-    #[arg(long, help = "Enable or disable Gitmoji")]
-    pub gitmoji: Option<bool>,
+    /// Enable or disable emoji
+    #[arg(long, help = "Enable or disable emoji")]
+    pub emoji: Option<bool>,
 
     /// Set the detail level
     #[arg(
@@ -115,10 +115,10 @@ impl CommonParams {
             // Note: temp preset doesn't count as permanent changes
         }
 
-        if let Some(use_gitmoji) = self.gitmoji
-            && config.use_emoji != use_gitmoji
+        if let Some(use_emoji) = self.emoji
+            && config.use_emoji != use_emoji
         {
-            config.use_emoji = use_gitmoji;
+            config.use_emoji = use_emoji;
             changes_made = true;
         }
 

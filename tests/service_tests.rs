@@ -20,7 +20,7 @@ async fn test_perform_commit() -> Result<()> {
     let config = Config::default();
     let repo_path = PathBuf::from(temp_dir.path());
     let provider_name = "test";
-    let use_gitmoji = true;
+    let use_emoji = true;
     let verify = true;
 
     // Create a new GitRepo for the service
@@ -30,7 +30,7 @@ async fn test_perform_commit() -> Result<()> {
         config,
         &repo_path,
         provider_name,
-        use_gitmoji,
+        use_emoji,
         verify,
         service_repo,
     )?;

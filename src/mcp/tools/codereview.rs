@@ -120,7 +120,7 @@ impl PilotTool for CodeReviewTool {
             config.clone(),
             &repo_path,
             provider_name,
-            false, // gitmoji not needed for review
+            false, // emoji not needed for review
             false, // verification not needed for review
             GitRepo::new(&repo_path)?,
         )?;

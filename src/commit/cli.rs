@@ -16,7 +16,7 @@ use std::sync::Arc;
 pub async fn handle_message_command(
     common: CommonParams,
     auto_commit: bool,
-    use_gitmoji: bool,
+    use_emoji: bool,
     print: bool,
     verify: bool,
     repository_url: Option<String>,
@@ -37,7 +37,7 @@ pub async fn handle_message_command(
         &common,
         repository_url,
         &config,
-        use_gitmoji && config.use_emoji,
+        use_emoji && config.use_emoji,
         verify,
     ).map_err(|e| {
         ui::print_error(&format!("Error: {e}"));
@@ -195,7 +195,7 @@ fn setup_pr_service(
         common,
         repository_url,
         config,
-        config.use_emoji, // Use gitmoji setting from config for PR descriptions
+        config.use_emoji, // Use emoji setting from config for PR descriptions
         false,            // verification not needed for PR descriptions
     )
 }
@@ -470,7 +470,7 @@ fn create_commit_service(
     common: &CommonParams,
     repository_url: Option<String>,
     config: &Config,
-    use_gitmoji: bool,
+    use_emoji: bool,
     verify: bool,
 ) -> Result<Arc<CommitService>> {
     // Combine repository URL from CLI and CommonParams
@@ -487,7 +487,7 @@ fn create_commit_service(
             config.clone(),
             &repo_path,
             provider_name,
-            use_gitmoji,
+            use_emoji,
             verify,
             git_repo,
         )

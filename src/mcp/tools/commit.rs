@@ -26,9 +26,9 @@ pub struct CommitTool {
     #[serde(default)]
     pub auto_commit: bool,
 
-    /// Whether to use gitmoji in commit messages
+    /// Whether to use emoji in commit messages
     #[serde(default)]
-    pub use_gitmoji: bool,
+    pub use_emoji: bool,
 
     /// Whether to skip commit verification
     #[serde(default)]
@@ -87,7 +87,7 @@ impl PilotTool for CommitTool {
             config.clone(),
             &repo_path,
             provider_name,
-            self.use_gitmoji,
+            self.use_emoji,
             verify,
             GitRepo::new(&repo_path)?,
         )?;

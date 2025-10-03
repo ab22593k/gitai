@@ -204,7 +204,7 @@ async fn test_service_pr_generation_setup() -> Result<()> {
         config,
         &repo_path,
         provider_name,
-        false, // gitmoji not needed for PR
+        false, // emoji not needed for PR
         false, // verification not needed for PR
         service_git_repo,
     )?;

@@ -19,7 +19,7 @@ pub struct CommitService {
     config: Config,
     repo: Arc<GitRepo>,
     provider_name: String,
-    use_gitmoji: bool,
+    use_emoji: bool,
     verify: bool,
     cached_context: Arc<RwLock<Option<CommitContext>>>,
 }
@@ -32,7 +32,7 @@ impl CommitService {
     /// * `config` - The configuration for the service
     /// * `repo_path` - The path to the Git repository (unused but kept for API compatibility)
     /// * `provider_name` - The name of the LLM provider to use
-    /// * `use_gitmoji` - Whether to use Gitmoji in commit messages
+    /// * `use_emoji` - Whether to use emoji in commit messages
     /// * `verify` - Whether to verify commits
     /// * `git_repo` - An existing `GitRepo` instance
     ///
@@ -43,7 +43,7 @@ impl CommitService {
         config: Config,
         _repo_path: &Path,
         provider_name: &str,
-        use_gitmoji: bool,
+        use_emoji: bool,
         verify: bool,
         git_repo: GitRepo,
     ) -> Result<Self> {
@@ -51,7 +51,7 @@ impl CommitService {
             config,
             repo: Arc::new(git_repo),
             provider_name: provider_name.to_string(),
-            use_gitmoji,
+            use_emoji,
             verify,
             cached_context: Arc::new(RwLock::new(None)),
         })
@@ -278,9 +278,9 @@ impl CommitService {
         )
         .await?;
 
-        // Apply gitmoji setting - automatically disable for conventional commits
-        let should_use_gitmoji = self.use_gitmoji && effective_preset != "conventional";
-        if !should_use_gitmoji {
+        // Apply emoji setting - automatically disable for conventional commits
+        let should_use_emoji = self.use_emoji && effective_preset != "conventional";
+        if !should_use_emoji {
             generated_message.emoji = None;
         }
 
@@ -609,8 +609,8 @@ impl CommitService {
         )
         .await?;
 
-        // Apply gitmoji setting
-        if !self.use_gitmoji {
+        // Apply emoji setting
+        if !self.use_emoji {
             generated_pr.emoji = None;
         }
 
@@ -685,8 +685,8 @@ impl CommitService {
         )
         .await?;
 
-        // Apply gitmoji setting
-        if !self.use_gitmoji {
+        // Apply emoji setting
+        if !self.use_emoji {
             generated_pr.emoji = None;
         }
 
@@ -708,7 +708,7 @@ impl CommitService {
             return Err(anyhow::anyhow!("Cannot commit to a remote repository"));
         }
 
-        let processed_message = process_commit_message(message.to_string(), self.use_gitmoji);
+        let processed_message = process_commit_message(message.to_string(), self.use_emoji);
         log_debug!("Performing commit with message: {}", processed_message);
 
         if !self.verify {

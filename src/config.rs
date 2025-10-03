@@ -18,7 +18,7 @@ pub struct Config {
     pub default_provider: String,
     /// Provider-specific configurations
     pub providers: HashMap<String, ProviderConfig>,
-    /// Flag indicating whether to use Gitmoji
+    /// Flag indicating whether to use emoji
     #[serde(default = "default_emoji")]
     pub use_emoji: bool,
     /// Instructions for commit messages
@@ -49,7 +49,7 @@ pub struct ProviderConfig {
     pub token_limit: Option<usize>,
 }
 
-/// Default function for `use_gitmoji`
+/// Default function for `use_emoji`
 fn default_emoji() -> bool {
     true
 }
@@ -77,8 +77,7 @@ impl Config {
     fn load_from_config(prefix: &str) -> Self {
         let default_provider = Self::get_git_config_value(&format!("{prefix}.defaultprovider"))
             .unwrap_or("openai".to_string());
-        let use_gitmoji =
-            Self::get_git_config_bool(&format!("{prefix}.usegitmoji")).unwrap_or(true);
+        let use_emoji = Self::get_git_config_bool(&format!("{prefix}.useemoji")).unwrap_or(true);
         let instructions =
             Self::get_git_config_value(&format!("{prefix}.instructions")).unwrap_or_default();
         let instruction_preset = Self::get_git_config_value(&format!("{prefix}.instructionpreset"))
@@ -115,7 +114,7 @@ impl Config {
         Self {
             default_provider,
             providers,
-            use_emoji: use_gitmoji,
+            use_emoji: use_emoji,
             instructions,
             instruction_preset,
             temp_instructions: None,
@@ -211,8 +210,8 @@ impl Config {
         // Set default provider
         config.set_str(&format!("{prefix}.defaultprovider"), &self.default_provider)?;
 
-        // Set use gitmoji
-        config.set_bool(&format!("{prefix}.usegitmoji"), self.use_emoji)?;
+        // Set use emoji
+        config.set_bool(&format!("{prefix}.useemoji"), self.use_emoji)?;
 
         // Set instructions
         config.set_str(&format!("{prefix}.instructions"), &self.instructions)?;
@@ -323,7 +322,7 @@ impl Config {
         api_key: Option<String>,
         model: Option<String>,
         additional_params: Option<HashMap<String, String>>,
-        use_gitmoji: Option<bool>,
+        use_emoji: Option<bool>,
         instructions: Option<String>,
         token_limit: Option<usize>,
     ) -> anyhow::Result<()> {
@@ -354,8 +353,8 @@ impl Config {
         if let Some(params) = additional_params {
             provider_config.additional_params.extend(params);
         }
-        if let Some(gitmoji) = use_gitmoji {
-            self.use_emoji = gitmoji;
+        if let Some(emoji) = use_emoji {
+            self.use_emoji = emoji;
         }
         if let Some(instr) = instructions {
             self.instructions = instr;

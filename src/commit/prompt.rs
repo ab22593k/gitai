@@ -48,12 +48,12 @@ pub fn create_system_prompt(config: &Config) -> anyhow::Result<String> {
 
     prompt.push_str(get_combined_instructions(config).as_str());
 
-    // Check if using conventional commits preset - if so, explicitly disable gitmoji
+    // Check if using conventional commits preset - if so, explicitly disable emoji
     let is_conventional = config.instruction_preset == "conventional";
 
     if config.use_emoji && !is_conventional {
         prompt.push_str(
-            "\n\nUse a single gitmoji at the start of the commit message. \
+            "\n\nUse a single emoji at the start of the commit message. \
           Choose the most relevant emoji from the following list:\n\n",
         );
         prompt.push_str(&get_emoji_list());
@@ -282,8 +282,8 @@ fn format_change_type(change_type: &ChangeType) -> &'static str {
     }
 }
 
-pub fn process_commit_message(message: String, use_gitmoji: bool) -> String {
-    if use_gitmoji {
+pub fn process_commit_message(message: String, use_emoji: bool) -> String {
+    if use_emoji {
         apply_emoji(&message)
     } else {
         message
@@ -550,7 +550,7 @@ pub fn create_pr_system_prompt(config: &Config) -> anyhow::Result<String> {
     if config.use_emoji {
         prompt.push_str(
             "\n\nUse emojis strategically to create visual structure and reinforce section meaning. \
-          Use a single gitmoji at the start of the PR title, and include emojis in section headers \
+          Use a single emoji at the start of the PR title, and include emojis in section headers \
           to create a clean, professional, and visually structured PR description. \
           Choose relevant emojis from the following list:\n\n",
         );

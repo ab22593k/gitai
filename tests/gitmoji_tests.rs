@@ -1,4 +1,4 @@
-use gitpilot::emoji::{apply_emoji, get_emoji_list, get_gitmoji};
+use gitpilot::emoji::{apply_emoji, get_emoji, get_emoji_list};
 
 // Use our centralized test infrastructure
 #[path = "test_utils.rs"]
@@ -10,8 +10,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_apply_gitmoji() {
-        // Test standard gitmoji applications
+    fn test_apply_emoji() {
+        // Test standard emoji applications
         assert_eq!(
             apply_emoji("feat: add new feature"),
             "✨ feat: add new feature"
@@ -45,11 +45,11 @@ mod tests {
     }
 
     #[test]
-    fn test_get_gitmoji_list() {
+    fn test_get_emoji_list() {
         let list = get_emoji_list();
 
-        // Use our centralized assertion for gitmoji validation
-        TestAssertions::assert_contains_gitmoji(&list);
+        // Use our centralized assertion for emoji validation
+        TestAssertions::assert_contains_emoji(&list);
 
         // Additional specific checks
         assert!(list.contains("✨ - :feat: - Introduce new features"));
@@ -62,17 +62,17 @@ mod tests {
     }
 
     #[test]
-    fn test_get_gitmoji() {
-        // Test valid gitmoji lookups
-        assert_eq!(get_gitmoji("feat"), Some("✨"));
-        assert_eq!(get_gitmoji("fix"), Some("🐛"));
-        assert_eq!(get_gitmoji("docs"), Some("📝"));
-        assert_eq!(get_gitmoji("style"), Some("💄"));
-        assert_eq!(get_gitmoji("refactor"), Some("♻️"));
-        assert_eq!(get_gitmoji("test"), Some("✅"));
-        assert_eq!(get_gitmoji("chore"), Some("🔨"));
+    fn test_get_emoji() {
+        // Test valid emoji lookups
+        assert_eq!(get_emoji("feat"), Some("✨"));
+        assert_eq!(get_emoji("fix"), Some("🐛"));
+        assert_eq!(get_emoji("docs"), Some("📝"));
+        assert_eq!(get_emoji("style"), Some("💄"));
+        assert_eq!(get_emoji("refactor"), Some("♻️"));
+        assert_eq!(get_emoji("test"), Some("✅"));
+        assert_eq!(get_emoji("chore"), Some("🔨"));
 
         // Test invalid lookup
-        assert_eq!(get_gitmoji("unknown"), None);
+        assert_eq!(get_emoji("unknown"), None);
     }
 }

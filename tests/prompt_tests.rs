@@ -33,12 +33,12 @@ fn test_create_user_prompt_with_staged_files() {
 }
 
 #[test]
-fn test_create_system_prompt_with_gitmoji() {
-    let config = MockDataBuilder::config_with_gitmoji();
+fn test_create_system_prompt_with_emoji() {
+    let config = MockDataBuilder::config_with_emoji();
 
     let prompt = create_system_prompt(&config).expect("Failed to create system prompt");
 
-    TestAssertions::assert_contains_gitmoji(&prompt);
+    TestAssertions::assert_contains_emoji(&prompt);
 }
 
 #[test]
