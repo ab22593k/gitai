@@ -376,25 +376,6 @@ pub async fn handle_message(
     .await
 }
 
-/// Handle the `Config` command
-pub fn handle_config(
-    common: &CommonParams,
-    api_key: Option<String>,
-    model: Option<String>,
-    token_limit: Option<usize>,
-    param: Option<Vec<String>>,
-) -> anyhow::Result<()> {
-    log_debug!(
-        "Handling 'config' command with common: {:?}, api_key: {:?}, model: {:?}, token_limit: {:?}, param: {:?}",
-        common,
-        api_key,
-        model,
-        token_limit,
-        param
-    );
-    commands::handle_config_command(common, api_key, model, token_limit, param)
-}
-
 /// Handle the `Review` command
 pub async fn handle_review(
     common: CommonParams,
@@ -550,7 +531,7 @@ pub async fn handle_command(
             port,
             listen_address,
         } => handle_serve(dev, transport, port, listen_address).await,
-        Commands::Presets => commands::handle_list_presets_command(),
+        Commands::Presets => commands::handle_presets_command(),
         Commands::Pr {
             common,
             print,

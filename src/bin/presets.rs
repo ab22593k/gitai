@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-use gitpilot::{commands::handle_list_presets_command, logger};
+use gitpilot::{commands::handle_presets_command, logger};
 
 #[derive(Parser)]
 #[command(
@@ -15,7 +15,7 @@ async fn main() -> Result<()> {
 
     let _args = ListPresetsArgs::parse();
 
-    match handle_list_presets_command() {
+    match handle_presets_command() {
         Ok(()) => Ok(()),
         Err(e) => {
             eprintln!("Error: {e}");
