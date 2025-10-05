@@ -1,6 +1,6 @@
-# GitV
+# Git Pilot
 
-GitV is an AI-powered Git toolkit that enhances your Git workflow with intelligent commit messages, pull request generation, code reviews, changelogs, and more. It integrates with various LLM providers to automate and improve your development process.
+AI-powered Git toolkit that enhances workflow with intelligent commit messages, pull request generation, code reviews, changelogs, and more. It integrates with various LLM providers to automate and improve your development process.
 
 ## Features
 
@@ -17,43 +17,32 @@ GitV is an AI-powered Git toolkit that enhances your Git workflow with intellige
 ### From Source
 
 ```bash
-git clone https://github.com/your-repo/gitv.git
-cd gitv
+git clone https://github.com/ab22593k/gitpilot.git
+cd gitpilot
 cargo build --release
-# Add to PATH or use directly
 ```
-
-### Pre-built Binaries
-
-Download from [releases](https://github.com/your-repo/gitv/releases)
 
 ## Configuration
 
-GitV uses Git config to store settings. Configure your LLM provider:
+Gitpilot uses Git config to store settings. Configure your LLM provider:
 
 ```bash
 # Set global provider (e.g., Google Gemini)
-git config --global gitv.defaultprovider google
-git config --global gitv.google-apikey "your-api-key"
-git config --global gitv.google-model "gemini-1.5-pro"
+git config --global gitpilot.defaultprovider google
+git config --global gitpilot.google-apikey "your-api-key"
+git config --global gitpilot.google-model "gemini-1.5-pro"
 
 # Or set locally for a project
-git config --local gitv.defaultprovider google
-git config --local gitv.google-apikey "your-api-key"
-git config --local gitv.google-model "gemini-1.5-flash"
+git config --local gitpilot.defaultprovider google
+git config --local gitpilot.google-apikey "your-api-key"
+git config --local gitpilot.google-model "gemini-1.5-flash"
 ```
 
 Supported providers: `openai`, `anthropic`, `google`, `cohere`, `groq`, `ollama`, etc.
 
 You can also use the config command:
 
-```bash
-# Set provider, API key, and model
-gitv config --provider google --api-key "your-key" --model "gemini-1.5-pro"
 
-# For project-specific config
-gitv config --project --provider google --model "gemini-1.5-flash"
-```
 
 ## How to Use
 
@@ -64,119 +53,64 @@ gitv config --project --provider google --model "gemini-1.5-flash"
 git add .
 
 # Generate a commit message
-gitv commit
+git message
 
 # Or specify a custom instruction
-gitv commit --instructions "Focus on the API changes"
+git message --instructions "Focus on the API changes"
 ```
 
 ### Creating Pull Requests
 
 ```bash
 # Create a PR description for current branch vs main
-gitv pr
+git pr
 
 # Specify branches
-gitv pr --base main --head feature-branch
+git pr --base main --head feature-branch
 
 # Use different detail level
-gitv pr --detail-level detailed
+git pr --detail-level detailed
 ```
 
 ### Code Reviews
 
 ```bash
 # Review changes in current branch
-gitv review
+git review
 
 # Review specific branches
-gitv review --base main --head feature-branch
+git review --base main --head feature-branch
 
 # Review with custom instructions
-gitv review --instructions "Check for security issues"
+git review --instructions "Check for security issues"
 ```
 
 ### Generating Changelogs
 
 ```bash
 # Generate changelog from commits
-gitv changelog
+git changelog
 
 # Specify version and detail level
-gitv changelog --version 1.2.0 --detail-level standard
+git changelog --version 1.2.0 --detail-level standard
 
 # Generate release notes
-gitv release-notes --version 1.2.0
+git release-notes --version 1.2.0
 ```
-
 ### Managing Configuration
 
-```bash
-# View current config
-gitv config
-
-# Set provider and API key
-gitv config --provider openai --api-key "your-key"
-
-# Configure project-specific settings
-gitv config --project --instructions "Use conventional commits"
-```
 
 ### Other Commands
 
 ```bash
 # List available instruction presets
-gitv list-presets
-
-# Generate a single message (not a commit)
-gitv msg --instructions "Summarize this change"
-
-# Analyze project metadata
-gitv project
+git presets
 
 # Serve as MCP server
-gitv serve
+git serve
 
 # Wire operations (caching, syncing)
-gitv wire
-```
-
-## Examples
-
-### First Time Setup
-
-```bash
-# Install GitV
-cargo install --git https://github.com/your-repo/gitv.git
-
-# Configure Google Gemini
-git config --global gitv.defaultprovider google
-git config --global gitv.google-apikey "your-api-key"
-
-# Make your first AI commit
-git add .
-gitv commit
-```
-
-### Project-Specific Configuration
-
-```bash
-cd my-project
-git config --local alias.instructions "Use conventional commits format"
-git config --local alias.useemoji true
-```
-
-### Advanced Usage
-
-```bash
-# Generate PR with high detail
-gitv pr --detail-level detailed --instructions "Include testing notes"
-
-# Review with security focus
-gitv review --instructions "Check for SQL injection vulnerabilities"
-
-# Custom changelog
-gitv changelog --preset "detailed" --instructions "Focus on breaking changes"
+git wire
 ```
 
 ## Contributing

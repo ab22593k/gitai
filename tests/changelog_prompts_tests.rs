@@ -38,7 +38,6 @@ fn test_create_changelog_system_prompt() {
 
     // Assert that the prompt contains key instructions and elements
     assert!(prompt.contains("You are an AI assistant specialized in generating clear, concise, and informative changelogs"));
-    assert!(prompt.contains("include tasteful, appropriate, and intelligent use of emojis"));
     assert!(prompt.contains("Always mention performance impacts"));
     assert!(
         prompt.contains("Ensure that your response is a valid JSON object matching this structure")
@@ -142,7 +141,6 @@ fn test_create_release_notes_system_prompt() {
 
     // Assert that the prompt contains key instructions and elements
     assert!(prompt.contains("You are an AI assistant specialized in generating comprehensive and user-friendly release notes"));
-    assert!(prompt.contains("include tasteful, appropriate, and intelligent use of emojis"));
     assert!(prompt.contains("Always mention performance impacts"));
     assert!(
         prompt.contains("Ensure that your response is a valid JSON object matching this structure")

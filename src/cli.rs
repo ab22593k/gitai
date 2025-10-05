@@ -9,8 +9,6 @@ use clap::builder::{Styles, styling::AnsiColor};
 use clap::{Parser, Subcommand, crate_version};
 use colored::Colorize;
 
-const LOG_FILE: &str = "gitpilot-debug.log";
-
 /// CLI structure defining the available commands and global arguments
 #[derive(Parser)]
 #[command(
@@ -306,37 +304,6 @@ fn get_dynamic_help() -> String {
         "\\
 Available LLM Providers: {providers_list}"
     )
-}
-
-/// Main function to parse arguments and handle the command
-pub async fn main() -> anyhow::Result<()> {
-    let cli = parse_args();
-
-    if cli.version {
-        ui::print_version(crate_version!());
-        return Ok(());
-    }
-
-    if cli.log {
-        crate::logger::enable_logging();
-        let log_file = cli.log_file.as_deref().unwrap_or(LOG_FILE);
-        crate::logger::set_log_file(log_file)?;
-    } else {
-        crate::logger::disable_logging();
-    }
-
-    // Set quiet mode in the UI module
-    if cli.quiet {
-        crate::ui::set_quiet_mode(true);
-    }
-
-    if let Some(command) = cli.command {
-        handle_command(command, cli.repository_url).await
-    } else {
-        // If no subcommand is provided, print the help
-        let _ = Cli::parse_from(["gitpilot", "--help"]);
-        Ok(())
-    }
 }
 
 /// Configuration for the cmsg command

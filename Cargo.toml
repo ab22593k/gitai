@@ -4,15 +4,10 @@ description = "AI-powered toolkit that enhances `Git` workflow"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
-default-run = "gitpilot"
 
 [lib]
 name = "gitpilot"
 path = "src/lib.rs"
-
-[[bin]]
-name = "gitpilot"
-path = "src/main.rs"
 
 [[bin]]
 name = "git-message"

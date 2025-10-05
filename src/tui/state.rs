@@ -68,12 +68,12 @@ impl TuiState {
         let preset_list = list_presets_formatted(&preset_library)
             .split('\n')
             .map(|line| {
-                let parts: Vec<&str> = line.split(" - ").collect();
+                let parts: Vec<String> = line.split(" - ").map(|s| s.to_string()).collect();
                 (
-                    parts[0].to_string(),
-                    parts[1].to_string(),
-                    parts[2].to_string(),
-                    parts[3].to_string(),
+                    parts[0].clone(),
+                    parts[1].clone(),
+                    parts[2].clone(),
+                    parts.get(3).cloned().unwrap_or_default(),
                 )
             })
             .collect();

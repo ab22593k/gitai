@@ -6,7 +6,6 @@ pub struct InstructionPreset {
     pub name: String,
     pub description: String,
     pub instructions: String,
-    pub emoji: String,           // New field for emoji
     pub preset_type: PresetType, // New field to distinguish between commit and review presets
 }
 
@@ -45,7 +44,6 @@ impl InstructionPresetLibrary {
                 name: "Default".to_string(),
                 description: "Standard professional style".to_string(),
                 instructions: "Provide clear, concise, and professional responses. Focus on accuracy and relevance.".to_string(),
-                emoji: "📝".to_string(),
                 preset_type: PresetType::Both,
             },
         );
@@ -56,7 +54,6 @@ impl InstructionPresetLibrary {
                 name: "Detailed".to_string(),
                 description: "Provide more context and explanation".to_string(),
                 instructions: "Offer comprehensive explanations, including background information, potential impacts, and related considerations. Aim for thoroughness while maintaining clarity.".to_string(),
-                emoji: "🔍".to_string(),
                 preset_type: PresetType::Both,
             },
         );
@@ -67,7 +64,6 @@ impl InstructionPresetLibrary {
                 name: "Concise".to_string(),
                 description: "Short and to-the-point responses".to_string(),
                 instructions: "Keep responses brief and focused on the core information. Prioritize essential details and avoid unnecessary elaboration.".to_string(),
-                emoji: "🎯".to_string(),
                 preset_type: PresetType::Both,
             },
         );
@@ -78,7 +74,6 @@ impl InstructionPresetLibrary {
                 name: "Technical".to_string(),
                 description: "Focus on technical details".to_string(),
                 instructions: "Emphasize technical aspects in your responses. Include specific terminology, methodologies, or performance impacts where relevant. Assume a technically proficient audience.".to_string(),
-                emoji: "⚙️".to_string(),
                 preset_type: PresetType::Both,
             },
         );
@@ -89,7 +84,6 @@ impl InstructionPresetLibrary {
                 name: "Storyteller".to_string(),
                 description: "Frame information as part of an ongoing narrative".to_string(),
                 instructions: "Present information as if it's part of a larger story. Use narrative elements to describe changes, developments, or features. Connect individual elements to create a cohesive narrative arc.".to_string(),
-                emoji: "📚".to_string(),
                 preset_type: PresetType::Both,
             },
         );
@@ -100,7 +94,6 @@ impl InstructionPresetLibrary {
                 name: "Emoji Enthusiast".to_string(),
                 description: "Use emojis to enhance communication".to_string(),
                 instructions: "Incorporate relevant emojis throughout your responses to add visual flair and quickly convey the nature of the information. Ensure emojis complement rather than replace clear communication.".to_string(),
-                emoji: "😍".to_string(),
                 preset_type: PresetType::Both,
             },
         );
@@ -111,7 +104,6 @@ impl InstructionPresetLibrary {
                 name: "Formal".to_string(),
                 description: "Maintain a highly professional and formal tone".to_string(),
                 instructions: "Use formal language and structure in your responses. Avoid colloquialisms and maintain a respectful, business-like tone throughout.".to_string(),
-                emoji: "🎩".to_string(),
                 preset_type: PresetType::Both,
             },
         );
@@ -122,7 +114,7 @@ impl InstructionPresetLibrary {
                 name: "Explanatory".to_string(),
                 description: "Focus on explaining concepts and changes".to_string(),
                 instructions: "Prioritize explaining the 'why' behind information or changes. Provide context, rationale, and potential implications to foster understanding.".to_string(),
-                emoji: "💡".to_string(),
+
                 preset_type: PresetType::Both,
             },
         );
@@ -133,7 +125,7 @@ impl InstructionPresetLibrary {
                 name: "User-Focused".to_string(),
                 description: "Emphasize user impact and benefits".to_string(),
                 instructions: "Frame information in terms of its impact on users or stakeholders. Highlight benefits, improvements, and how changes affect the user experience.".to_string(),
-                emoji: "👥".to_string(),
+
                 preset_type: PresetType::Both,
             },
         );
@@ -144,7 +136,7 @@ impl InstructionPresetLibrary {
                 name: "Cosmic Oracle".to_string(),
                 description: "Channel mystical and cosmic energy".to_string(),
                 instructions: "Envision yourself as a cosmic entity, peering into the vast expanse of possibilities. Describe information as if they are celestial events or shifts in the fabric of reality. Use mystical and space-themed language to convey the essence and impact of each element.".to_string(),
-                emoji: "🔮".to_string(),
+
                 preset_type: PresetType::Both,
             },
         );
@@ -155,7 +147,7 @@ impl InstructionPresetLibrary {
                 name: "Academic".to_string(),
                 description: "Scholarly and research-oriented style".to_string(),
                 instructions: "Adopt an academic tone, citing relevant sources or methodologies where applicable. Use precise language and maintain a formal, analytical approach to the subject matter.".to_string(),
-                emoji: "🎓".to_string(),
+
                 preset_type: PresetType::Both,
             },
         );
@@ -166,7 +158,7 @@ impl InstructionPresetLibrary {
                 name: "Comparative".to_string(),
                 description: "Highlight differences and similarities".to_string(),
                 instructions: "Focus on comparing and contrasting elements. Identify key differences and similarities, and explain their significance or implications.".to_string(),
-                emoji: "⚖️".to_string(),
+
                 preset_type: PresetType::Both,
             },
         );
@@ -177,7 +169,7 @@ impl InstructionPresetLibrary {
                 name: "Future-Oriented".to_string(),
                 description: "Emphasize future implications and possibilities".to_string(),
                 instructions: "Frame information in terms of its future impact. Discuss potential developments, long-term consequences, and how current changes might shape future scenarios.".to_string(),
-                emoji: "🔮".to_string(),
+
                 preset_type: PresetType::Both,
             },
         );
@@ -188,7 +180,7 @@ impl InstructionPresetLibrary {
                 name: "Time Traveler".to_string(),
                 description: "Narrate from different points in time".to_string(),
                 instructions: "Imagine you're a time traveler, jumping between past, present, and future. Describe current information as if you're reporting from different time periods. Use appropriate historical or futuristic language and references, and highlight how perspectives change across time.".to_string(),
-                emoji: "⏳".to_string(),
+
                 preset_type: PresetType::Both,
             },
         );
@@ -199,7 +191,7 @@ impl InstructionPresetLibrary {
                 name: "Chef's Special".to_string(),
                 description: "Present information as a culinary experience".to_string(),
                 instructions: "Treat the information as ingredients in a gourmet meal. Describe changes or updates as if you're crafting a recipe or presenting a dish. Use culinary terms, cooking metaphors, and sensory descriptions to make the content more flavorful and engaging.".to_string(),
-                emoji: "👩‍🍳".to_string(),
+
                 preset_type: PresetType::Both,
             },
         );
@@ -210,7 +202,7 @@ impl InstructionPresetLibrary {
                 name: "Superhero Saga".to_string(),
                 description: "Frame information in a superhero universe".to_string(),
                 instructions: "Imagine the project or product as a superhero universe. Describe features, changes, or updates as if they're superpowers, epic battles, or heroic adventures. Use dramatic, comic-book style language and frame developments in terms of heroes, villains, and saving the day.".to_string(),
-                emoji: "🦸".to_string(),
+
                 preset_type: PresetType::Both,
             },
         );
@@ -221,7 +213,7 @@ impl InstructionPresetLibrary {
                 name: "Nature Documentary".to_string(),
                 description: "Narrate as if observing a natural phenomenon".to_string(),
                 instructions: "Channel your inner David Attenborough and describe the information as if you're narrating a nature documentary. Treat code, features, or processes as flora and fauna in a complex ecosystem. Use a tone of fascination and wonder, and explain interactions and developments as if observing them in their natural habitat.".to_string(),
-                emoji: "🌿".to_string(),
+
                 preset_type: PresetType::Both,
             },
         );
@@ -232,7 +224,7 @@ impl InstructionPresetLibrary {
                 name: "Chill".to_string(),
                 description: "Professional but fun commit messages".to_string(),
                 instructions: "Use a style that's professionally informative but with a touch of clever humor. Keep it light and engaging while still conveying the essential information.".to_string(),
-                emoji: "😎".to_string(),
+
                 preset_type: PresetType::Both,
             }
         );
@@ -243,7 +235,7 @@ impl InstructionPresetLibrary {
                 name: "Hater".to_string(),
                 description: "Hyper-critical and brutally honest style".to_string(),
                 instructions: "Adopt a hyper-critical approach. Focus on finding flaws, weaknesses, and potential issues. Provide brutally honest feedback and don't hesitate to point out even minor imperfections.".to_string(),
-                emoji: "💢".to_string(),
+
                 preset_type: PresetType::Both,
             },
         );
@@ -308,7 +300,7 @@ impl InstructionPresetLibrary {
                                ✗ feat: Add user authentication (missing scope when relevant)\n\
                                ✗ feat: adds user authentication (wrong mood)\n\
                                ✗ 🎉 feat(auth): add authentication (has emoji)".to_string(),
-                emoji: "📏".to_string(),
+
                 preset_type: PresetType::Both,
             },
         );
@@ -320,7 +312,7 @@ impl InstructionPresetLibrary {
                 name: "Security".to_string(),
                 description: "Focus on security vulnerabilities and best practices".to_string(),
                 instructions: "Prioritize identifying security vulnerabilities, including potential injection attacks, authentication issues, authorization flaws, data exposure risks, and insecure configurations. Suggest security best practices and hardening techniques relevant to the code changes.".to_string(),
-                emoji: "🔒".to_string(),
+
                 preset_type: PresetType::Review,
             },
         );
@@ -331,7 +323,7 @@ impl InstructionPresetLibrary {
                 name: "Performance".to_string(),
                 description: "Analyze code for performance optimizations".to_string(),
                 instructions: "Focus on identifying performance bottlenecks, inefficient algorithms, unnecessary computations, memory leaks, and resource management issues. Suggest optimization strategies and performance best practices specific to the language and framework being used.".to_string(),
-                emoji: "⚡".to_string(),
+
                 preset_type: PresetType::Review,
             },
         );
@@ -342,7 +334,7 @@ impl InstructionPresetLibrary {
                 name: "Architecture".to_string(),
                 description: "Evaluate architectural patterns and design decisions".to_string(),
                 instructions: "Analyze the architectural patterns and design decisions in the code. Evaluate separation of concerns, coupling between components, adherence to design principles (SOLID, DRY, etc.), and overall system structure. Suggest improvements to enhance maintainability, scalability, and extensibility.".to_string(),
-                emoji: "🏗️".to_string(),
+
                 preset_type: PresetType::Review,
             },
         );
@@ -353,7 +345,7 @@ impl InstructionPresetLibrary {
                 name: "Testing".to_string(),
                 description: "Focus on test coverage and testing strategies".to_string(),
                 instructions: "Evaluate test coverage and testing strategies for the code changes. Identify areas lacking tests, suggest test cases for edge conditions, and recommend testing approaches appropriate for the code (unit tests, integration tests, property-based tests, etc.). Emphasize ways to improve test quality and maintainability.".to_string(),
-                emoji: "🧪".to_string(),
+
                 preset_type: PresetType::Review,
             },
         );
@@ -364,7 +356,7 @@ impl InstructionPresetLibrary {
                 name: "Maintainability".to_string(),
                 description: "Evaluate code for long-term maintenance".to_string(),
                 instructions: "Focus on aspects that affect long-term code maintainability, including readability, documentation quality, consistent naming conventions, code complexity, and technical debt. Suggest refactorings that would improve future maintenance efforts and knowledge transfer between team members.".to_string(),
-                emoji: "🔧".to_string(),
+
                 preset_type: PresetType::Review,
             },
         );
@@ -375,7 +367,7 @@ impl InstructionPresetLibrary {
                 name: "Code Conventions".to_string(),
                 description: "Check adherence to language and project coding standards".to_string(),
                 instructions: "Analyze how well the code adheres to language-specific conventions, project style guides, and industry best practices. Identify inconsistencies in formatting, naming, documentation, and structure. Suggest adjustments to improve consistency and alignment with established patterns in the codebase.".to_string(),
-                emoji: "📏".to_string(),
+
                 preset_type: PresetType::Review,
             },
         );
@@ -450,8 +442,8 @@ pub fn list_presets_formatted_by_type(
                 PresetType::Both => "[B]",
             };
             format!(
-                "{} {} - {} - {} - {}",
-                type_indicator, key, preset.emoji, preset.name, preset.description
+                "{type_indicator} {key} - {} - {}",
+                preset.name, preset.description
             )
         })
         .collect::<Vec<String>>()
@@ -482,8 +474,8 @@ pub fn list_valid_presets_for_command_formatted(
                 PresetType::Both => "[B]",
             };
             format!(
-                "{} {} - {} - {} - {}",
-                type_indicator, key, preset.emoji, preset.name, preset.description
+                "{type_indicator} {key} - {} - {}",
+                preset.name, preset.description
             )
         })
         .collect::<Vec<String>>()
