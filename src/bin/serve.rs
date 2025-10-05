@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-use gitpilot::{cli, logger};
+use gitpilot::{app, logger};
 
 #[derive(Parser)]
 #[command(
@@ -39,7 +39,8 @@ async fn main() -> Result<()> {
     logger::init().expect("Failed to initialize logger");
 
     let args = ServeArgs::parse();
-    match cli::handle_serve(args.dev, args.transport, args.port, args.listen_address).await {
+    match app::handle_serve_command(args.dev, args.transport, args.port, args.listen_address).await
+    {
         Ok(()) => Ok(()),
         Err(e) => {
             eprintln!("Error: {e}");

@@ -34,10 +34,6 @@ name = "git-serve"
 path = "src/bin/serve.rs"
 
 [[bin]]
-name = "git-presets"
-path = "src/bin/presets.rs"
-
-[[bin]]
 name = "git-wire"
 path = "src/bin/wire.rs"
 

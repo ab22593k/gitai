@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-use gitpilot::{cli, common::CommonParams, logger};
+use gitpilot::{app, common::CommonParams, logger};
 
 #[derive(Parser)]
 #[command(name = "git-flow-review", about = "Review staged changes using AI")]
@@ -45,7 +45,7 @@ async fn main() -> Result<()> {
     let args = ReviewArgs::parse();
     let repository_url = args.common.repository_url.clone();
 
-    match cli::handle_review(
+    match app::handle_review(
         args.common,
         args.print,
         repository_url,

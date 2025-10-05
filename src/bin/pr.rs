@@ -1,10 +1,10 @@
 use anyhow::Result;
 use clap::Parser;
-use gitpilot::{cli, common::CommonParams, logger};
+use gitpilot::{app, common::CommonParams, logger};
 
 #[derive(Parser)]
 #[command(
-    name = "git-flow-pr",
+    name = "git-pr",
     about = "Generate a pull request description using AI"
 )]
 struct PrArgs {
@@ -42,7 +42,8 @@ async fn main() -> Result<()> {
 
     let repository_url = args.common.repository_url.clone();
 
-    match cli::handle_pr(args.common, args.print, args.from, args.to, repository_url).await {
+    match app::handle_pr_command(args.common, args.print, args.from, args.to, repository_url).await
+    {
         Ok(()) => Ok(()),
         Err(e) => {
             eprintln!("Error: {e}");

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-use gitpilot::cli::{self, CmsgConfig};
+use gitpilot::app::{self, CmsgConfig};
 use gitpilot::common::CommonParams;
 use gitpilot::logger;
 
@@ -40,10 +40,9 @@ async fn main() -> Result<()> {
     logger::init().expect("Failed to initialize logger");
 
     let args = MessageArgs::parse();
-
     let repository_url = args.common.repository_url.clone();
 
-    match cli::handle_message(
+    match app::handle_message(
         args.common,
         CmsgConfig {
             auto_commit: args.auto_commit,

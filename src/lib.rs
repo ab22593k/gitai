@@ -1,6 +1,5 @@
+pub mod app;
 pub mod changes;
-pub mod cli;
-pub mod commands;
 pub mod commit;
 pub mod common;
 pub mod config;

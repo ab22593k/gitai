@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-use gitpilot::{cli, common::CommonParams, logger};
+use gitpilot::{app, common::CommonParams, logger};
 
 #[derive(Parser)]
 #[command(name = "git-flow-changelog", about = "Generate a changelog")]
@@ -37,7 +37,7 @@ async fn main() -> Result<()> {
 
     let repository_url = args.common.repository_url.clone();
 
-    match cli::handle_changelog(
+    match app::handle_changelog(
         args.common,
         args.from,
         args.to,

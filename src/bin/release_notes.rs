@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-use gitpilot::{cli, common::CommonParams, logger};
+use gitpilot::{app, common::CommonParams, logger};
 
 #[derive(Parser)]
 #[command(name = "git-flow-release-notes", about = "Generate release notes")]
@@ -29,7 +29,7 @@ async fn main() -> Result<()> {
 
     let repository_url = args.common.repository_url.clone();
 
-    match cli::handle_release_notes(
+    match app::handle_release_notes(
         args.common,
         args.from,
         args.to,

@@ -1,9 +1,10 @@
 use crate::changes;
-use crate::commands;
 use crate::commit;
 use crate::common::CommonParams;
 use crate::debug;
 use crate::llm::get_available_provider_names;
+use crate::mcp::config::{MCPServerConfig, MCPTransportType};
+use crate::mcp::server;
 use crate::ui;
 use clap::builder::{Styles, styling::AnsiColor};
 use clap::{Parser, Subcommand, crate_version};
@@ -22,7 +23,7 @@ use colored::Colorize;
 pub struct Cli {
     /// Subcommands available for the CLI
     #[command(subcommand)]
-    pub command: Option<Commands>,
+    pub command: Option<PilotCMD>,
 
     /// Log debug messages to a file
     #[arg(
@@ -73,7 +74,7 @@ pub struct Cli {
 #[derive(Subcommand)]
 #[command(subcommand_negates_reqs = true)]
 #[command(subcommand_precedence_over_arg = true)]
-pub enum Commands {
+pub enum PilotCMD {
     // Feature commands first
     /// Generate a commit message using AI
     #[command(
@@ -266,10 +267,6 @@ Supported commitish syntax: HEAD~2, HEAD^, @~3, main~1, origin/main^, etc."
         )]
         listen_address: Option<String>,
     },
-
-    /// List available instruction presets
-    #[command(about = "List available instruction presets")]
-    Presets,
 }
 
 /// Define custom styles for Clap
@@ -402,27 +399,13 @@ pub async fn handle_release_notes(
     changes::handle_release_notes_command(common, from, to, repository_url, version_name).await
 }
 
-/// Handle the `Serve` command
-pub async fn handle_serve(
-    dev: bool,
-    transport: String,
-    port: Option<u16>,
-    listen_address: Option<String>,
-) -> anyhow::Result<()> {
-    debug!(
-        "Handling 'serve' command with dev: {}, transport: {}, port: {:?}, listen_address: {:?}",
-        dev, transport, port, listen_address
-    );
-    commands::handle_serve_command(dev, transport, port, listen_address).await
-}
-
 /// Handle the command based on parsed arguments
 pub async fn handle_command(
-    command: Commands,
+    command: PilotCMD,
     repository_url: Option<String>,
 ) -> anyhow::Result<()> {
     match command {
-        Commands::Message {
+        PilotCMD::Message {
             common,
             auto_commit,
             no_emoji,
@@ -442,7 +425,7 @@ pub async fn handle_command(
             )
             .await
         }
-        Commands::Review {
+        PilotCMD::Review {
             common,
             print,
             include_unstaged,
@@ -461,7 +444,7 @@ pub async fn handle_command(
             )
             .await
         }
-        Commands::Changelog {
+        PilotCMD::Changelog {
             common,
             from,
             to,
@@ -469,30 +452,29 @@ pub async fn handle_command(
             file,
             version_name,
         } => handle_changelog(common, from, to, repository_url, update, file, version_name).await,
-        Commands::ReleaseNotes {
+        PilotCMD::ReleaseNotes {
             common,
             from,
             to,
             version_name,
         } => handle_release_notes(common, from, to, repository_url, version_name).await,
-        Commands::Serve {
+        PilotCMD::Serve {
             dev,
             transport,
             port,
             listen_address,
-        } => handle_serve(dev, transport, port, listen_address).await,
-        Commands::Presets => commands::handle_presets_command(),
-        Commands::Pr {
+        } => handle_serve_command(dev, transport, port, listen_address).await,
+        PilotCMD::Pr {
             common,
             print,
             from,
             to,
-        } => handle_pr(common, print, from, to, repository_url).await,
+        } => handle_pr_command(common, print, from, to, repository_url).await,
     }
 }
 
 /// Handle the `Pr` command
-pub async fn handle_pr(
+pub async fn handle_pr_command(
     common: CommonParams,
     print: bool,
     from: Option<String>,
@@ -506,4 +488,50 @@ pub async fn handle_pr(
     ui::print_version(crate_version!());
     ui::print_newline();
     commit::handle_pr_command(common, print, repository_url, from, to).await
+}
+
+/// Handle the 'serve' command to start an MCP server
+pub async fn handle_serve_command(
+    dev: bool,
+    transport: String,
+    port: Option<u16>,
+    listen_address: Option<String>,
+) -> anyhow::Result<()> {
+    debug!(
+        "Starting 'serve' command with dev: {}, transport: {}, port: {:?}, listen_address: {:?}",
+        dev, transport, port, listen_address
+    );
+
+    // Create MCP server configuration
+    let mut config = MCPServerConfig::default();
+
+    // Set development mode
+    if dev {
+        config = config.with_dev_mode();
+    }
+
+    // Set transport type
+    let transport_type = match transport.to_lowercase().as_str() {
+        "stdio" => MCPTransportType::StdIO,
+        "sse" => MCPTransportType::SSE,
+        _ => {
+            return Err(anyhow::anyhow!(
+                "Invalid transport type: {transport}. Valid options are: stdio, sse"
+            ));
+        }
+    };
+    config = config.with_transport(transport_type);
+
+    // Set port if provided
+    if let Some(p) = port {
+        config = config.with_port(p);
+    }
+
+    // Set listen address if provided
+    if let Some(addr) = listen_address {
+        config = config.with_listen_address(addr);
+    }
+
+    // Start the server - all UI output is now handled inside serve implementation
+    server::serve(config).await
 }
