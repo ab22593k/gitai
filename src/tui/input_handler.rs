@@ -1,6 +1,6 @@
 use super::app::TuiCommit;
 use super::spinner::SpinnerState;
-use super::state::{EmojiMode, Mode};
+use super::state::Mode;
 use crate::commit::types::format_commit_message;
 use crossterm::event::{KeyCode, KeyEvent};
 
@@ -17,7 +17,6 @@ pub fn handle_input(app: &mut TuiCommit, key: KeyEvent) -> InputResult {
             result
         }
         Mode::EditingInstructions => handle_editing_instructions(app, key),
-        Mode::SelectingEmoji => handle_selecting_emoji(app, key),
         Mode::SelectingPreset => handle_selecting_preset(app, key),
         Mode::EditingUserInfo => handle_editing_user_info(app, key),
         Mode::Help => handle_help(app, key),
@@ -50,13 +49,6 @@ fn handle_normal_mode(app: &mut TuiCommit, key: KeyEvent) -> InputResult {
                 app.state.mode = Mode::Normal;
                 app.state.set_status(String::from("Instructions hidden."));
             }
-            InputResult::Continue
-        }
-        KeyCode::Char('j') => {
-            app.state.mode = Mode::SelectingEmoji;
-            app.state.set_status(String::from(
-                "Selecting emoji. Use arrow keys and Enter to select, Esc to cancel.",
-            ));
             InputResult::Continue
         }
         KeyCode::Char('p') => {
@@ -189,61 +181,6 @@ fn handle_editing_instructions(app: &mut TuiCommit, key: KeyEvent) -> InputResul
     }
 }
 
-fn handle_selecting_emoji(app: &mut TuiCommit, key: KeyEvent) -> InputResult {
-    match key.code {
-        KeyCode::Esc => {
-            app.state.mode = Mode::Normal;
-            app.state
-                .set_status(String::from("Emoji selection cancelled."));
-            InputResult::Continue
-        }
-        KeyCode::Enter => {
-            if let Some(selected) = app.state.emoji_list_state.selected() {
-                let new_emoji_mode = match selected {
-                    0 => EmojiMode::None,
-                    1 => EmojiMode::Auto,
-                    _ => EmojiMode::Custom(app.state.emoji_list[selected].0.clone()),
-                };
-
-                // Apply the selected emoji to the current message
-                if let Some(message) = app.state.messages.get_mut(app.state.current_index) {
-                    message.emoji = match &new_emoji_mode {
-                        EmojiMode::None => None,
-                        EmojiMode::Auto => message.emoji.clone(), // Keep existing emoji
-                        EmojiMode::Custom(emoji) => Some(emoji.clone()),
-                    };
-                }
-
-                app.state.emoji_mode = new_emoji_mode;
-                app.state.mode = Mode::Normal;
-                app.state
-                    .set_status(format!("Emoji mode set to: {:?}", app.state.emoji_mode));
-                app.state.update_message_textarea();
-            }
-            InputResult::Continue
-        }
-        KeyCode::Up => {
-            if let Some(selected) = app.state.emoji_list_state.selected() {
-                let new_selection = if selected > 0 {
-                    selected - 1
-                } else {
-                    app.state.emoji_list.len() - 1
-                };
-                app.state.emoji_list_state.select(Some(new_selection));
-            }
-            InputResult::Continue
-        }
-        KeyCode::Down => {
-            if let Some(selected) = app.state.emoji_list_state.selected() {
-                let new_selection = (selected + 1) % app.state.emoji_list.len();
-                app.state.emoji_list_state.select(Some(new_selection));
-            }
-            InputResult::Continue
-        }
-        _ => InputResult::Continue,
-    }
-}
-
 fn handle_selecting_preset(app: &mut TuiCommit, key: KeyEvent) -> InputResult {
     match key.code {
         KeyCode::Esc => {
@@ -258,10 +195,6 @@ fn handle_selecting_preset(app: &mut TuiCommit, key: KeyEvent) -> InputResult {
                     .selected_preset
                     .clone_from(&app.state.preset_list[selected].0);
                 app.state.mode = Mode::Normal;
-                app.state.set_status(format!(
-                    "Preset selected: {}",
-                    app.state.get_selected_preset_name_with_emoji()
-                ));
                 app.handle_regenerate();
             }
             InputResult::Continue

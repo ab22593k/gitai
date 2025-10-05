@@ -1,5 +1,4 @@
 use crate::commit::types::{GeneratedMessage, format_commit_message};
-use crate::emoji::get_emoji_list;
 use crate::instruction_presets::{get_instruction_preset_library, list_presets_formatted};
 use ratatui::widgets::ListState;
 use tui_textarea::TextArea;
@@ -12,17 +11,9 @@ pub enum Mode {
     EditingMessage,
     EditingInstructions,
     EditingUserInfo,
-    SelectingEmoji,
     SelectingPreset,
     Generating,
     Help,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum EmojiMode {
-    None,
-    Auto,
-    Custom(String),
 }
 
 pub struct TuiState {
@@ -35,8 +26,6 @@ pub struct TuiState {
     pub mode: Mode,
     pub message_textarea: TextArea<'static>,
     pub instructions_textarea: TextArea<'static>,
-    pub emoji_list: Vec<(String, String)>,
-    pub emoji_list_state: ListState,
     pub preset_list: Vec<(String, String, String, String)>,
     pub preset_list_state: ListState,
     pub user_name: String,
@@ -46,7 +35,6 @@ pub struct TuiState {
     pub spinner: Option<SpinnerState>,
     pub dirty: bool, // Used to track if we need to redraw
     pub last_spinner_update: std::time::Instant,
-    pub emoji_mode: EmojiMode,
     pub instructions_visible: bool,
     pub nav_bar_visible: bool,
 }
@@ -58,7 +46,6 @@ impl TuiState {
         preset: String,
         user_name: String,
         user_email: String,
-        use_emoji: bool,
     ) -> Self {
         let mut message_textarea = TextArea::default();
         let messages = if initial_messages.is_empty() {
@@ -76,20 +63,6 @@ impl TuiState {
 
         let mut instructions_textarea = TextArea::default();
         instructions_textarea.insert_str(&custom_instructions);
-
-        let mut emoji_list = vec![
-            ("None".to_string(), "No emoji".to_string()),
-            ("Auto".to_string(), "Let AI choose".to_string()),
-        ];
-        emoji_list.extend(get_emoji_list().split('\n').map(|line| {
-            let parts: Vec<&str> = line.splitn(2, ' ').collect();
-            (parts[0].to_string(), parts[1].to_string())
-        }));
-
-        let mut emoji_list_state = ListState::default();
-        if !emoji_list.is_empty() {
-            emoji_list_state.select(Some(0));
-        }
 
         let preset_library = get_instruction_preset_library();
         let preset_list = list_presets_formatted(&preset_library)
@@ -123,13 +96,6 @@ impl TuiState {
             mode: Mode::Normal,
             message_textarea,
             instructions_textarea,
-            emoji_list,
-            emoji_list_state,
-            emoji_mode: if use_emoji {
-                EmojiMode::Auto
-            } else {
-                EmojiMode::None
-            },
             preset_list,
             preset_list_state,
             user_name,
@@ -152,12 +118,8 @@ impl TuiState {
 
     pub fn update_message_textarea(&mut self) {
         let current_message = &self.messages[self.current_index];
-        let emoji_prefix = self
-            .get_current_emoji()
-            .map_or(String::new(), |e| format!("{e} "));
         let message_content = format!(
-            "{}{}\n\n{}",
-            emoji_prefix,
+            "{}\n\n{}",
             current_message.title,
             current_message.message.trim()
         );
@@ -166,24 +128,6 @@ impl TuiState {
         new_textarea.insert_str(&message_content);
         self.message_textarea = new_textarea;
         self.dirty = true;
-    }
-
-    pub fn get_selected_preset_name_with_emoji(&self) -> String {
-        self.preset_list
-            .iter()
-            .find(|(key, _, _, _)| key == &self.selected_preset)
-            .map_or_else(
-                || "None".to_string(),
-                |(_, emoji, name, _)| format!("{emoji} {name}"),
-            )
-    }
-
-    pub fn get_current_emoji(&self) -> Option<String> {
-        match &self.emoji_mode {
-            EmojiMode::None => None,
-            EmojiMode::Auto => self.messages[self.current_index].emoji.clone(),
-            EmojiMode::Custom(emoji) => Some(emoji.clone()),
-        }
     }
 
     pub fn apply_selected_emoji(&mut self) {

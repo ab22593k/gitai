@@ -74,7 +74,7 @@ pub async fn handle_message_command(
     // Create and start the spinner
     let spinner = ui::create_spinner("");
     let random_message = messages::get_waiting_message();
-    spinner.set_message(random_message.text);
+    spinner.set_message(random_message.text.clone());
 
     // Generate an initial message
     let initial_message = if dry_run {
@@ -138,7 +138,6 @@ pub async fn handle_message_command(
         git_info.user_name,
         git_info.user_email,
         service,
-        config.use_emoji,
     )
     .await?;
 

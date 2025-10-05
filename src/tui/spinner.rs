@@ -21,7 +21,7 @@ impl SpinnerState {
         Self {
             frames: vec!["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],
             current_frame: 0,
-            message: get_waiting_message(),
+            message: get_waiting_message().clone(),
         }
     }
 
@@ -31,7 +31,7 @@ impl SpinnerState {
         Self {
             frames: vec!["⠁", "⠂", "⠄", "⡀", "⢀", "⠠", "⠐", "⠈"],
             current_frame: 0,
-            message: get_waiting_message(),
+            message: get_waiting_message().clone(),
         }
     }
 
@@ -41,7 +41,7 @@ impl SpinnerState {
         Self {
             frames: vec!["◜", "◠", "◝", "◞", "◡", "◟"],
             current_frame: 0,
-            message: get_waiting_message(),
+            message: get_waiting_message().clone(),
         }
     }
 
@@ -51,7 +51,7 @@ impl SpinnerState {
         Self {
             frames: vec!["←", "↖", "↑", "↗", "→", "↘", "↓", "↙"],
             current_frame: 0,
-            message: get_waiting_message(),
+            message: get_waiting_message().clone(),
         }
     }
 
@@ -61,7 +61,7 @@ impl SpinnerState {
         Self {
             frames: vec!["┤", "┘", "┴", "└", "├", "┌", "┬", "┐"],
             current_frame: 0,
-            message: get_waiting_message(),
+            message: get_waiting_message().clone(),
         }
     }
 
@@ -71,7 +71,7 @@ impl SpinnerState {
         Self {
             frames: vec!["-", "\\", "|", "/"],
             current_frame: 0,
-            message: get_waiting_message(),
+            message: get_waiting_message().clone(),
         }
     }
 

@@ -1,10 +1,10 @@
 use crate::config::Config;
 use crate::context::{CommitContext, ProjectMetadata, RecentCommit, StagedFile};
+use crate::debug;
 use crate::git::commit::{self, CommitResult};
 use crate::git::files::{RepoFilesInfo, get_file_statuses, get_unstaged_file_statuses};
 use crate::git::metadata;
 use crate::git::utils::is_inside_work_tree;
-use crate::log_debug;
 use anyhow::{Context as AnyhowContext, Result, anyhow};
 use git2::{Repository, Tree};
 use std::env;
@@ -73,7 +73,7 @@ impl GitRepo {
     ///
     /// A Result containing the `GitRepo` instance or an error.
     pub fn clone_remote_repository(url: &str) -> Result<Self> {
-        log_debug!("Cloning remote repository from URL: {}", url);
+        debug!("Cloning remote repository from URL: {}", url);
 
         // Validate URL
         let _ = Url::parse(url).map_err(|e| anyhow!("Invalid repository URL: {e}"))?;
@@ -82,7 +82,7 @@ impl GitRepo {
         let temp_dir = TempDir::new()?;
         let temp_path = temp_dir.path();
 
-        log_debug!("Created temporary directory for clone: {:?}", temp_path);
+        debug!("Created temporary directory for clone: {:?}", temp_path);
 
         // Clone the repository into the temporary directory
         let repo = match Repository::clone(url, temp_path) {
@@ -90,7 +90,7 @@ impl GitRepo {
             Err(e) => return Err(anyhow!("Failed to clone repository: {e}")),
         };
 
-        log_debug!("Successfully cloned repository to {:?}", repo.path());
+        debug!("Successfully cloned repository to {:?}", repo.path());
 
         Ok(Self {
             repo_path: temp_path.to_path_buf(),
@@ -126,7 +126,7 @@ impl GitRepo {
             return Err(anyhow!("Not a remote repository"));
         }
 
-        log_debug!("Updating remote repository");
+        debug!("Updating remote repository");
         let repo = self.open_repo()?;
 
         // Find the default remote (usually "origin")
@@ -141,7 +141,7 @@ impl GitRepo {
         let mut remote = repo.find_remote(remote_name)?;
         remote.fetch(&["master", "main"], None, None)?;
 
-        log_debug!("Successfully updated remote repository");
+        debug!("Successfully updated remote repository");
         Ok(())
     }
 
@@ -154,7 +154,7 @@ impl GitRepo {
         let repo = self.open_repo()?;
         let head = repo.head()?;
         let branch_name = head.shorthand().unwrap_or("HEAD detached").to_string();
-        log_debug!("Current branch: {}", branch_name);
+        debug!("Current branch: {}", branch_name);
         Ok(branch_name)
     }
 
@@ -169,7 +169,7 @@ impl GitRepo {
     /// A Result indicating success or an error.
     pub fn execute_hook(&self, hook_name: &str) -> Result<()> {
         if self.is_remote {
-            log_debug!("Skipping hook execution for remote repository");
+            debug!("Skipping hook execution for remote repository");
             return Ok(());
         }
 
@@ -177,14 +177,14 @@ impl GitRepo {
         let hook_path = repo.path().join("hooks").join(hook_name);
 
         if hook_path.exists() {
-            log_debug!("Executing hook: {}", hook_name);
-            log_debug!("Hook path: {:?}", hook_path);
+            debug!("Executing hook: {}", hook_name);
+            debug!("Hook path: {:?}", hook_path);
 
             // Get the repository's working directory (top level)
             let repo_workdir = repo
                 .workdir()
                 .context("Repository has no working directory")?;
-            log_debug!("Repository working directory: {:?}", repo_workdir);
+            debug!("Repository working directory: {:?}", repo_workdir);
 
             // Create a command with the proper environment and working directory
             let mut command = Command::new(&hook_path);
@@ -195,7 +195,7 @@ impl GitRepo {
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped());
 
-            log_debug!("Executing hook command: {:?}", command);
+            debug!("Executing hook command: {:?}", command);
 
             let mut child = command.spawn()?;
 
@@ -221,9 +221,9 @@ impl GitRepo {
                 ));
             }
 
-            log_debug!("Hook '{}' executed successfully", hook_name);
+            debug!("Hook '{}' executed successfully", hook_name);
         } else {
-            log_debug!("Hook '{}' not found at {:?}", hook_name, hook_path);
+            debug!("Hook '{}' not found at {:?}", hook_name, hook_path);
         }
 
         Ok(())
@@ -274,7 +274,7 @@ impl GitRepo {
     ///
     /// A Result containing an `Option<String>` with the README content or an error.
     fn find_readme_in_tree(repo: &Repository, tree: &Tree) -> Result<Option<String>> {
-        log_debug!("Searching for README file in the repository");
+        debug!("Searching for README file in the repository");
 
         let readme_patterns = [
             "README.md",
@@ -295,13 +295,13 @@ impl GitRepo {
                 if let Some(blob) = object.as_blob()
                     && let Ok(content) = std::str::from_utf8(blob.content())
                 {
-                    log_debug!("README file found: {}", name);
+                    debug!("README file found: {}", name);
                     return Ok(Some(content.to_string()));
                 }
             }
         }
 
-        log_debug!("No README file found");
+        debug!("No README file found");
         Ok(None)
     }
 
@@ -318,7 +318,7 @@ impl GitRepo {
         if include_unstaged {
             let unstaged_files = self.get_unstaged_files()?;
             staged_files.extend(unstaged_files);
-            log_debug!("Combined {} files (staged + unstaged)", staged_files.len());
+            debug!("Combined {} files (staged + unstaged)", staged_files.len());
         }
 
         // Extract file paths for metadata
@@ -399,7 +399,7 @@ impl GitRepo {
     pub async fn get_git_info(&self, _config: &Config) -> Result<CommitContext> {
         // Get data that doesn't cross async boundaries
         let repo = self.open_repo()?;
-        log_debug!("Getting git info for repo path: {:?}", repo.path());
+        debug!("Getting git info for repo path: {:?}", repo.path());
 
         let branch = self.get_current_branch()?;
         let recent_commits = self.get_recent_commits(5)?;
@@ -408,11 +408,11 @@ impl GitRepo {
         let changed_files: Vec<String> =
             staged_files.iter().map(|file| file.path.clone()).collect();
 
-        log_debug!("Changed files for metadata extraction: {:?}", changed_files);
+        debug!("Changed files for metadata extraction: {:?}", changed_files);
 
         // Get project metadata (async operation)
         let project_metadata = self.get_project_metadata(&changed_files).await?;
-        log_debug!("Extracted project metadata: {:?}", project_metadata);
+        debug!("Extracted project metadata: {:?}", project_metadata);
 
         // Create and return the context
         self.create_commit_context(branch, recent_commits, staged_files, project_metadata)
@@ -433,7 +433,7 @@ impl GitRepo {
         _config: &Config,
         include_unstaged: bool,
     ) -> Result<CommitContext> {
-        log_debug!("Getting git info with unstaged flag: {}", include_unstaged);
+        debug!("Getting git info with unstaged flag: {}", include_unstaged);
 
         // Extract all git2 data before crossing async boundaries
         let files_info = self.extract_files_info(include_unstaged)?;
@@ -467,10 +467,9 @@ impl GitRepo {
         base_branch: &str,
         target_branch: &str,
     ) -> Result<CommitContext> {
-        log_debug!(
+        debug!(
             "Getting git info for branch diff: {} -> {}",
-            base_branch,
-            target_branch
+            base_branch, target_branch
         );
         let repo = self.open_repo()?;
 
@@ -510,7 +509,7 @@ impl GitRepo {
         from: &str,
         to: &str,
     ) -> Result<CommitContext> {
-        log_debug!("Getting git info for commit range: {} -> {}", from, to);
+        debug!("Getting git info for commit range: {} -> {}", from, to);
         let repo = self.open_repo()?;
 
         // Extract commit range info
@@ -550,7 +549,7 @@ impl GitRepo {
     /// A Result containing a Vec of `RecentCommit` objects or an error.
     pub fn get_recent_commits(&self, count: usize) -> Result<Vec<RecentCommit>> {
         let repo = self.open_repo()?;
-        log_debug!("Fetching {} recent commits", count);
+        debug!("Fetching {} recent commits", count);
         let mut revwalk = repo.revwalk()?;
         revwalk.push_head()?;
 
@@ -569,7 +568,7 @@ impl GitRepo {
             })
             .collect::<Result<Vec<_>>>()?;
 
-        log_debug!("Retrieved {} recent commits", commits.len());
+        debug!("Retrieved {} recent commits", commits.len());
         Ok(commits)
     }
 
@@ -593,12 +592,12 @@ impl GitRepo {
         match commit::commit(&repo, message, self.is_remote) {
             Ok(result) => {
                 if let Err(e) = self.execute_hook("post-commit") {
-                    log_debug!("Post-commit hook failed: {}", e);
+                    debug!("Post-commit hook failed: {}", e);
                 }
                 Ok(result)
             }
             Err(e) => {
-                log_debug!("Commit failed: {}", e);
+                debug!("Commit failed: {}", e);
                 Err(e)
             }
         }
@@ -619,7 +618,7 @@ impl GitRepo {
         _config: &Config,
         commit_id: &str,
     ) -> Result<CommitContext> {
-        log_debug!("Getting git info for commit: {}", commit_id);
+        debug!("Getting git info for commit: {}", commit_id);
         let repo = self.open_repo()?;
 
         // Get branch name
@@ -691,7 +690,7 @@ impl Drop for GitRepo {
     fn drop(&mut self) {
         // The TempDir will be automatically cleaned up when dropped
         if self.is_remote {
-            log_debug!("Cleaning up temporary repository at {:?}", self.repo_path);
+            debug!("Cleaning up temporary repository at {:?}", self.repo_path);
         }
     }
 }

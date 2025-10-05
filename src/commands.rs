@@ -1,7 +1,7 @@
+use crate::debug;
 use crate::instruction_presets::{
     PresetType, get_instruction_preset_library, list_presets_formatted_by_type,
 };
-use crate::log_debug;
 use crate::mcp::config::{MCPServerConfig, MCPTransportType};
 use crate::mcp::server;
 use anyhow::Result;
@@ -54,12 +54,9 @@ pub async fn handle_serve_command(
     port: Option<u16>,
     listen_address: Option<String>,
 ) -> anyhow::Result<()> {
-    log_debug!(
+    debug!(
         "Starting 'serve' command with dev: {}, transport: {}, port: {:?}, listen_address: {:?}",
-        dev,
-        transport,
-        port,
-        listen_address
+        dev, transport, port, listen_address
     );
 
     // Create MCP server configuration

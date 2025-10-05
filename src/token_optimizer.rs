@@ -1,5 +1,5 @@
 use crate::context::CommitContext;
-use crate::log_debug;
+use crate::debug;
 use tiktoken_rs::cl100k_base;
 
 pub struct TokenOptimizer {
@@ -24,7 +24,7 @@ impl TokenOptimizer {
         for file in &mut context.staged_files {
             let diff_tokens = self.count_tokens(&file.diff);
             if total_tokens + diff_tokens > self.max_tokens {
-                log_debug!(
+                debug!(
                     "Truncating diff for {} from {} tokens to {} tokens",
                     file.path,
                     diff_tokens,
@@ -40,7 +40,7 @@ impl TokenOptimizer {
 
             if remaining_tokens == 0 {
                 // If we exhaust the tokens in step 1, clear commits and contents
-                log_debug!(
+                debug!(
                     "Token budget exhausted after diffs (total: {}), clearing commits and contents",
                     total_tokens
                 );
@@ -53,7 +53,7 @@ impl TokenOptimizer {
         for commit in &mut context.recent_commits {
             let commit_tokens = self.count_tokens(&commit.message);
             if total_tokens + commit_tokens > self.max_tokens {
-                log_debug!(
+                debug!(
                     "Truncating commit message from {} tokens to {} tokens",
                     commit_tokens,
                     remaining_tokens
@@ -68,7 +68,7 @@ impl TokenOptimizer {
 
             if remaining_tokens == 0 {
                 // If we exhaust the tokens in step 2, clear contents
-                log_debug!(
+                debug!(
                     "Token budget exhausted after commits (total: {}), clearing contents",
                     total_tokens
                 );
@@ -82,7 +82,7 @@ impl TokenOptimizer {
             if let Some(content) = &mut file.content {
                 let content_tokens = self.count_tokens(content);
                 if total_tokens + content_tokens > self.max_tokens {
-                    log_debug!(
+                    debug!(
                         "Truncating file content for {} from {} tokens to {} tokens",
                         file.path,
                         content_tokens,
@@ -97,7 +97,7 @@ impl TokenOptimizer {
                 }
 
                 if remaining_tokens == 0 {
-                    log_debug!(
+                    debug!(
                         "Token budget exhausted after file contents (total: {})",
                         total_tokens
                     );
@@ -106,7 +106,7 @@ impl TokenOptimizer {
             }
         }
 
-        log_debug!("Final token count after optimization: {}", total_tokens);
+        debug!("Final token count after optimization: {}", total_tokens);
     }
 
     // Truncate a string to fit within the specified token limit

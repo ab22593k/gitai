@@ -3,8 +3,8 @@ use super::models::{BreakingChange, ChangeEntry, ChangeMetrics, ChangelogRespons
 use super::prompt;
 use crate::common::DetailLevel;
 use crate::config::Config;
+use crate::debug;
 use crate::git::GitRepo;
-use crate::log_debug;
 use anyhow::{Context, Result};
 use chrono;
 use colored::Colorize;
@@ -83,11 +83,11 @@ impl ChangelogGenerator {
         // Get the date from the "to" Git reference
         let commit_date = match git_repo.get_commit_date(to_ref) {
             Ok(date) => {
-                log_debug!("Got commit date for {}: {}", to_ref, date);
+                debug!("Got commit date for {}: {}", to_ref, date);
                 date
             }
             Err(e) => {
-                log_debug!("Failed to get commit date for {}: {}", to_ref, e);
+                debug!("Failed to get commit date for {}: {}", to_ref, e);
                 chrono::Local::now().format("%Y-%m-%d").to_string()
             }
         };
@@ -127,9 +127,9 @@ impl ChangelogGenerator {
                 version_content = re
                     .replace(&version_content, &format!("## [{version}]"))
                     .to_string();
-                log_debug!("Replaced version with user-provided version: {}", version);
+                debug!("Replaced version with user-provided version: {}", version);
             } else {
-                log_debug!("Could not find version header to replace in changelog content");
+                debug!("Could not find version header to replace in changelog content");
             }
         }
 
@@ -137,7 +137,7 @@ impl ChangelogGenerator {
         if version_content.contains(" - \n") {
             // Replace empty date placeholder with the commit date
             version_content = version_content.replace(" - \n", &format!(" - {commit_date}\n"));
-            log_debug!("Replaced empty date with commit date: {}", commit_date);
+            debug!("Replaced empty date with commit date: {}", commit_date);
         } else if version_content.contains("] - ") && !version_content.contains("] - 20") {
             // For cases where there's no date but a dash
             let parts: Vec<&str> = version_content.splitn(2, "] - ").collect();
@@ -148,7 +148,7 @@ impl ChangelogGenerator {
                     commit_date,
                     parts[1].trim_start_matches(['\n', ' '])
                 );
-                log_debug!("Added commit date after dash: {}", commit_date);
+                debug!("Added commit date after dash: {}", commit_date);
             }
         } else if !version_content.contains("] - ") {
             // If no date pattern at all, find the version line and add a date
@@ -166,7 +166,7 @@ impl ChangelogGenerator {
                     commit_date,
                     &version_content[bracket_pos + 1..]
                 );
-                log_debug!("Added date to version line: {}", commit_date);
+                debug!("Added date to version line: {}", commit_date);
             }
         }
 

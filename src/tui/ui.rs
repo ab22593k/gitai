@@ -67,7 +67,6 @@ fn render_sections(f: &mut Frame, state: &mut TuiState, chunks: &[Rect]) {
 /// Renders modal popups if active
 fn render_popups(f: &mut Frame, state: &mut TuiState) {
     match state.mode {
-        Mode::SelectingEmoji => draw_emoji_popup(f, state),
         Mode::SelectingPreset => draw_preset_popup(f, state),
         _ => {}
     }
@@ -78,7 +77,6 @@ fn draw_nav_bar(f: &mut Frame, area: Rect) {
         ("↔", "Navigate"),
         ("E", "Message"),
         ("I", "Instructions"),
-        ("J", "Emoji"),
         ("P", "Preset"),
         ("R", "Regenerate"),
         ("⏎", "Commit"),
@@ -138,14 +136,7 @@ fn draw_commit_message(f: &mut Frame, state: &mut TuiState, area: Rect) {
 
 fn render_commit_message_content(f: &mut Frame, state: &TuiState, block: Block, area: Rect) {
     let current_message = &state.messages[state.current_index];
-    let emoji_prefix = state
-        .get_current_emoji()
-        .map_or(String::new(), |e| format!("{e} "));
-
-    let message_content = format!(
-        "{}{}\n{}",
-        emoji_prefix, current_message.title, current_message.message
-    );
+    let message_content = format!("{}\n{}", current_message.title, current_message.message);
 
     let message = Paragraph::new(message_content)
         .block(block)
@@ -233,21 +224,6 @@ fn calculate_padding(terminal_width: usize, content_width: usize) -> (usize, usi
     }
 }
 
-fn draw_emoji_popup(f: &mut Frame, state: &mut TuiState) {
-    let popup_block = create_popup_block("✨ Select Emoji");
-    let popup_area = calculate_popup_area(f.area(), 10, 5, 60, 20);
-
-    let items = create_emoji_list_items(&state.emoji_list);
-    let list = List::new(items).block(popup_block).highlight_style(
-        Style::default()
-            .fg(HIGHLIGHT_COLOR)
-            .add_modifier(Modifier::BOLD),
-    );
-
-    f.render_widget(Clear, popup_area);
-    f.render_stateful_widget(list, popup_area, &mut state.emoji_list_state);
-}
-
 fn draw_preset_popup(f: &mut Frame, state: &mut TuiState) {
     let popup_block = create_popup_block("🌟 Select Preset");
     let popup_area = calculate_popup_area(f.area(), 5, 5, 70, 20);
@@ -288,18 +264,6 @@ fn calculate_popup_area(
         area.width.saturating_sub(margin_x * 2).min(max_width),
         area.height.saturating_sub(margin_y * 2).min(max_height),
     )
-}
-
-fn create_emoji_list_items(emoji_list: &[(String, String)]) -> Vec<ListItem<'_>> {
-    emoji_list
-        .iter()
-        .map(|(emoji, description)| {
-            ListItem::new(Line::from(vec![
-                Span::styled(format!("{emoji} "), Style::default()),
-                Span::styled(description, Style::default()),
-            ]))
-        })
-        .collect()
 }
 
 fn create_preset_list_items(preset_list: &[(String, String, String, String)]) -> Vec<ListItem<'_>> {

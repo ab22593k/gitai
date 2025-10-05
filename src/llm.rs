@@ -1,5 +1,5 @@
 use crate::config::Config;
-use crate::log_debug;
+use crate::debug;
 use anyhow::{Result, anyhow};
 use llm::{
     LLMProvider,
@@ -99,9 +99,9 @@ pub async fn get_message<T>(
 where
     T: DeserializeOwned + JsonSchema,
 {
-    log_debug!("Generating message using provider: {}", provider_name);
-    log_debug!("System prompt: {}", system_prompt);
-    log_debug!("User prompt: {}", user_prompt);
+    debug!("Generating message using provider: {}", provider_name);
+    debug!("System prompt: {}", system_prompt);
+    debug!("User prompt: {}", user_prompt);
 
     // Parse the provider type
     let backend = if provider_name.to_lowercase() == "openrouter" {
@@ -180,12 +180,12 @@ pub async fn get_message_with_provider<T>(
 where
     T: DeserializeOwned + JsonSchema,
 {
-    log_debug!("Entering get_message_with_provider");
+    debug!("Entering get_message_with_provider");
 
     let retry_strategy = ExponentialBackoff::from_millis(10).factor(2).take(2); // 2 attempts total: initial + 1 retry
 
     let result = Retry::spawn(retry_strategy, || async {
-        log_debug!("Attempting to generate message");
+        debug!("Attempting to generate message");
 
         // Enhanced prompt that requests specifically formatted JSON output
         let enhanced_prompt = if std::any::type_name::<T>() == std::any::type_name::<String>() {
@@ -204,7 +204,7 @@ where
 
         match tokio::time::timeout(Duration::from_secs(30), provider.chat(&messages)).await {
             Ok(Ok(response)) => {
-                log_debug!("Received response from provider");
+                debug!("Received response from provider");
                 let response_text = response.text().unwrap_or_default();
 
                 // Provider-specific response parsing
@@ -240,17 +240,17 @@ where
                 match result {
                     Ok(message) => Ok(message),
                     Err(e) => {
-                        log_debug!("JSON parse error: {} text: {}", e, response_text);
+                        debug!("JSON parse error: {} text: {}", e, response_text);
                         Err(anyhow!("JSON parse error: {e}"))
                     }
                 }
             }
             Ok(Err(e)) => {
-                log_debug!("Provider error: {}", e);
+                debug!("Provider error: {}", e);
                 Err(anyhow!("Provider error: {e}"))
             }
             Err(_) => {
-                log_debug!("Provider timed out");
+                debug!("Provider timed out");
                 Err(anyhow!("Provider timed out"))
             }
         }
@@ -259,11 +259,11 @@ where
 
     match result {
         Ok(message) => {
-            log_debug!("Generated message successfully");
+            debug!("Generated message successfully");
             Ok(message)
         }
         Err(e) => {
-            log_debug!("Failed to generate message after retries: {}", e);
+            debug!("Failed to generate message after retries: {}", e);
             Err(anyhow!("Failed to generate message: {e}"))
         }
     }
@@ -275,7 +275,7 @@ fn parse_json_response<T: DeserializeOwned>(text: &str) -> Result<T> {
         Ok(message) => Ok(message),
         Err(e) => {
             // Fallback to a more robust extraction if direct parsing fails
-            log_debug!(
+            debug!(
                 "Direct JSON parse failed: {}. Attempting fallback extraction.",
                 e
             );
@@ -291,7 +291,7 @@ fn parse_json_response_with_brace_prefix<T: DeserializeOwned>(text: &str) -> Res
     match serde_json::from_str::<T>(&json_text) {
         Ok(message) => Ok(message),
         Err(e) => {
-            log_debug!(
+            debug!(
                 "Brace-prefixed JSON parse failed: {}. Attempting fallback extraction.",
                 e
             );

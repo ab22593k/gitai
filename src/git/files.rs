@@ -1,7 +1,7 @@
 use crate::context::{ChangeType, RecentCommit, StagedFile};
 use crate::file_analyzers::{self, should_exclude_file};
 use crate::git::utils::is_binary_diff;
-use crate::log_debug;
+use crate::debug;
 use anyhow::{Context, Result};
 use git2::{DiffOptions, Repository, StatusOptions};
 use std::fs;
@@ -22,7 +22,7 @@ pub struct RepoFilesInfo {
 ///
 /// A Result containing a Vec of `StagedFile` objects or an error.
 pub fn get_file_statuses(repo: &Repository) -> Result<Vec<StagedFile>> {
-    log_debug!("Getting file statuses");
+    debug!("Getting file statuses");
     let mut staged_files = Vec::new();
 
     let mut opts = StatusOptions::new();
@@ -88,7 +88,7 @@ pub fn get_file_statuses(repo: &Repository) -> Result<Vec<StagedFile>> {
         }
     }
 
-    log_debug!("Found {} staged files", staged_files.len());
+    debug!("Found {} staged files", staged_files.len());
     Ok(staged_files)
 }
 
@@ -103,7 +103,7 @@ pub fn get_file_statuses(repo: &Repository) -> Result<Vec<StagedFile>> {
 ///
 /// A Result containing the diff as a String or an error.
 pub fn get_diff_for_file(repo: &Repository, path: &str) -> Result<String> {
-    log_debug!("Getting diff for file: {}", path);
+    debug!("Getting diff for file: {}", path);
     let mut diff_options = DiffOptions::new();
     diff_options.pathspec(path);
 
@@ -125,7 +125,7 @@ pub fn get_diff_for_file(repo: &Repository, path: &str) -> Result<String> {
     if is_binary_diff(&diff_string) {
         Ok("[Binary file changed]".to_string())
     } else {
-        log_debug!("Generated diff for {} ({} bytes)", path, diff_string.len());
+        debug!("Generated diff for {} ({} bytes)", path, diff_string.len());
         Ok(diff_string)
     }
 }
@@ -136,7 +136,7 @@ pub fn get_diff_for_file(repo: &Repository, path: &str) -> Result<String> {
 ///
 /// A Result containing a Vec of `StagedFile` objects for unstaged changes or an error.
 pub fn get_unstaged_file_statuses(repo: &Repository) -> Result<Vec<StagedFile>> {
-    log_debug!("Getting unstaged file statuses");
+    debug!("Getting unstaged file statuses");
     let mut unstaged_files = Vec::new();
 
     let mut opts = StatusOptions::new();
@@ -203,7 +203,7 @@ pub fn get_unstaged_file_statuses(repo: &Repository) -> Result<Vec<StagedFile>> 
         }
     }
 
-    log_debug!("Found {} unstaged files", unstaged_files.len());
+    debug!("Found {} unstaged files", unstaged_files.len());
     Ok(unstaged_files)
 }
 
@@ -218,7 +218,7 @@ pub fn get_unstaged_file_statuses(repo: &Repository) -> Result<Vec<StagedFile>> 
 ///
 /// A Result containing the diff as a String or an error.
 pub fn get_diff_for_unstaged_file(repo: &Repository, path: &str) -> Result<String> {
-    log_debug!("Getting unstaged diff for file: {}", path);
+    debug!("Getting unstaged diff for file: {}", path);
     let mut diff_options = DiffOptions::new();
     diff_options.pathspec(path);
 
@@ -239,7 +239,7 @@ pub fn get_diff_for_unstaged_file(repo: &Repository, path: &str) -> Result<Strin
     if is_binary_diff(&diff_string) {
         Ok("[Binary file changed]".to_string())
     } else {
-        log_debug!(
+        debug!(
             "Generated unstaged diff for {} ({} bytes)",
             path,
             diff_string.len()

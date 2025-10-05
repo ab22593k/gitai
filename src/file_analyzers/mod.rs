@@ -3,7 +3,7 @@ use std::path::Path;
 
 use crate::{
     context::{ProjectMetadata, StagedFile},
-    log_debug,
+    debug,
 };
 
 /// Trait for analyzing files and extracting relevant information
@@ -169,7 +169,7 @@ impl FileAnalyzer for DefaultAnalyzer {
 ///
 /// A boolean indicating whether the file should be excluded.
 pub fn should_exclude_file(path: &str) -> bool {
-    log_debug!("Checking if file should be excluded: {}", path);
+    debug!("Checking if file should be excluded: {}", path);
     let exclude_patterns = vec![
         (String::from(r"(^|/)\.git(/|$)"), false), // Only exclude .git directory, not .github
         (String::from(r"\.svn"), false),
@@ -197,7 +197,7 @@ pub fn should_exclude_file(path: &str) -> bool {
         let re = match Regex::new(&pattern) {
             Ok(re) => re,
             Err(e) => {
-                log_debug!("Failed to compile regex '{}': {}", pattern, e);
+                debug!("Failed to compile regex '{}': {}", pattern, e);
                 continue;
             }
         };
@@ -207,16 +207,16 @@ pub fn should_exclude_file(path: &str) -> bool {
                 && let Some(file_name_str) = file_name.to_str()
                 && re.is_match(file_name_str)
             {
-                log_debug!("File excluded: {}", path.display());
+                debug!("File excluded: {}", path.display());
                 return true;
             }
         } else if let Some(path_str) = path.to_str()
             && re.is_match(path_str)
         {
-            log_debug!("File excluded: {}", path.display());
+            debug!("File excluded: {}", path.display());
             return true;
         }
     }
-    log_debug!("File not excluded: {}", path.display());
+    debug!("File not excluded: {}", path.display());
     false
 }

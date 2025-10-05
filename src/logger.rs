@@ -69,14 +69,14 @@ pub fn set_log_to_stdout(enabled: bool) {
 }
 
 #[macro_export]
-macro_rules! log_debug {
+macro_rules! debug {
     ($($arg:tt)*) => {
         log::debug!($($arg)*)
     };
 }
 
 #[macro_export]
-macro_rules! log_error {
+macro_rules! error {
     ($($arg:tt)*) => {
         log::error!($($arg)*)
     };

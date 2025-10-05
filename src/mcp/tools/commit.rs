@@ -6,7 +6,7 @@ use crate::commit::service::CommitService;
 use crate::commit::types::format_commit_message;
 use crate::config::Config as PilotConfig;
 use crate::git::GitRepo;
-use crate::log_debug;
+use crate::debug;
 use crate::mcp::tools::utils::{
     PilotTool, create_text_result, resolve_git_repo, validate_repository_parameter,
 };
@@ -65,12 +65,12 @@ impl PilotTool for CommitTool {
         git_repo: Arc<GitRepo>,
         config: PilotConfig,
     ) -> Result<CallToolResult, anyhow::Error> {
-        log_debug!("Processing commit request with: {:?}", self);
+        debug!("Processing commit request with: {:?}", self);
 
         // Validate repository parameter
         validate_repository_parameter(&self.repository)?;
         let git_repo = resolve_git_repo(Some(self.repository.as_str()), git_repo)?;
-        log_debug!("Using repository: {}", git_repo.repo_path().display());
+        debug!("Using repository: {}", git_repo.repo_path().display());
 
         // Check if we can perform the operation on this repository
         if self.auto_commit && git_repo.is_remote() {

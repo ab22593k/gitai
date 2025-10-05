@@ -3,10 +3,9 @@ use super::types::GeneratedMessage;
 use crate::common::get_combined_instructions;
 use crate::config::Config;
 use crate::context::{ChangeType, CommitContext, ProjectMetadata, RecentCommit, StagedFile};
-use crate::emoji::{apply_emoji, get_emoji_list};
 
 use super::relevance::RelevanceScorer;
-use crate::log_debug;
+use crate::debug;
 use std::collections::HashMap;
 use std::fmt::Write;
 
@@ -15,8 +14,9 @@ pub fn create_system_prompt(config: &Config) -> anyhow::Result<String> {
     let commit_schema_str = serde_json::to_string_pretty(&commit_schema)?;
 
     let mut prompt = String::from(
-        "You are an AI assistant specializing in creating high-quality, professional Git commit messages. \
-        Your task is to generate clear, concise, and informative commit messages based solely on the provided context.
+        "You are an AI assistant specializing in creating high-quality, professional Git commit messages.
+        Your task is to generate clear, concise, and informative commit messages based solely on the
+        provided context.
 
         Work step-by-step and follow these guidelines exactly:
 
@@ -25,19 +25,23 @@ pub fn create_system_prompt(config: &Config) -> anyhow::Result<String> {
         3. Capitalize the subject line.
         4. Do not end the subject line with a period.
         5. Separate subject from body with a blank line.
-        6. Wrap the body at 72 characters.
+        6. Wrap the body at 80 characters.
         7. Use the body to explain what changes were made and their impact, and how they were implemented.
         8. Be specific and avoid vague language.
         9. Focus on the concrete changes and their effects, not assumptions about intent.
         10. If the changes are part of a larger feature or fix, state this fact if evident from the context.
-        11. For non-trivial changes, include a brief explanation of the change's purpose if clearly indicated in the context.
+        11. For non-trivial changes, include a brief explanation of the change's purpose if clearly
+        indicated in the context.
         12. Do not include a conclusion or end summary section.
         13. Avoid common cliché words (like 'enhance', 'streamline', 'leverage', etc) and phrases.
         14. Don't mention filenames in the subject line unless absolutely necessary.
         15. Only describe changes that are explicitly shown in the provided context.
-        16. If the purpose or impact of a change is not clear from the context, focus on describing the change itself without inferring intent.
-        17. Do not use phrases like 'seems to', 'appears to', or 'might be' - only state what is certain based on the context.
-        18. If there's not enough information to create a complete, authoritative message, state only what can be confidently determined from the context.
+        16. If the purpose or impact of a change is not clear from the context, focus on describing
+        the change itself without inferring intent.
+        17. Do not use phrases like 'seems to', 'appears to', or 'might be' - only state what is
+        certain based on the context.
+        18. If there's not enough information to create a complete, authoritative message, state only
+        what can be confidently determined from the context.
         19. NO YAPPING!
 
         Be sure to quote newlines and any other control characters in your response.
@@ -47,23 +51,6 @@ pub fn create_system_prompt(config: &Config) -> anyhow::Result<String> {
       ");
 
     prompt.push_str(get_combined_instructions(config).as_str());
-
-    // Check if using conventional commits preset - if so, explicitly disable emoji
-    let is_conventional = config.instruction_preset == "conventional";
-
-    if config.use_emoji && !is_conventional {
-        prompt.push_str(
-            "\n\nUse a single emoji at the start of the commit message. \
-          Choose the most relevant emoji from the following list:\n\n",
-        );
-        prompt.push_str(&get_emoji_list());
-    } else if is_conventional {
-        prompt.push_str(
-            "\n\nIMPORTANT: This is using Conventional Commits format. \
-          DO NOT include any emojis in the commit message. \
-          Set the emoji field to null in your response.",
-        );
-    }
 
     prompt.push_str("
         Your response must be a valid JSON object with the following structure:
@@ -120,7 +107,7 @@ pub fn create_user_prompt(context: &CommitContext) -> String {
         detailed_changes
     );
 
-    log_debug!(
+    debug!(
         "Generated commit prompt for {} files ({} added, {} modified, {} deleted)",
         context.staged_files.len(),
         context
@@ -210,16 +197,9 @@ fn format_detailed_changes(
         .iter()
         .map(|file| {
             let relevance = relevance_scores.get(&file.path).unwrap_or(&0.0);
-            // Add emoji indicators for change types
-            let change_indicator = match file.change_type {
-                ChangeType::Added => "➕",
-                ChangeType::Modified => "✏️",
-                ChangeType::Deleted => "🗑️",
-            };
 
             format!(
-                "{} File: {} (Relevance: {:.2})\nChange Type: {}\nAnalysis:\n{}\n\nDiff:\n{}",
-                change_indicator,
+                "File: {} (Relevance: {:.2})\nChange Type: {}\nAnalysis:\n{}\n\nDiff:\n{}",
                 file.path,
                 relevance,
                 format_change_type(&file.change_type),
@@ -247,7 +227,7 @@ fn format_detailed_changes(
             .iter()
             .map(|file| {
                 let change_indicator = match file.change_type {
-                    ChangeType::Added => "➕",
+                    ChangeType::Added => "",
                     ChangeType::Modified => "✏️",
                     ChangeType::Deleted => "",
                 };
@@ -282,14 +262,6 @@ fn format_change_type(change_type: &ChangeType) -> &'static str {
     }
 }
 
-pub fn process_commit_message(message: String, use_emoji: bool) -> String {
-    if use_emoji {
-        apply_emoji(&message)
-    } else {
-        message
-    }
-}
-
 /// Creates a system prompt for code review generation
 #[allow(clippy::too_many_lines)]
 pub fn create_review_system_prompt(config: &Config) -> anyhow::Result<String> {
@@ -297,10 +269,9 @@ pub fn create_review_system_prompt(config: &Config) -> anyhow::Result<String> {
     let review_schema_str = serde_json::to_string_pretty(&review_schema)?;
 
     let mut prompt = String::from(
-        "You are an AI assistant specializing in code reviews. \
-        Your task is to provide a comprehensive, professional, and constructive review of the code changes provided.
-
-        Work step-by-step and follow these guidelines exactly:
+        "You are an AI assistant specializing in code reviews.
+        Your task is to provide a comprehensive, professional, and constructive review of the code
+        changes provided. Work step-by-step and follow these guidelines exactly:
 
         1. Analyze the code changes carefully, focusing on:
            - Code quality and readability
@@ -327,7 +298,8 @@ pub fn create_review_system_prompt(config: &Config) -> anyhow::Result<String> {
            - Acknowledge good practices and improvements
 
         5. Analyze the following specific dimensions of code quality:
-        ");
+        ",
+    );
 
     // Add each dimension's description
     for dimension in QualityDimension::all() {
@@ -487,7 +459,7 @@ pub fn create_review_user_prompt(context: &CommitContext) -> String {
         detailed_changes
     );
 
-    log_debug!(
+    debug!(
         "Generated review prompt for {} files ({} added, {} modified, {} deleted)",
         context.staged_files.len(),
         context
@@ -547,34 +519,6 @@ pub fn create_pr_system_prompt(config: &Config) -> anyhow::Result<String> {
 
     prompt.push_str(get_combined_instructions(config).as_str());
 
-    if config.use_emoji {
-        prompt.push_str(
-            "\n\nUse emojis strategically to create visual structure and reinforce section meaning. \
-          Use a single emoji at the start of the PR title, and include emojis in section headers \
-          to create a clean, professional, and visually structured PR description. \
-          Choose relevant emojis from the following list:\n\n",
-        );
-        prompt.push_str(&get_emoji_list());
-        prompt.push_str(
-            "\n\nEmoji placement guidelines:\
-          \n- Use emojis in ALL major section headers (## Summary, ## Features, ## Testing, etc.)\
-          \n- Include emojis in key sub-section headers within Features for visual hierarchy\
-          \n- Use ⚠️ specifically for breaking changes\
-          \n- Keep the actual content clean and professional without scattered emojis\
-          \n- Choose emojis that reinforce the section's purpose and meaning\
-          \n- Maintain consistency in emoji selection across similar sections\
-          \n\nRecommended section emojis:\
-          \n- 🧩 Summary (puzzle piece for overview)\
-          \n- 📦 Features (package for new functionality)\
-          \n- 🚀 Core Capabilities (rocket for main features)\
-          \n- 🛠 Technical Details (wrench for implementation)\
-          \n- 🧪 Testing (test tube for testing info)\
-          \n- 📝 Notes (memo for additional context)\
-          \n- 🔍 Commits (magnifying glass for commit list)\
-          \n- ⚠️ Breaking Changes (warning for breaking changes)\n\n",
-        );
-    }
-
     prompt.push_str(
         "
         Your response must be a valid JSON object with the following structure:
@@ -610,7 +554,7 @@ pub fn create_pr_system_prompt(config: &Config) -> anyhow::Result<String> {
           \"emoji\": \"✨\",
           \"title\": \"Add comprehensive Experience Fragment management system\",
           \"summary\": \"Implements full lifecycle support for Experience Fragments (XFs), including create, retrieve, update, and page integration operations. Adds a unified agent tool, rich CLI interface, and tight AEM manager integration with tenant-specific configuration support.\",
-          \"description\": \"### 🚀 Core Capabilities\\n\\n* Unified `manage_experience_fragments` tool with four key operations:\\n  * `create`: Create new XFs with optional initial content\\n  * `get`: Retrieve existing XF data\\n  * `update`: Modify XF content\\n  * `add_to_page`: Inject XF references into pages with flexible positioning\\n\\n* AEM manager integration with `createExperienceFragment` and `populateExperienceFragment`\\n* Support for tenant-specific `experienceFragmentComponentType` configuration\\n\\n### 🛠 Technical Details\\n\\n* Secure CSRF token handling for all operations\\n* XF page structure conversion for accurate population\\n* AEM 6.5 vs AEM Cloud component type detection\\n* Unique XF name generation with randomized suffixes\\n* Comprehensive validation and error handling\\n* State change logging for operational observability\\n\\n### 🖥 CLI Tooling\\n\\n* New command-line script with full XF management\\n* Commands: `create`, `update`, `list`, `get`, `delete`, `search`, `info`\\n* Content file input/output support\\n* XF discovery and metadata analysis tools\",
+          \"description\": \"### Core Capabilities\\n\\n* Unified `manage_experience_fragments` tool with four key operations:\\n  * `create`: Create new XFs with optional initial content\\n  * `get`: Retrieve existing XF data\\n  * `update`: Modify XF content\\n  * `add_to_page`: Inject XF references into pages with flexible positioning\\n\\n* AEM manager integration with `createExperienceFragment` and `populateExperienceFragment`\\n* Support for tenant-specific `experienceFragmentComponentType` configuration\\n\\n###  Technical Details\\n\\n* Secure CSRF token handling for all operations\\n* XF page structure conversion for accurate population\\n* AEM 6.5 vs AEM Cloud component type detection\\n* Unique XF name generation with randomized suffixes\\n* Comprehensive validation and error handling\\n* State change logging for operational observability\\n\\n### 🖥 CLI Tooling\\n\\n* New command-line script with full XF management\\n* Commands: `create`, `update`, `list`, `get`, `delete`, `search`, `info`\\n* Content file input/output support\\n* XF discovery and metadata analysis tools\",
           \"commits\": [\"b1b1f3f: feat(xf): add experience fragment management system\"],
           \"breaking_changes\": [],
           \"testing_notes\": \"Verified XF creation, update, and population. Confirmed CLI command behavior across all operations. Tested page integration and position logic. Checked tenant-specific component resolution.\",
@@ -653,7 +597,7 @@ pub fn create_pr_user_prompt(context: &CommitContext, commit_messages: &[String]
         detailed_changes
     );
 
-    log_debug!(
+    debug!(
         "Generated PR prompt for {} files across {} commits",
         context.staged_files.len(),
         commit_messages.len()

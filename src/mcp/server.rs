@@ -4,8 +4,8 @@
 //! that allows `GitPilot` to be used directly from compatible tools.
 
 use crate::config::Config as GitPilotConfig;
+use crate::debug;
 use crate::git::GitRepo;
-use crate::log_debug;
 use crate::mcp::config::{MCPServerConfig, MCPTransportType};
 use crate::mcp::tools::PilotHandler;
 
@@ -40,7 +40,7 @@ pub async fn serve(config: MCPServerConfig) -> Result<()> {
         crate::logger::enable_logging();
     }
 
-    log_debug!("Starting MCP server with config: {:?}", config);
+    debug!("Starting MCP server with config: {:?}", config);
 
     // Display configuration info if not using stdio transport
     if config.transport != MCPTransportType::StdIO {
@@ -67,13 +67,13 @@ pub async fn serve(config: MCPServerConfig) -> Result<()> {
 
     // Initialize GitRepo for use with tools
     let git_repo = Arc::new(GitRepo::new_from_url(None)?);
-    log_debug!(
+    debug!(
         "Initialized Git repository at: {}",
         git_repo.repo_path().display()
     );
 
     let pilot_config = GitPilotConfig::load()?;
-    log_debug!("Loaded GitPilot configuration");
+    debug!("Loaded GitPilot configuration");
 
     // Create the handler with necessary dependencies
     let handler = PilotHandler::new(git_repo, pilot_config);
@@ -91,23 +91,23 @@ pub async fn serve(config: MCPServerConfig) -> Result<()> {
 
 /// Start the MCP server using `StdIO` transport
 async fn serve_stdio(handler: PilotHandler, _dev_mode: bool) -> Result<()> {
-    log_debug!("Starting MCP server with StdIO transport");
+    debug!("Starting MCP server with StdIO transport");
 
     let transport = (stdin(), stdout());
 
     let server = handler.serve(transport).await?;
 
     // Wait for the server to finish
-    log_debug!("MCP server initialized, waiting for completion");
+    debug!("MCP server initialized, waiting for completion");
     let quit_reason = server.waiting().await?;
-    log_debug!("MCP server finished: {:?}", quit_reason);
+    debug!("MCP server finished: {:?}", quit_reason);
 
     Ok(())
 }
 
 /// Start the MCP server using SSE transport
 async fn serve_sse(handler: PilotHandler, socket_addr: SocketAddr) -> Result<()> {
-    log_debug!("Starting MCP server with SSE transport on {}", socket_addr);
+    debug!("Starting MCP server with SSE transport on {}", socket_addr);
 
     // Create and start the SSE server
     let server = SseServer::serve(socket_addr).await?;
@@ -119,13 +119,13 @@ async fn serve_sse(handler: PilotHandler, socket_addr: SocketAddr) -> Result<()>
     });
 
     // Wait for Ctrl+C signal
-    log_debug!("SSE server initialized, waiting for interrupt signal");
+    debug!("SSE server initialized, waiting for interrupt signal");
     tokio::signal::ctrl_c()
         .await
         .context("Failed to listen for ctrl+c signal")?;
 
     // Cancel the server gracefully
-    log_debug!("Interrupt signal received, shutting down SSE server");
+    debug!("Interrupt signal received, shutting down SSE server");
     control.cancel();
 
     Ok(())

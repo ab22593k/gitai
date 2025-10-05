@@ -1,6 +1,6 @@
 use crate::context::{ChangeType, RecentCommit, StagedFile};
 use crate::git::utils::is_binary_diff;
-use crate::log_debug;
+use crate::debug;
 use anyhow::{Context, Result, anyhow};
 use chrono;
 use git2::{FileMode, Repository, Status};
@@ -155,7 +155,7 @@ where
 ///
 /// A Result containing a Vec of `StagedFile` objects for the commit or an error.
 pub fn get_commit_files(repo: &Repository, commit_id: &str) -> Result<Vec<StagedFile>> {
-    log_debug!("Getting files for commit: {}", commit_id);
+    debug!("Getting files for commit: {}", commit_id);
 
     // Parse the commit ID
     let obj = repo.revparse_single(commit_id)?;
@@ -241,7 +241,7 @@ pub fn get_commit_files(repo: &Repository, commit_id: &str) -> Result<Vec<Staged
         file.analysis = analyzer.analyze(&file.path, file);
     }
 
-    log_debug!("Found {} files in commit", commit_files.len());
+    debug!("Found {} files in commit", commit_files.len());
     Ok(commit_files)
 }
 
@@ -359,7 +359,7 @@ pub fn get_branch_diff_files(
     base_branch: &str,
     target_branch: &str,
 ) -> Result<Vec<StagedFile>> {
-    log_debug!(
+    debug!(
         "Getting files changed between branches: {} -> {}",
         base_branch,
         target_branch
@@ -374,7 +374,7 @@ pub fn get_branch_diff_files(
     let merge_base_oid = repo.merge_base(base_commit.id(), target_commit.id())?;
     let merge_base_commit = repo.find_commit(merge_base_oid)?;
 
-    log_debug!("Using merge-base {} for comparison", merge_base_oid);
+    debug!("Using merge-base {} for comparison", merge_base_oid);
 
     let base_tree = merge_base_commit.tree()?;
     let target_tree = target_commit.tree()?;
@@ -462,7 +462,7 @@ pub fn get_branch_diff_files(
         file.analysis = analyzer.analyze(&file.path, file);
     }
 
-    log_debug!(
+    debug!(
         "Found {} files changed between branches (using merge-base)",
         branch_files.len()
     );
@@ -485,7 +485,7 @@ pub fn extract_branch_diff_info(
 
     // Find the merge-base (common ancestor) between the branches
     let merge_base_oid = repo.merge_base(base_commit.id(), target_commit.id())?;
-    log_debug!("Using merge-base {} for commit history", merge_base_oid);
+    debug!("Using merge-base {} for commit history", merge_base_oid);
 
     let mut revwalk = repo.revwalk()?;
     revwalk.push(target_commit.id())?;
@@ -527,7 +527,7 @@ pub fn extract_branch_diff_info(
 ///
 /// A Result containing a Vec of formatted commit messages or an error.
 pub fn get_commits_for_pr(repo: &Repository, from: &str, to: &str) -> Result<Vec<String>> {
-    log_debug!("Getting commits for PR between {} and {}", from, to);
+    debug!("Getting commits for PR between {} and {}", from, to);
 
     let from_commit = repo.revparse_single(from)?.peel_to_commit()?;
     let to_commit = repo.revparse_single(to)?.peel_to_commit()?;
@@ -550,7 +550,7 @@ pub fn get_commits_for_pr(repo: &Repository, from: &str, to: &str) -> Result<Vec
     let mut result = commits?;
     result.reverse(); // Show commits in chronological order
 
-    log_debug!("Found {} commits for PR", result.len());
+    debug!("Found {} commits for PR", result.len());
     Ok(result)
 }
 
@@ -566,7 +566,7 @@ pub fn get_commits_for_pr(repo: &Repository, from: &str, to: &str) -> Result<Vec
 ///
 /// A Result containing a Vec of `StagedFile` objects for the commit range or an error.
 pub fn get_commit_range_files(repo: &Repository, from: &str, to: &str) -> Result<Vec<StagedFile>> {
-    log_debug!("Getting files changed in commit range: {} -> {}", from, to);
+    debug!("Getting files changed in commit range: {} -> {}", from, to);
 
     // Resolve commit references
     let from_commit = repo.revparse_single(from)?.peel_to_commit()?;
@@ -654,7 +654,7 @@ pub fn get_commit_range_files(repo: &Repository, from: &str, to: &str) -> Result
         file.analysis = analyzer.analyze(&file.path, file);
     }
 
-    log_debug!("Found {} files changed in commit range", range_files.len());
+    debug!("Found {} files changed in commit range", range_files.len());
     Ok(range_files)
 }
 
@@ -698,7 +698,7 @@ fn resolve_branch<'a>(repo: &'a Repository, branch_name: &'a str) -> Result<git2
     if let Ok(obj) = repo.revparse_single(branch_name) {
         Ok(obj.peel_to_commit()?)
     } else {
-        log_debug!(
+        debug!(
             "Branch '{}' not found, trying common alternatives",
             branch_name
         );
@@ -710,11 +710,11 @@ fn resolve_branch<'a>(repo: &'a Repository, branch_name: &'a str) -> Result<git2
             if possible_branch != branch_name {
                 match repo.revparse_single(possible_branch) {
                     Ok(obj) => {
-                        log_debug!("Using alternative branch '{}'", possible_branch);
+                        debug!("Using alternative branch '{}'", possible_branch);
                         return Ok(obj.peel_to_commit()?);
                     }
                     Err(_) => {
-                        log_debug!("Alternative branch '{}' not found", possible_branch);
+                        debug!("Alternative branch '{}' not found", possible_branch);
                     }
                 }
             }

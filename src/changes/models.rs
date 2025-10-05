@@ -1,4 +1,4 @@
-use crate::log_debug;
+use crate::debug;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -120,7 +120,7 @@ impl From<String> for ChangelogResponse {
     /// Converts a JSON string to a `ChangelogResponse`
     fn from(value: String) -> Self {
         serde_json::from_str(&value).unwrap_or_else(|e| {
-            log_debug!("Failed to parse ChangelogResponse: {}", e);
+            debug!("Failed to parse ChangelogResponse: {}", e);
             Self {
                 version: Some("Error".to_string()),
                 release_date: Some("Error".to_string()),
@@ -142,7 +142,7 @@ impl From<String> for ReleaseNotesResponse {
     /// Converts a JSON string to a `ReleaseNotesResponse`
     fn from(value: String) -> Self {
         serde_json::from_str(&value).unwrap_or_else(|e| {
-            log_debug!("Failed to parse ReleaseNotesResponse: {}", e);
+            debug!("Failed to parse ReleaseNotesResponse: {}", e);
             Self {
                 version: Some("Error".to_string()),
                 release_date: Some("Error".to_string()),

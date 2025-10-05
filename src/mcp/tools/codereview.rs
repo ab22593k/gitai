@@ -6,7 +6,7 @@
 use crate::commit::service::CommitService;
 use crate::config::Config as PilotConfig;
 use crate::git::GitRepo;
-use crate::log_debug;
+use crate::debug;
 use crate::mcp::tools::utils::{
     PilotTool, apply_custom_instructions, create_text_result, resolve_git_repo,
     validate_repository_parameter,
@@ -72,12 +72,12 @@ impl PilotTool for CodeReviewTool {
         git_repo: Arc<GitRepo>,
         config: PilotConfig,
     ) -> Result<CallToolResult, anyhow::Error> {
-        log_debug!("Generating code review with: {:?}", self);
+        debug!("Generating code review with: {:?}", self);
 
         // Validate repository parameter
         validate_repository_parameter(&self.repository)?;
         let git_repo = resolve_git_repo(Some(self.repository.as_str()), git_repo)?;
-        log_debug!("Using repository: {}", git_repo.repo_path().display());
+        debug!("Using repository: {}", git_repo.repo_path().display());
 
         // Validate parameter combinations
         let has_commit = !self.commit_id.trim().is_empty();

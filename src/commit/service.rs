@@ -3,15 +3,15 @@ use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::{RwLock, mpsc};
 
-use super::prompt::{create_system_prompt, create_user_prompt, process_commit_message};
+use super::prompt::{create_system_prompt, create_user_prompt};
 use super::review::GeneratedReview;
 use super::types::GeneratedMessage;
 use crate::config::Config;
 use crate::context::CommitContext;
+use crate::debug;
 use crate::git::{CommitResult, GitRepo};
 use crate::instruction_presets::{PresetType, get_instruction_preset_library};
 use crate::llm;
-use crate::log_debug;
 use crate::token_optimizer::TokenOptimizer;
 
 /// Service for handling Git commit operations with AI assistance
@@ -121,7 +121,7 @@ impl CommitService {
 
     /// Get Git information for a specific commit
     pub async fn get_git_info_for_commit(&self, commit_id: &str) -> Result<CommitContext> {
-        log_debug!("Getting git info for commit: {}", commit_id);
+        debug!("Getting git info for commit: {}", commit_id);
 
         let context = self
             .repo
@@ -174,18 +174,18 @@ impl CommitService {
         let optimizer = TokenOptimizer::new(token_limit);
         let system_tokens = optimizer.count_tokens(system_prompt);
 
-        log_debug!("Token limit: {}", token_limit);
-        log_debug!("System prompt tokens: {}", system_tokens);
+        debug!("Token limit: {}", token_limit);
+        debug!("System prompt tokens: {}", system_tokens);
 
         // Reserve tokens for system prompt and some buffer for formatting
         // 1000 token buffer provides headroom for model responses and formatting
         let context_token_limit = token_limit.saturating_sub(system_tokens + 1000);
-        log_debug!("Available tokens for context: {}", context_token_limit);
+        debug!("Available tokens for context: {}", context_token_limit);
 
         // Count tokens before optimization
         let user_prompt_before = create_user_prompt_fn(&context);
         let total_tokens_before = system_tokens + optimizer.count_tokens(&user_prompt_before);
-        log_debug!("Total tokens before optimization: {}", total_tokens_before);
+        debug!("Total tokens before optimization: {}", total_tokens_before);
 
         // Optimize the context with remaining token budget
         context.optimize(context_token_limit);
@@ -194,16 +194,15 @@ impl CommitService {
         let user_tokens = optimizer.count_tokens(&user_prompt);
         let total_tokens = system_tokens + user_tokens;
 
-        log_debug!("User prompt tokens after optimization: {}", user_tokens);
-        log_debug!("Total tokens after optimization: {}", total_tokens);
+        debug!("User prompt tokens after optimization: {}", user_tokens);
+        debug!("Total tokens after optimization: {}", total_tokens);
 
         // If we're still over the limit, truncate the user prompt directly
         // 100 token safety buffer ensures we stay under the limit
         let final_user_prompt = if total_tokens > token_limit {
-            log_debug!(
+            debug!(
                 "Total tokens {} still exceeds limit {}, truncating user prompt",
-                total_tokens,
-                token_limit
+                total_tokens, token_limit
             );
             let max_user_tokens = token_limit.saturating_sub(system_tokens + 100);
             optimizer.truncate_string(&user_prompt, max_user_tokens)
@@ -212,7 +211,7 @@ impl CommitService {
         };
 
         let final_tokens = system_tokens + optimizer.count_tokens(&final_user_prompt);
-        log_debug!(
+        debug!(
             "Final total tokens after potential truncation: {}",
             final_tokens
         );
@@ -245,7 +244,7 @@ impl CommitService {
             let library = get_instruction_preset_library();
             if let Some(preset_info) = library.get_preset(preset) {
                 if preset_info.preset_type == PresetType::Review {
-                    log_debug!(
+                    debug!(
                         "Warning: Preset '{}' is review-specific, not ideal for commits",
                         preset
                     );
@@ -253,7 +252,7 @@ impl CommitService {
                 config_clone.instruction_preset = preset.to_string();
                 preset
             } else {
-                log_debug!("Preset '{}' not found, using default", preset);
+                debug!("Preset '{}' not found, using default", preset);
                 config_clone.instruction_preset = "default".to_string();
                 "default"
             }
@@ -313,14 +312,14 @@ impl CommitService {
             let library = get_instruction_preset_library();
             if let Some(preset_info) = library.get_preset(preset) {
                 if preset_info.preset_type == PresetType::Commit {
-                    log_debug!(
+                    debug!(
                         "Warning: Preset '{}' is commit-specific, not ideal for reviews",
                         preset
                     );
                 }
                 config_clone.instruction_preset = preset.to_string();
             } else {
-                log_debug!("Preset '{}' not found, using default", preset);
+                debug!("Preset '{}' not found, using default", preset);
                 config_clone.instruction_preset = "default".to_string();
             }
         }
@@ -376,14 +375,14 @@ impl CommitService {
             let library = get_instruction_preset_library();
             if let Some(preset_info) = library.get_preset(preset) {
                 if preset_info.preset_type == PresetType::Commit {
-                    log_debug!(
+                    debug!(
                         "Warning: Preset '{}' is commit-specific, not ideal for reviews",
                         preset
                     );
                 }
                 config_clone.instruction_preset = preset.to_string();
             } else {
-                log_debug!("Preset '{}' not found, using default", preset);
+                debug!("Preset '{}' not found, using default", preset);
                 config_clone.instruction_preset = "default".to_string();
             }
         }
@@ -441,14 +440,14 @@ impl CommitService {
             let library = get_instruction_preset_library();
             if let Some(preset_info) = library.get_preset(preset) {
                 if preset_info.preset_type == PresetType::Commit {
-                    log_debug!(
+                    debug!(
                         "Warning: Preset '{}' is commit-specific, not ideal for reviews",
                         preset
                     );
                 }
                 config_clone.instruction_preset = preset.to_string();
             } else {
-                log_debug!("Preset '{}' not found, using default", preset);
+                debug!("Preset '{}' not found, using default", preset);
                 config_clone.instruction_preset = "default".to_string();
             }
         }
@@ -505,14 +504,14 @@ impl CommitService {
             let library = get_instruction_preset_library();
             if let Some(preset_info) = library.get_preset(preset) {
                 if preset_info.preset_type == PresetType::Commit {
-                    log_debug!(
+                    debug!(
                         "Warning: Preset '{}' is commit-specific, not ideal for reviews",
                         preset
                     );
                 }
                 config_clone.instruction_preset = preset.to_string();
             } else {
-                log_debug!("Preset '{}' not found, using default", preset);
+                debug!("Preset '{}' not found, using default", preset);
                 config_clone.instruction_preset = "default".to_string();
             }
         }
@@ -569,14 +568,14 @@ impl CommitService {
             let library = get_instruction_preset_library();
             if let Some(preset_info) = library.get_preset(preset) {
                 if preset_info.preset_type == PresetType::Commit {
-                    log_debug!(
+                    debug!(
                         "Warning: Preset '{}' is commit-specific, may not be ideal for PRs",
                         preset
                     );
                 }
                 config_clone.instruction_preset = preset.to_string();
             } else {
-                log_debug!("Preset '{}' not found, using default", preset);
+                debug!("Preset '{}' not found, using default", preset);
                 config_clone.instruction_preset = "default".to_string();
             }
         }
@@ -645,14 +644,14 @@ impl CommitService {
             let library = get_instruction_preset_library();
             if let Some(preset_info) = library.get_preset(preset) {
                 if preset_info.preset_type == PresetType::Commit {
-                    log_debug!(
+                    debug!(
                         "Warning: Preset '{}' is commit-specific, may not be ideal for PRs",
                         preset
                     );
                 }
                 config_clone.instruction_preset = preset.to_string();
             } else {
-                log_debug!("Preset '{}' not found, using default", preset);
+                debug!("Preset '{}' not found, using default", preset);
                 config_clone.instruction_preset = "default".to_string();
             }
         }
@@ -708,36 +707,35 @@ impl CommitService {
             return Err(anyhow::anyhow!("Cannot commit to a remote repository"));
         }
 
-        let processed_message = process_commit_message(message.to_string(), self.use_emoji);
-        log_debug!("Performing commit with message: {}", processed_message);
+        debug!("Performing commit with message: {}", message);
 
         if !self.verify {
-            log_debug!("Skipping pre-commit hook (verify=false)");
-            return self.repo.commit(&processed_message);
+            debug!("Skipping pre-commit hook (verify=false)");
+            return self.repo.commit(&message);
         }
 
         // Execute pre-commit hook
-        log_debug!("Executing pre-commit hook");
+        debug!("Executing pre-commit hook");
         if let Err(e) = self.repo.execute_hook("pre-commit") {
-            log_debug!("Pre-commit hook failed: {}", e);
+            debug!("Pre-commit hook failed: {}", e);
             return Err(e);
         }
-        log_debug!("Pre-commit hook executed successfully");
+        debug!("Pre-commit hook executed successfully");
 
         // Perform the commit
-        match self.repo.commit(&processed_message) {
+        match self.repo.commit(&message) {
             Ok(result) => {
                 // Execute post-commit hook
-                log_debug!("Executing post-commit hook");
+                debug!("Executing post-commit hook");
                 if let Err(e) = self.repo.execute_hook("post-commit") {
-                    log_debug!("Post-commit hook failed: {}", e);
+                    debug!("Post-commit hook failed: {}", e);
                     // We don't fail the commit if post-commit hook fails
                 }
-                log_debug!("Commit performed successfully");
+                debug!("Commit performed successfully");
                 Ok(result)
             }
             Err(e) => {
-                log_debug!("Commit failed: {}", e);
+                debug!("Commit failed: {}", e);
                 Err(e)
             }
         }
@@ -747,7 +745,7 @@ impl CommitService {
     pub fn pre_commit(&self) -> Result<()> {
         // Skip pre-commit hook for remote repositories
         if self.is_remote_repository() {
-            log_debug!("Skipping pre-commit hook for remote repository");
+            debug!("Skipping pre-commit hook for remote repository");
             return Ok(());
         }
 

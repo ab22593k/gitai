@@ -4,8 +4,8 @@
 
 use crate::changes::ChangelogGenerator;
 use crate::config::Config as GitPilotConfig;
+use crate::debug;
 use crate::git::GitRepo;
-use crate::log_debug;
 use crate::mcp::tools::utils::{
     PilotTool, apply_custom_instructions, create_text_result, parse_detail_level, resolve_git_repo,
     validate_repository_parameter,
@@ -64,12 +64,12 @@ impl PilotTool for ChangelogTool {
         git_repo: Arc<GitRepo>,
         config: GitPilotConfig,
     ) -> Result<CallToolResult, anyhow::Error> {
-        log_debug!("Generating changelog with: {:?}", self);
+        debug!("Generating changelog with: {:?}", self);
 
         // Validate repository parameter
         validate_repository_parameter(&self.repository)?;
         let git_repo = resolve_git_repo(Some(self.repository.as_str()), git_repo)?;
-        log_debug!("Using repository: {}", git_repo.repo_path().display());
+        debug!("Using repository: {}", git_repo.repo_path().display());
 
         // Parse detail level using shared utility
         let detail_level = parse_detail_level(&self.detail_level);
@@ -99,7 +99,7 @@ impl PilotTool for ChangelogTool {
 
         // If version_name is provided, use it when updating the changelog
         if let Some(version) = &version_opt {
-            log_debug!("Using custom version name: {}", version);
+            debug!("Using custom version name: {}", version);
         }
 
         // Create and return the result using shared utility

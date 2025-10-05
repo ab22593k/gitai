@@ -5,7 +5,6 @@ pub mod commit;
 pub mod common;
 pub mod config;
 pub mod context;
-pub mod emoji;
 pub mod file_analyzers;
 pub mod git;
 pub mod instruction_presets;

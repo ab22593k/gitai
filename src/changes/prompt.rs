@@ -4,8 +4,7 @@ use super::{
 };
 use crate::common::{DetailLevel, get_combined_instructions};
 use crate::config::Config;
-use crate::emoji::get_emoji_list;
-use crate::log_debug;
+use crate::debug;
 use std::fmt::Write;
 
 pub fn create_changelog_system_prompt(config: &Config) -> String {
@@ -13,7 +12,7 @@ pub fn create_changelog_system_prompt(config: &Config) -> String {
     let changelog_schema_str = match serde_json::to_string_pretty(&changelog_schema) {
         Ok(schema) => schema,
         Err(e) => {
-            log_debug!("Failed to serialize changelog schema: {}", e);
+            debug!("Failed to serialize changelog schema: {}", e);
             "{ \"error\": \"Failed to serialize schema\" }".to_string()
         }
     };
@@ -107,13 +106,6 @@ pub fn create_changelog_system_prompt(config: &Config) -> String {
 
     prompt.push_str(get_combined_instructions(config).as_str());
 
-    if config.use_emoji {
-        prompt.push_str(
-            "\n\nWhen generating the changelog, include tasteful, appropriate, and intelligent use of emojis to add visual interest.\n \
-            Here are some examples of emojis you can use:\n");
-        prompt.push_str(&get_emoji_list());
-    }
-
     prompt.push_str(
         "\n\nYou will be provided with detailed information about each change, including file-level analysis, impact scores, and classifications. \
         Use this information to create a comprehensive and insightful changelog. \
@@ -128,7 +120,7 @@ pub fn create_release_notes_system_prompt(config: &Config) -> String {
     let release_notes_schema_str = match serde_json::to_string_pretty(&release_notes_schema) {
         Ok(schema) => schema,
         Err(e) => {
-            log_debug!("Failed to serialize release notes schema: {}", e);
+            debug!("Failed to serialize release notes schema: {}", e);
             "{ \"error\": \"Failed to serialize schema\" }".to_string()
         }
     };
@@ -222,15 +214,7 @@ pub fn create_release_notes_system_prompt(config: &Config) -> String {
     );
 
     prompt.push_str(&release_notes_schema_str);
-
     prompt.push_str(get_combined_instructions(config).as_str());
-
-    if config.use_emoji {
-        prompt.push_str(
-            "\n\nWhen generating the release notes, include tasteful, appropriate, and intelligent use of emojis to add visual interest.\n \
-            Here are some examples of emojis you can use:\n");
-        prompt.push_str(&get_emoji_list());
-    }
 
     prompt
 }

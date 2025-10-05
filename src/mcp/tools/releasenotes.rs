@@ -5,7 +5,7 @@
 use crate::changes::ReleaseNotesGenerator;
 use crate::config::Config as PilotConfig;
 use crate::git::GitRepo;
-use crate::log_debug;
+use crate::debug;
 use crate::mcp::tools::utils::{
     PilotTool, apply_custom_instructions, create_text_result, parse_detail_level, resolve_git_repo,
     validate_repository_parameter,
@@ -66,12 +66,12 @@ impl PilotTool for ReleaseNotesTool {
         git_repo: Arc<GitRepo>,
         config: PilotConfig,
     ) -> Result<CallToolResult, anyhow::Error> {
-        log_debug!("Generating release notes with: {:?}", self);
+        debug!("Generating release notes with: {:?}", self);
 
         // Validate repository parameter
         validate_repository_parameter(&self.repository)?;
         let git_repo = resolve_git_repo(Some(self.repository.as_str()), git_repo)?;
-        log_debug!("Using repository: {}", git_repo.repo_path().display());
+        debug!("Using repository: {}", git_repo.repo_path().display());
 
         // Parse detail level using shared utility
         let detail_level = parse_detail_level(&self.detail_level);

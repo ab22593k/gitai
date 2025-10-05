@@ -6,7 +6,7 @@ use crate::commit::service::CommitService;
 use crate::commit::types::format_pull_request;
 use crate::config::Config as PilotConfig;
 use crate::git::GitRepo;
-use crate::log_debug;
+use crate::debug;
 use crate::mcp::tools::utils::{
     PilotTool, apply_custom_instructions, create_text_result, resolve_git_repo,
     validate_repository_parameter,
@@ -63,12 +63,12 @@ impl PilotTool for PrTool {
         git_repo: Arc<GitRepo>,
         config: PilotConfig,
     ) -> Result<CallToolResult, anyhow::Error> {
-        log_debug!("Generating PR description with: {:?}", self);
+        debug!("Generating PR description with: {:?}", self);
 
         // Validate repository parameter
         validate_repository_parameter(&self.repository)?;
         let git_repo = resolve_git_repo(Some(self.repository.as_str()), git_repo)?;
-        log_debug!("Using repository: {}", git_repo.repo_path().display());
+        debug!("Using repository: {}", git_repo.repo_path().display());
 
         // Validate that we have both from and to parameters
         if self.from.trim().is_empty() {
@@ -86,7 +86,7 @@ impl PilotTool for PrTool {
 
         // Check if this is a remote repository (read-only mode)
         if git_repo.is_remote() {
-            log_debug!("Operating on remote repository in read-only mode");
+            debug!("Operating on remote repository in read-only mode");
         }
 
         // Create a commit service for processing

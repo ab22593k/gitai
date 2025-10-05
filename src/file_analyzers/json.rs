@@ -1,6 +1,6 @@
 use super::{FileAnalyzer, ProjectMetadata};
 use crate::context::StagedFile;
-use crate::log_debug;
+use crate::debug;
 use regex::Regex;
 use std::collections::HashSet;
 
@@ -102,7 +102,7 @@ fn extract_modified_top_level_keys(diff: &str) -> Option<Vec<String>> {
     let re = match JSON_TOP_LEVEL_KEY_RE.as_ref() {
         Ok(re) => re,
         Err(e) => {
-            log_debug!("Failed to compile JSON_TOP_LEVEL_KEY_RE: {}", e);
+            debug!("Failed to compile JSON_TOP_LEVEL_KEY_RE: {}", e);
             return None;
         }
     };

@@ -2,8 +2,8 @@ use crate::changes;
 use crate::commands;
 use crate::commit;
 use crate::common::CommonParams;
+use crate::debug;
 use crate::llm::get_available_provider_names;
-use crate::log_debug;
 use crate::ui;
 use clap::builder::{Styles, styling::AnsiColor};
 use clap::{Parser, Subcommand, crate_version};
@@ -354,13 +354,9 @@ pub async fn handle_message(
     config: CmsgConfig,
     repository_url: Option<String>,
 ) -> anyhow::Result<()> {
-    log_debug!(
+    debug!(
         "Handling 'message' command with common: {:?}, auto_commit: {}, use_emoji: {}, print: {}, verify: {}",
-        common,
-        config.auto_commit,
-        config.use_emoji,
-        config.print_only,
-        config.verify
+        common, config.auto_commit, config.use_emoji, config.print_only, config.verify
     );
 
     ui::print_version(crate_version!());
@@ -388,14 +384,9 @@ pub async fn handle_review(
     from: Option<String>,
     to: Option<String>,
 ) -> anyhow::Result<()> {
-    log_debug!(
+    debug!(
         "Handling 'review' command with common: {:?}, print: {}, include_unstaged: {}, commit: {:?}, from: {:?}, to: {:?}",
-        common,
-        print,
-        include_unstaged,
-        commit,
-        from,
-        to
+        common, print, include_unstaged, commit, from, to
     );
     ui::print_version(crate_version!());
     ui::print_newline();
@@ -421,14 +412,9 @@ pub async fn handle_changelog(
     file: Option<String>,
     version_name: Option<String>,
 ) -> anyhow::Result<()> {
-    log_debug!(
+    debug!(
         "Handling 'changelog' command with common: {:?}, from: {}, to: {:?}, update: {}, file: {:?}, version_name: {:?}",
-        common,
-        from,
-        to,
-        update,
-        file,
-        version_name
+        common, from, to, update, file, version_name
     );
     changes::handle_changelog_command(common, from, to, repository_url, update, file, version_name)
         .await
@@ -442,12 +428,9 @@ pub async fn handle_release_notes(
     repository_url: Option<String>,
     version_name: Option<String>,
 ) -> anyhow::Result<()> {
-    log_debug!(
+    debug!(
         "Handling 'release-notes' command with common: {:?}, from: {}, to: {:?}, version_name: {:?}",
-        common,
-        from,
-        to,
-        version_name
+        common, from, to, version_name
     );
     changes::handle_release_notes_command(common, from, to, repository_url, version_name).await
 }
@@ -459,12 +442,9 @@ pub async fn handle_serve(
     port: Option<u16>,
     listen_address: Option<String>,
 ) -> anyhow::Result<()> {
-    log_debug!(
+    debug!(
         "Handling 'serve' command with dev: {}, transport: {}, port: {:?}, listen_address: {:?}",
-        dev,
-        transport,
-        port,
-        listen_address
+        dev, transport, port, listen_address
     );
     commands::handle_serve_command(dev, transport, port, listen_address).await
 }
@@ -552,12 +532,9 @@ pub async fn handle_pr(
     to: Option<String>,
     repository_url: Option<String>,
 ) -> anyhow::Result<()> {
-    log_debug!(
+    debug!(
         "Handling 'pr' command with common: {:?}, print: {}, from: {:?}, to: {:?}",
-        common,
-        print,
-        from,
-        to
+        common, print, from, to
     );
     ui::print_version(crate_version!());
     ui::print_newline();

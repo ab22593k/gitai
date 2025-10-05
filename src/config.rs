@@ -1,9 +1,9 @@
+use crate::debug;
 use crate::git::GitRepo;
 use crate::instruction_presets::get_instruction_preset_library;
 use crate::llm::{
     get_available_provider_names, get_default_model_for_provider, provider_requires_api_key,
 };
-use crate::log_debug;
 
 use anyhow::{Context, Result, anyhow};
 use git2::Config as GitConfig;
@@ -69,7 +69,7 @@ impl Config {
             config.merge_with_project_config(project_config);
         }
 
-        log_debug!("Configuration loaded: {config:?}");
+        debug!("Configuration loaded: {config:?}");
         Ok(config)
     }
 
@@ -153,7 +153,7 @@ impl Config {
     /// Merge this config with project-specific config, with project config taking precedence
     /// But never allow API keys from project config
     pub fn merge_with_project_config(&mut self, project_config: Self) {
-        log_debug!("Merging with project configuration");
+        debug!("Merging with project configuration");
 
         // Override default provider if set in project config
         if project_config.default_provider != Self::default().default_provider {
@@ -201,7 +201,7 @@ impl Config {
 
         let mut config = GitConfig::open_default()?;
         self.save_to_config(&mut config, "gitpilot")?;
-        log_debug!("Configuration saved to global git config: {self:?}");
+        debug!("Configuration saved to global git config: {self:?}");
         Ok(())
     }
 
@@ -270,7 +270,7 @@ impl Config {
         // Save to local git config
         let mut config = repo.config()?;
         project_config.save_to_config(&mut config, "gitpilot")?;
-        log_debug!("Project configuration saved to local git config: {project_config:?}");
+        debug!("Project configuration saved to local git config: {project_config:?}");
         Ok(())
     }
 
@@ -363,7 +363,7 @@ impl Config {
             provider_config.token_limit = Some(limit);
         }
 
-        log_debug!("Configuration updated: {self:?}");
+        debug!("Configuration updated: {self:?}");
         Ok(())
     }
 
