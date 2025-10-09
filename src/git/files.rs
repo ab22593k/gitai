@@ -1,7 +1,7 @@
 use crate::context::{ChangeType, RecentCommit, StagedFile};
+use crate::debug;
 use crate::file_analyzers::{self, should_exclude_file};
 use crate::git::utils::is_binary_diff;
-use crate::debug;
 use anyhow::{Context, Result};
 use git2::{DiffOptions, Repository, StatusOptions};
 use std::fs;

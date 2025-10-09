@@ -1,6 +1,6 @@
 use crate::context::{ChangeType, RecentCommit, StagedFile};
-use crate::git::utils::is_binary_diff;
 use crate::debug;
+use crate::git::utils::is_binary_diff;
 use anyhow::{Context, Result, anyhow};
 use chrono;
 use git2::{FileMode, Repository, Status};
@@ -361,8 +361,7 @@ pub fn get_branch_diff_files(
 ) -> Result<Vec<StagedFile>> {
     debug!(
         "Getting files changed between branches: {} -> {}",
-        base_branch,
-        target_branch
+        base_branch, target_branch
     );
 
     // Resolve branch references

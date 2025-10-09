@@ -27,10 +27,15 @@ pub trait PilotTool {
 pub fn create_text_result(text: String) -> CallToolResult {
     CallToolResult {
         content: vec![Content::from(Annotated {
-            raw: RawContent::Text(RawTextContent { text }),
+            raw: RawContent::Text(RawTextContent {
+                text,
+                meta: Option::default(),
+            }),
             annotations: None,
         })],
         is_error: None,
+        meta: Option::default(),
+        structured_content: None,
     }
 }
 

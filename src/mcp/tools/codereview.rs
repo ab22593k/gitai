@@ -56,10 +56,14 @@ impl CodeReviewTool {
     pub fn get_tool_definition() -> Tool {
         Tool {
             name: Cow::Borrowed("gitai_review"),
-            description: Cow::Borrowed(
+            description: Some(Cow::Borrowed(
                 "Generate a comprehensive code review with options for staged changes, unstaged changes, specific commits, or branch comparisons (e.g., PR reviews)",
-            ),
+            )),
             input_schema: cached_schema_for_type::<Self>(),
+            annotations: None,
+            icons: None,
+            output_schema: None,
+            title: None,
         }
     }
 }

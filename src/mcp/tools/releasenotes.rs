@@ -50,10 +50,14 @@ impl ReleaseNotesTool {
     pub fn get_tool_definition() -> Tool {
         Tool {
             name: Cow::Borrowed("gitai_release_notes"),
-            description: Cow::Borrowed(
+            description: Some(Cow::Borrowed(
                 "Generate comprehensive release notes between two Git references",
-            ),
+            )),
             input_schema: cached_schema_for_type::<Self>(),
+            annotations: None,
+            icons: None,
+            output_schema: None,
+            title: None,
         }
     }
 }

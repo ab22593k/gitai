@@ -1,6 +1,6 @@
 use crate::context::ProjectMetadata;
-use crate::file_analyzers;
 use crate::debug;
+use crate::file_analyzers;
 use anyhow::Result;
 use futures::future::join_all;
 use std::path::Path;

@@ -1,7 +1,7 @@
 #![cfg(feature = "integration")]
 
 use anyhow::Result;
-use gitai::app::PilotCMD;
+use gitai::app::GitAI;
 use gitai::common::CommonParams;
 use gitai::git::GitRepo;
 use std::env;
@@ -34,7 +34,7 @@ async fn test_cli_with_remote_repository() -> Result<()> {
         repository_url: Some(repo_url.to_string()),
     };
 
-    let release_notes_command = Commands::ReleaseNotes {
+    let release_notes_command = GitAI::ReleaseNotes {
         common: common.clone(),
         from: "v1.0.0".to_string(), // Use a tag that's likely to exist in the repo
         to: Some("HEAD".to_string()),
@@ -49,7 +49,7 @@ async fn test_cli_with_remote_repository() -> Result<()> {
     );
 
     // 2. Test Changelog command with repository URL
-    let changelog_command = Commands::Changelog {
+    let changelog_command = GitAI::Changelog {
         common: common.clone(),
         from: "v1.0.0".to_string(),
         to: Some("HEAD".to_string()),
@@ -66,7 +66,7 @@ async fn test_cli_with_remote_repository() -> Result<()> {
     );
 
     // 3. Test Review command with repository URL
-    let review_command = Commands::Review {
+    let review_command = GitAI::Review {
         common: common.clone(),
         print: true,
         commit: None,
@@ -83,7 +83,7 @@ async fn test_cli_with_remote_repository() -> Result<()> {
     );
 
     // 4. Test cmsg command with repository URL
-    let gen_command = Commands::Message {
+    let gen_command = GitAI::Message {
         common,
         auto_commit: false,
         no_emoji: true,

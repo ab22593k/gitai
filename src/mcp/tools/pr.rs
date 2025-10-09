@@ -47,10 +47,14 @@ impl PrTool {
     pub fn get_tool_definition() -> Tool {
         Tool {
             name: Cow::Borrowed("gitai_pr"),
-            description: Cow::Borrowed(
+            description: Some(Cow::Borrowed(
                 "Generate comprehensive pull request descriptions for changesets spanning multiple commits. Analyzes commits and changes as an atomic unit.",
-            ),
+            )),
             input_schema: cached_schema_for_type::<Self>(),
+            annotations: None,
+            icons: None,
+            output_schema: None,
+            title: None,
         }
     }
 }

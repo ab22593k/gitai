@@ -50,8 +50,14 @@ impl ChangelogTool {
     pub fn get_tool_definition() -> Tool {
         Tool {
             name: Cow::Borrowed("gitai_changelog"),
-            description: Cow::Borrowed("Generate a detailed changelog between two Git references"),
+            description: Some(Cow::Borrowed(
+                "Generate a detailed changelog between two Git references",
+            )),
             input_schema: cached_schema_for_type::<Self>(),
+            annotations: None,
+            icons: None,
+            output_schema: None,
+            title: None,
         }
     }
 }

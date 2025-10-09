@@ -23,7 +23,7 @@ use colored::Colorize;
 pub struct Cli {
     /// Subcommands available for the CLI
     #[command(subcommand)]
-    pub command: Option<PilotCMD>,
+    pub command: Option<GitAI>,
 
     /// Log debug messages to a file
     #[arg(
@@ -74,7 +74,7 @@ pub struct Cli {
 #[derive(Subcommand)]
 #[command(subcommand_negates_reqs = true)]
 #[command(subcommand_precedence_over_arg = true)]
-pub enum PilotCMD {
+pub enum GitAI {
     // Feature commands first
     /// Generate a commit message using AI
     #[command(
@@ -400,12 +400,9 @@ pub async fn handle_release_notes(
 }
 
 /// Handle the command based on parsed arguments
-pub async fn handle_command(
-    command: PilotCMD,
-    repository_url: Option<String>,
-) -> anyhow::Result<()> {
+pub async fn handle_command(command: GitAI, repository_url: Option<String>) -> anyhow::Result<()> {
     match command {
-        PilotCMD::Message {
+        GitAI::Message {
             common,
             auto_commit,
             no_emoji,
@@ -425,7 +422,7 @@ pub async fn handle_command(
             )
             .await
         }
-        PilotCMD::Review {
+        GitAI::Review {
             common,
             print,
             include_unstaged,
@@ -444,7 +441,7 @@ pub async fn handle_command(
             )
             .await
         }
-        PilotCMD::Changelog {
+        GitAI::Changelog {
             common,
             from,
             to,
@@ -452,19 +449,19 @@ pub async fn handle_command(
             file,
             version_name,
         } => handle_changelog(common, from, to, repository_url, update, file, version_name).await,
-        PilotCMD::ReleaseNotes {
+        GitAI::ReleaseNotes {
             common,
             from,
             to,
             version_name,
         } => handle_release_notes(common, from, to, repository_url, version_name).await,
-        PilotCMD::Serve {
+        GitAI::Serve {
             dev,
             transport,
             port,
             listen_address,
         } => handle_serve_command(dev, transport, port, listen_address).await,
-        PilotCMD::Pr {
+        GitAI::Pr {
             common,
             print,
             from,

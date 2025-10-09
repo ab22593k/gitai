@@ -154,8 +154,18 @@ mod tests {
         let tool = PrTool::get_tool_definition();
 
         assert_eq!(tool.name, "gitai_pr");
-        assert!(tool.description.contains("pull request descriptions"));
-        assert!(tool.description.contains("atomic unit"));
+        assert!(
+            tool.description
+                .as_ref()
+                .expect("description should exist")
+                .contains("pull request descriptions")
+        );
+        assert!(
+            tool.description
+                .as_ref()
+                .expect("description should exist")
+                .contains("atomic unit")
+        );
 
         // The input schema should be present and valid
         assert!(

@@ -78,7 +78,6 @@ git-pr                      # Pull request management
 git-changelog               # Generate changelog
 git-release-notes           # Generate release notes
 git-serve                   # Start MCP server
-git-presets                 # Manage presets
 git-wire sync               # Sync external repositories
 git-wire check              # Check for differences
 

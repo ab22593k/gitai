@@ -51,8 +51,14 @@ impl CommitTool {
     pub fn get_tool_definition() -> Tool {
         Tool {
             name: Cow::Borrowed("gitai_commit"),
-            description: Cow::Borrowed("Generate commit messages and perform Git commits"),
+            description: Some(Cow::Borrowed(
+                "Generate commit messages and perform Git commits",
+            )),
             input_schema: cached_schema_for_type::<Self>(),
+            annotations: None,
+            icons: None,
+            output_schema: None,
+            title: None,
         }
     }
 }

@@ -15,12 +15,13 @@ use crate::debug;
 use crate::git::GitRepo;
 use crate::mcp::tools::utils::PilotTool;
 
-use rmcp::Error;
+use rmcp::ErrorData as Error;
 use rmcp::RoleServer;
 use rmcp::model::{
     CallToolRequestParam, CallToolResult, ListToolsResult, PaginatedRequestParam,
     ServerCapabilities, Tool,
 };
+use rmcp::service::NotificationContext;
 use rmcp::service::RequestContext;
 use rmcp::{ServerHandler, model::ServerInfo};
 
@@ -154,7 +155,10 @@ impl ServerHandler for PilotHandler {
     }
 
     // Handle notification when client workspace roots change
-    fn on_roots_list_changed(&self) -> impl Future<Output = ()> + Send + '_ {
+    fn on_roots_list_changed(
+        &self,
+        _context: NotificationContext<RoleServer>,
+    ) -> impl Future<Output = ()> + Send + '_ {
         debug!("Client workspace roots changed");
         async move {
             // Access and update workspace roots
@@ -181,7 +185,7 @@ impl ServerHandler for PilotHandler {
 
     async fn list_tools(
         &self,
-        _: PaginatedRequestParam,
+        _: Option<PaginatedRequestParam>,
         _: RequestContext<RoleServer>,
     ) -> Result<ListToolsResult, Error> {
         // Use our custom method to get all tools
