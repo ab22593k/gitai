@@ -1,9 +1,9 @@
+pub mod analyzer;
 pub mod app;
 pub mod common;
 pub mod config;
 pub mod core;
 pub mod features;
-pub mod file_analyzers;
 pub mod git;
 pub mod instruction_presets;
 pub mod logger;

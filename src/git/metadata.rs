@@ -1,6 +1,6 @@
+use crate::analyzer;
 use crate::core::context::ProjectMetadata;
 use crate::debug;
-use crate::file_analyzers;
 use anyhow::Result;
 use futures::future::join_all;
 use std::path::Path;
@@ -13,12 +13,11 @@ pub async fn analyze_file(file_path: &str) -> Option<ProjectMetadata> {
         .and_then(|name| name.to_str())
         .unwrap_or_default();
 
-    let analyzer: Box<dyn file_analyzers::FileAnalyzer + Send + Sync> =
-        file_analyzers::get_analyzer(file_name);
+    let analyzer: Box<dyn analyzer::FileAnalyzer + Send + Sync> = analyzer::get_analyzer(file_name);
 
     debug!("Analyzing file: {}", file_path);
 
-    if file_analyzers::should_exclude_file(file_path) {
+    if analyzer::should_exclude_file(file_path) {
         debug!("File excluded: {}", file_path);
         None
     } else if let Ok(content) = tokio::fs::read_to_string(file_path).await {

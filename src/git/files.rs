@@ -1,6 +1,6 @@
+use crate::analyzer::{self, should_exclude_file};
 use crate::core::context::{ChangeType, RecentCommit, StagedFile};
 use crate::debug;
-use crate::file_analyzers::{self, should_exclude_file};
 use crate::git::utils::is_binary_diff;
 use anyhow::{Context, Result};
 use git2::{DiffOptions, Repository, StatusOptions};
@@ -61,7 +61,7 @@ pub fn get_file_statuses(repo: &Repository) -> Result<Vec<StagedFile>> {
                     }
                 };
 
-            let analyzer = file_analyzers::get_analyzer(path);
+            let analyzer = analyzer::get_analyzer(path);
             let staged_file = StagedFile {
                 path: path.to_string(),
                 change_type: change_type.clone(),
@@ -176,7 +176,7 @@ pub fn get_unstaged_file_statuses(repo: &Repository) -> Result<Vec<StagedFile>> 
                     }
                 };
 
-            let analyzer = file_analyzers::get_analyzer(path);
+            let analyzer = analyzer::get_analyzer(path);
             let unstaged_file = StagedFile {
                 path: path.to_string(),
                 change_type: change_type.clone(),

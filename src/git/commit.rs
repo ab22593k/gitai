@@ -1,6 +1,6 @@
 use crate::core::context::{ChangeType, RecentCommit, StagedFile};
-use crate::debug;
 use crate::git::utils::is_binary_diff;
+use crate::{analyzer, debug};
 use anyhow::{Context, Result, anyhow};
 use chrono;
 use git2::{FileMode, Repository, Status};
@@ -185,7 +185,7 @@ pub fn get_commit_files(repo: &Repository, commit_id: &str) -> Result<Vec<Staged
                     _ => return true, // Skip other types of changes
                 };
 
-                let should_exclude = crate::file_analyzers::should_exclude_file(path);
+                let should_exclude = analyzer::should_exclude_file(path);
 
                 commit_files.push(StagedFile {
                     path: path.to_string(),
@@ -237,7 +237,7 @@ pub fn get_commit_files(repo: &Repository, commit_id: &str) -> Result<Vec<Staged
             file.diff = diff_string;
         }
 
-        let analyzer = crate::file_analyzers::get_analyzer(&file.path);
+        let analyzer = analyzer::get_analyzer(&file.path);
         file.analysis = analyzer.analyze(&file.path, file);
     }
 
@@ -395,7 +395,7 @@ pub fn get_branch_diff_files(
                     _ => return true, // Skip other types of changes
                 };
 
-                let should_exclude = crate::file_analyzers::should_exclude_file(path);
+                let should_exclude = analyzer::should_exclude_file(path);
 
                 branch_files.push(StagedFile {
                     path: path.to_string(),
@@ -457,7 +457,7 @@ pub fn get_branch_diff_files(
             file.content = Some(content.to_string());
         }
 
-        let analyzer = crate::file_analyzers::get_analyzer(&file.path);
+        let analyzer = analyzer::get_analyzer(&file.path);
         file.analysis = analyzer.analyze(&file.path, file);
     }
 
@@ -590,7 +590,7 @@ pub fn get_commit_range_files(repo: &Repository, from: &str, to: &str) -> Result
                     _ => return true, // Skip other types of changes
                 };
 
-                let should_exclude = crate::file_analyzers::should_exclude_file(path);
+                let should_exclude = analyzer::should_exclude_file(path);
 
                 range_files.push(StagedFile {
                     path: path.to_string(),
@@ -649,7 +649,7 @@ pub fn get_commit_range_files(repo: &Repository, from: &str, to: &str) -> Result
             file.content = Some(content.to_string());
         }
 
-        let analyzer = crate::file_analyzers::get_analyzer(&file.path);
+        let analyzer = analyzer::get_analyzer(&file.path);
         file.analysis = analyzer.analyze(&file.path, file);
     }
 

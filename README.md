@@ -1,4 +1,4 @@
-# Git Pilot
+# Git With AI
 
 AI-powered Git toolkit that enhances workflow with intelligent commit messages, pull request generation, code reviews, changelogs, and more. It integrates with various LLM providers to automate and improve your development process.
 
@@ -27,22 +27,15 @@ cargo build --release
 gitai uses Git config to store settings. Configure your LLM provider:
 
 ```bash
-# Set global provider (e.g., Google Gemini)
+# Set --global/local provider (e.g., Google Gemini)
 git config --global gitai.defaultprovider google
 git config --global gitai.google-apikey "your-api-key"
 git config --global gitai.google-model "gemini-1.5-pro"
-
-# Or set locally for a project
-git config --local gitai.defaultprovider google
-git config --local gitai.google-apikey "your-api-key"
-git config --local gitai.google-model "gemini-1.5-flash"
 ```
 
 Supported providers: `openai`, `anthropic`, `google`, `cohere`, `groq`, `ollama`, etc.
 
 You can also use the config command:
-
-
 
 ## How to Use
 
@@ -57,32 +50,6 @@ git message
 
 # Or specify a custom instruction
 git message --instructions "Focus on the API changes"
-```
-
-### Creating Pull Requests
-
-```bash
-# Create a PR description for current branch vs main
-git pr
-
-# Specify branches
-git pr --base main --head feature-branch
-
-# Use different detail level
-git pr --detail-level detailed
-```
-
-### Code Reviews
-
-```bash
-# Review changes in current branch
-git review
-
-# Review specific branches
-git review --base main --head feature-branch
-
-# Review with custom instructions
-git review --instructions "Check for security issues"
 ```
 
 ### Generating Changelogs
@@ -103,9 +70,6 @@ git release-notes --version 1.2.0
 ### Other Commands
 
 ```bash
-# List available instruction presets
-git presets
-
 # Serve as MCP server
 git serve
 

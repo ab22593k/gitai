@@ -1,6 +1,6 @@
 use gitai::{
+    analyzer::{get_analyzer, should_exclude_file},
     core::context::{ChangeType, StagedFile},
-    file_analyzers::{get_analyzer, should_exclude_file},
 };
 
 // Use our centralized test infrastructure
