@@ -4,9 +4,6 @@ use crate::core::llm::{
 use crate::debug;
 use crate::git::GitRepo;
 use crate::instruction_presets::get_instruction_preset_library;
-// use crate::llm::{
-//     get_available_provider_names, get_default_model_for_provider, provider_requires_api_key,
-// };
 
 use anyhow::{Context, Result, anyhow};
 use git2::Config as GitConfig;
