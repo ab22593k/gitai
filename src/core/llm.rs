@@ -119,8 +119,8 @@ where
     let mut builder = LLMBuilder::new().backend(backend.clone());
 
     // Set model
-    if !provider_config.model.is_empty() {
-        builder = builder.model(provider_config.model.clone());
+    if !provider_config.model_name.is_empty() {
+        builder = builder.model(provider_config.model_name.clone());
     }
 
     // Set system prompt
@@ -140,7 +140,8 @@ where
 
     // Set max tokens if specified in additional params, otherwise use 4096 as default
     // For OpenAI thinking models, don't set max_tokens via builder since they use max_completion_tokens
-    if is_openai_thinking_model(&provider_config.model) && provider_name.to_lowercase() == "openai"
+    if is_openai_thinking_model(&provider_config.model_name)
+        && provider_name.to_lowercase() == "openai"
     {
         // For thinking models, max_completion_tokens should be handled via additional_params
         // Don't set max_tokens via the builder for these models
@@ -389,8 +390,8 @@ pub fn get_combined_config<S: ::std::hash::BuildHasher>(
         if !provider_config.api_key.is_empty() {
             combined_params.insert("api_key".to_string(), provider_config.api_key.clone());
         }
-        if !provider_config.model.is_empty() {
-            combined_params.insert("model".to_string(), provider_config.model.clone());
+        if !provider_config.model_name.is_empty() {
+            combined_params.insert("model".to_string(), provider_config.model_name.clone());
         }
         for (key, value) in &provider_config.additional_params {
             combined_params.insert(key.clone(), value.clone());

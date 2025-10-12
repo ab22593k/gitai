@@ -295,7 +295,6 @@ pub async fn handle_message(
     commit::handle_message_command(
         common,
         config.auto_commit,
-        config.use_emoji,
         config.print_only,
         config.verify,
         config.dry_run,

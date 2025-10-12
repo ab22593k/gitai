@@ -20,20 +20,12 @@ async fn test_perform_commit() -> Result<()> {
     let config = Config::default();
     let repo_path = PathBuf::from(temp_dir.path());
     let provider_name = "test";
-    let use_emoji = true;
     let verify = true;
 
     // Create a new GitRepo for the service
     let service_repo = GitRepo::new(temp_dir.path())?;
 
-    let service = CommitService::new(
-        config,
-        &repo_path,
-        provider_name,
-        use_emoji,
-        verify,
-        service_repo,
-    )?;
+    let service = CommitService::new(config, &repo_path, provider_name, verify, service_repo)?;
 
     let result = service.perform_commit("Test commit message")?;
     println!("Perform commit result: {result:?}");

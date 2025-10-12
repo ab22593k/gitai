@@ -3,7 +3,6 @@ use crate::core::llm::{
 };
 use crate::debug;
 use crate::git::GitRepo;
-use crate::instruction_presets::get_instruction_preset_library;
 
 use anyhow::{Context, Result, anyhow};
 use git2::Config as GitConfig;
@@ -18,21 +17,14 @@ pub struct Config {
     pub default_provider: String,
     /// Provider-specific configurations
     pub providers: HashMap<String, ProviderConfig>,
-    /// Flag indicating whether to use emoji
-    #[serde(default = "default_emoji")]
-    pub use_emoji: bool,
     /// Instructions for commit messages
     #[serde(default)]
     pub instructions: String,
-    #[serde(default = "default_instruction_preset")]
-    pub instruction_preset: String,
     #[serde(skip)]
     pub temp_instructions: Option<String>,
+    /// Flag indicating if this config is local
     #[serde(skip)]
-    pub temp_preset: Option<String>,
-    /// Flag indicating if this config is from a project file
-    #[serde(skip)]
-    pub is_project_config: bool,
+    pub is_local: bool,
 }
 
 /// Provider-specific configuration structure
@@ -41,22 +33,12 @@ pub struct ProviderConfig {
     /// API key for the provider
     pub api_key: String,
     /// Model to be used with the provider
-    pub model: String,
+    pub model_name: String,
     /// Additional parameters for the provider
     #[serde(default)]
     pub additional_params: HashMap<String, String>,
     /// Token limit, if set by the user
     pub token_limit: Option<usize>,
-}
-
-/// Default function for `use_emoji`
-fn default_emoji() -> bool {
-    false
-}
-
-// Default instruction preset to use
-fn default_instruction_preset() -> String {
-    "default".to_string()
 }
 
 impl Config {
@@ -77,11 +59,8 @@ impl Config {
     fn load_from_config(prefix: &str) -> Self {
         let default_provider = Self::get_git_config_value(&format!("{prefix}.defaultprovider"))
             .unwrap_or("openai".to_string());
-        let use_emoji = Self::get_git_config_bool(&format!("{prefix}.useemoji")).unwrap_or(true);
         let instructions =
             Self::get_git_config_value(&format!("{prefix}.instructions")).unwrap_or_default();
-        let instruction_preset = Self::get_git_config_value(&format!("{prefix}.instructionpreset"))
-            .unwrap_or("default".to_string());
 
         let mut providers = HashMap::new();
         // To load providers, we need to iterate over all keys with prefix
@@ -103,7 +82,7 @@ impl Config {
                     provider.to_string(),
                     ProviderConfig {
                         api_key,
-                        model,
+                        model_name: model,
                         additional_params,
                         token_limit,
                     },
@@ -114,12 +93,9 @@ impl Config {
         Self {
             default_provider,
             providers,
-            use_emoji,
             instructions,
-            instruction_preset,
             temp_instructions: None,
-            temp_preset: None,
-            is_project_config: false,
+            is_local: false,
         }
     }
 
@@ -135,6 +111,7 @@ impl Config {
         }
     }
 
+    #[allow(unused)]
     fn get_git_config_bool(key: &str) -> Option<bool> {
         Self::get_git_config_value(key).and_then(|v| v.parse().ok())
     }
@@ -146,7 +123,7 @@ impl Config {
     /// Load project-specific configuration
     pub fn load_project_config() -> Result<Self, anyhow::Error> {
         let mut project_config = Self::load_from_config("gitai");
-        project_config.is_project_config = true;
+        project_config.is_local = true;
         Ok(project_config)
     }
 
@@ -165,8 +142,8 @@ impl Config {
             let entry = self.providers.entry(provider).or_default();
 
             // Don't override API keys from project config (security)
-            if !proj_provider_config.model.is_empty() {
-                entry.model = proj_provider_config.model;
+            if !proj_provider_config.model_name.is_empty() {
+                entry.model_name = proj_provider_config.model_name;
             }
 
             // Merge additional params
@@ -180,22 +157,14 @@ impl Config {
             }
         }
 
-        // Override other settings
-        self.use_emoji = project_config.use_emoji;
-
         // Always override instructions field if set in project config
         self.instructions = project_config.instructions.clone();
-
-        // Override preset
-        if project_config.instruction_preset != default_instruction_preset() {
-            self.instruction_preset = project_config.instruction_preset;
-        }
     }
 
     /// Save the configuration to git config
     pub fn save(&self) -> Result<()> {
         // Don't save project configs to personal config file
-        if self.is_project_config {
+        if self.is_local {
             return Ok(());
         }
 
@@ -210,17 +179,8 @@ impl Config {
         // Set default provider
         config.set_str(&format!("{prefix}.defaultprovider"), &self.default_provider)?;
 
-        // Set use emoji
-        config.set_bool(&format!("{prefix}.useemoji"), self.use_emoji)?;
-
         // Set instructions
         config.set_str(&format!("{prefix}.instructions"), &self.instructions)?;
-
-        // Set instruction preset
-        config.set_str(
-            &format!("{prefix}.instructionpreset"),
-            &self.instruction_preset,
-        )?;
 
         for (provider, provider_config) in &self.providers {
             // Set api key only if not empty
@@ -234,7 +194,7 @@ impl Config {
             // Set model
             config.set_str(
                 &format!("{prefix}.{provider}-model"),
-                &provider_config.model,
+                &provider_config.model_name,
             )?;
 
             if let Some(token_limit) = provider_config.token_limit {
@@ -265,7 +225,7 @@ impl Config {
         }
 
         // Mark as project config
-        project_config.is_project_config = true;
+        project_config.is_local = true;
 
         // Save to local git config
         let mut config = repo.config()?;
@@ -290,28 +250,13 @@ impl Config {
         self.temp_instructions = instructions;
     }
 
-    pub fn set_temp_preset(&mut self, preset: Option<String>) {
-        self.temp_preset = preset;
-    }
-
     pub fn get_effective_instructions(&self) -> String {
-        let preset_library = get_instruction_preset_library();
-        let preset_instructions = self
-            .temp_preset
-            .as_ref()
-            .or(Some(&self.instruction_preset))
-            .and_then(|p| preset_library.get_preset(p))
-            .map(|p| p.instructions.clone())
-            .unwrap_or_default();
-
         let custom_instructions = self
             .temp_instructions
             .as_ref()
             .unwrap_or(&self.instructions);
 
-        format!("{preset_instructions}\n\n{custom_instructions}")
-            .trim()
-            .to_string()
+        custom_instructions.trim().to_string()
     }
 
     /// Update the configuration with new values
@@ -322,7 +267,6 @@ impl Config {
         api_key: Option<String>,
         model: Option<String>,
         additional_params: Option<HashMap<String, String>>,
-        use_emoji: Option<bool>,
         instructions: Option<String>,
         token_limit: Option<usize>,
     ) -> anyhow::Result<()> {
@@ -348,14 +292,12 @@ impl Config {
             provider_config.api_key = key;
         }
         if let Some(model) = model {
-            provider_config.model = model;
+            provider_config.model_name = model;
         }
         if let Some(params) = additional_params {
             provider_config.additional_params.extend(params);
         }
-        if let Some(emoji) = use_emoji {
-            self.use_emoji = emoji;
-        }
+
         if let Some(instr) = instructions {
             self.instructions = instr;
         }
@@ -397,12 +339,12 @@ impl Config {
 
     /// Set whether this config is a project config
     pub fn set_project_config(&mut self, is_project: bool) {
-        self.is_project_config = is_project;
+        self.is_local = is_project;
     }
 
     /// Check if this is a project config
     pub fn is_project_config(&self) -> bool {
-        self.is_project_config
+        self.is_local
     }
 }
 
@@ -426,12 +368,9 @@ impl Default for Config {
         Self {
             default_provider,
             providers,
-            use_emoji: default_emoji(),
             instructions: String::new(),
-            instruction_preset: default_instruction_preset(),
             temp_instructions: None,
-            temp_preset: None,
-            is_project_config: false,
+            is_local: false,
         }
     }
 }
@@ -441,7 +380,7 @@ impl ProviderConfig {
     pub fn default_for(provider: &str) -> Self {
         Self {
             api_key: String::new(),
-            model: get_default_model_for_provider(provider).to_string(),
+            model_name: get_default_model_for_provider(provider).to_string(),
             additional_params: HashMap::new(),
             token_limit: None, // Will use the default from get_default_token_limit_for_provider
         }

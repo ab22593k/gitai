@@ -7,7 +7,6 @@ use crate::core::llm;
 use crate::core::token_optimizer::TokenOptimizer;
 use crate::debug;
 use crate::git::{CommitResult, GitRepo};
-use crate::instruction_presets::{PresetType, get_instruction_preset_library};
 
 use anyhow::Result;
 use std::path::Path;
@@ -19,7 +18,6 @@ pub struct CommitService {
     config: Config,
     repo: Arc<GitRepo>,
     provider_name: String,
-    use_emoji: bool,
     verify: bool,
     cached_context: Arc<RwLock<Option<CommitContext>>>,
 }
@@ -32,7 +30,6 @@ impl CommitService {
     /// * `config` - The configuration for the service
     /// * `repo_path` - The path to the Git repository (unused but kept for API compatibility)
     /// * `provider_name` - The name of the LLM provider to use
-    /// * `use_emoji` - Whether to use emoji in commit messages
     /// * `verify` - Whether to verify commits
     /// * `git_repo` - An existing `GitRepo` instance
     ///
@@ -43,7 +40,6 @@ impl CommitService {
         config: Config,
         _repo_path: &Path,
         provider_name: &str,
-        use_emoji: bool,
         verify: bool,
         git_repo: GitRepo,
     ) -> Result<Self> {
@@ -51,7 +47,6 @@ impl CommitService {
             config,
             repo: Arc::new(git_repo),
             provider_name: provider_name.to_string(),
-            use_emoji,
             verify,
             cached_context: Arc::new(RwLock::new(None)),
         })
@@ -231,34 +226,8 @@ impl CommitService {
     /// # Returns
     ///
     /// A Result containing the generated commit message or an error
-    pub async fn generate_message(
-        &self,
-        preset: &str,
-        instructions: &str,
-    ) -> anyhow::Result<GeneratedMessage> {
+    pub async fn generate_message(&self, instructions: &str) -> anyhow::Result<GeneratedMessage> {
         let mut config_clone = self.config.clone();
-
-        // Check if the preset exists and is valid for commits
-        let effective_preset = if preset.is_empty() {
-            config_clone.instruction_preset = "default".to_string();
-            "default"
-        } else {
-            let library = get_instruction_preset_library();
-            if let Some(preset_info) = library.get_preset(preset) {
-                if preset_info.preset_type == PresetType::Review {
-                    debug!(
-                        "Warning: Preset '{}' is review-specific, not ideal for commits",
-                        preset
-                    );
-                }
-                config_clone.instruction_preset = preset.to_string();
-                preset
-            } else {
-                debug!("Preset '{}' not found, using default", preset);
-                config_clone.instruction_preset = "default".to_string();
-                "default"
-            }
-        };
 
         config_clone.instructions = instructions.to_string();
 
@@ -271,19 +240,13 @@ impl CommitService {
         let (_, final_user_prompt) =
             self.optimize_prompt(&config_clone, &system_prompt, context, create_user_prompt);
 
-        let mut generated_message = llm::get_message::<GeneratedMessage>(
+        let generated_message = llm::get_message::<GeneratedMessage>(
             &config_clone,
             &self.provider_name,
             &system_prompt,
             &final_user_prompt,
         )
         .await?;
-
-        // Apply emoji setting - automatically disable for conventional commits
-        let should_use_emoji = self.use_emoji && effective_preset != "conventional";
-        if !should_use_emoji {
-            generated_message.emoji = None;
-        }
 
         Ok(generated_message)
     }
@@ -301,30 +264,10 @@ impl CommitService {
     /// A Result containing the generated code review or an error
     pub async fn generate_review_with_unstaged(
         &self,
-        preset: &str,
         instructions: &str,
         include_unstaged: bool,
     ) -> anyhow::Result<GeneratedReview> {
         let mut config_clone = self.config.clone();
-
-        // Set the preset and instructions
-        if preset.is_empty() {
-            config_clone.instruction_preset = "default".to_string();
-        } else {
-            let library = get_instruction_preset_library();
-            if let Some(preset_info) = library.get_preset(preset) {
-                if preset_info.preset_type == PresetType::Commit {
-                    debug!(
-                        "Warning: Preset '{}' is commit-specific, not ideal for reviews",
-                        preset
-                    );
-                }
-                config_clone.instruction_preset = preset.to_string();
-            } else {
-                debug!("Preset '{}' not found, using default", preset);
-                config_clone.instruction_preset = "default".to_string();
-            }
-        }
 
         config_clone.instructions = instructions.to_string();
 
@@ -364,30 +307,10 @@ impl CommitService {
     /// A Result containing the generated code review or an error
     pub async fn generate_review_for_commit(
         &self,
-        preset: &str,
         instructions: &str,
         commit_id: &str,
     ) -> anyhow::Result<GeneratedReview> {
         let mut config_clone = self.config.clone();
-
-        // Set the preset and instructions
-        if preset.is_empty() {
-            config_clone.instruction_preset = "default".to_string();
-        } else {
-            let library = get_instruction_preset_library();
-            if let Some(preset_info) = library.get_preset(preset) {
-                if preset_info.preset_type == PresetType::Commit {
-                    debug!(
-                        "Warning: Preset '{}' is commit-specific, not ideal for reviews",
-                        preset
-                    );
-                }
-                config_clone.instruction_preset = preset.to_string();
-            } else {
-                debug!("Preset '{}' not found, using default", preset);
-                config_clone.instruction_preset = "default".to_string();
-            }
-        }
 
         config_clone.instructions = instructions.to_string();
 
@@ -428,31 +351,11 @@ impl CommitService {
     /// A Result containing the generated code review or an error
     pub async fn generate_review_for_branch_diff(
         &self,
-        preset: &str,
         instructions: &str,
         base_branch: &str,
         target_branch: &str,
     ) -> anyhow::Result<GeneratedReview> {
         let mut config_clone = self.config.clone();
-
-        // Set the preset and instructions
-        if preset.is_empty() {
-            config_clone.instruction_preset = "default".to_string();
-        } else {
-            let library = get_instruction_preset_library();
-            if let Some(preset_info) = library.get_preset(preset) {
-                if preset_info.preset_type == PresetType::Commit {
-                    debug!(
-                        "Warning: Preset '{}' is commit-specific, not ideal for reviews",
-                        preset
-                    );
-                }
-                config_clone.instruction_preset = preset.to_string();
-            } else {
-                debug!("Preset '{}' not found, using default", preset);
-                config_clone.instruction_preset = "default".to_string();
-            }
-        }
 
         config_clone.instructions = instructions.to_string();
 
@@ -492,31 +395,8 @@ impl CommitService {
     /// # Returns
     ///
     /// A Result containing the generated code review or an error
-    pub async fn generate_review(
-        &self,
-        preset: &str,
-        instructions: &str,
-    ) -> anyhow::Result<GeneratedReview> {
+    pub async fn generate_review(&self, instructions: &str) -> anyhow::Result<GeneratedReview> {
         let mut config_clone = self.config.clone();
-
-        // Check if the preset exists and is valid for reviews
-        if preset.is_empty() {
-            config_clone.instruction_preset = "default".to_string();
-        } else {
-            let library = get_instruction_preset_library();
-            if let Some(preset_info) = library.get_preset(preset) {
-                if preset_info.preset_type == PresetType::Commit {
-                    debug!(
-                        "Warning: Preset '{}' is commit-specific, not ideal for reviews",
-                        preset
-                    );
-                }
-                config_clone.instruction_preset = preset.to_string();
-            } else {
-                debug!("Preset '{}' not found, using default", preset);
-                config_clone.instruction_preset = "default".to_string();
-            }
-        }
 
         config_clone.instructions = instructions.to_string();
 
@@ -556,31 +436,11 @@ impl CommitService {
     /// A Result containing the generated PR description or an error
     pub async fn generate_pr_for_commit_range(
         &self,
-        preset: &str,
         instructions: &str,
         from: &str,
         to: &str,
     ) -> anyhow::Result<super::types::GeneratedPullRequest> {
         let mut config_clone = self.config.clone();
-
-        // Set the preset and instructions
-        if preset.is_empty() {
-            config_clone.instruction_preset = "default".to_string();
-        } else {
-            let library = get_instruction_preset_library();
-            if let Some(preset_info) = library.get_preset(preset) {
-                if preset_info.preset_type == PresetType::Commit {
-                    debug!(
-                        "Warning: Preset '{}' is commit-specific, may not be ideal for PRs",
-                        preset
-                    );
-                }
-                config_clone.instruction_preset = preset.to_string();
-            } else {
-                debug!("Preset '{}' not found, using default", preset);
-                config_clone.instruction_preset = "default".to_string();
-            }
-        }
 
         config_clone.instructions = instructions.to_string();
 
@@ -602,18 +462,13 @@ impl CommitService {
                 super::prompt::create_pr_user_prompt(ctx, &commit_messages)
             });
 
-        let mut generated_pr = llm::get_message::<super::types::GeneratedPullRequest>(
+        let generated_pr = llm::get_message::<super::types::GeneratedPullRequest>(
             &config_clone,
             &self.provider_name,
             &system_prompt,
             &final_user_prompt,
         )
         .await?;
-
-        // Apply emoji setting
-        if !self.use_emoji {
-            generated_pr.emoji = None;
-        }
 
         Ok(generated_pr)
     }
@@ -632,31 +487,11 @@ impl CommitService {
     /// A Result containing the generated PR description or an error
     pub async fn generate_pr_for_branch_diff(
         &self,
-        preset: &str,
         instructions: &str,
         base_branch: &str,
         target_branch: &str,
     ) -> anyhow::Result<super::types::GeneratedPullRequest> {
         let mut config_clone = self.config.clone();
-
-        // Set the preset and instructions
-        if preset.is_empty() {
-            config_clone.instruction_preset = "default".to_string();
-        } else {
-            let library = get_instruction_preset_library();
-            if let Some(preset_info) = library.get_preset(preset) {
-                if preset_info.preset_type == PresetType::Commit {
-                    debug!(
-                        "Warning: Preset '{}' is commit-specific, may not be ideal for PRs",
-                        preset
-                    );
-                }
-                config_clone.instruction_preset = preset.to_string();
-            } else {
-                debug!("Preset '{}' not found, using default", preset);
-                config_clone.instruction_preset = "default".to_string();
-            }
-        }
 
         config_clone.instructions = instructions.to_string();
 
@@ -678,18 +513,13 @@ impl CommitService {
                 super::prompt::create_pr_user_prompt(ctx, &commit_messages)
             });
 
-        let mut generated_pr = llm::get_message::<super::types::GeneratedPullRequest>(
+        let generated_pr = llm::get_message::<super::types::GeneratedPullRequest>(
             &config_clone,
             &self.provider_name,
             &system_prompt,
             &final_user_prompt,
         )
         .await?;
-
-        // Apply emoji setting
-        if !self.use_emoji {
-            generated_pr.emoji = None;
-        }
 
         Ok(generated_pr)
     }

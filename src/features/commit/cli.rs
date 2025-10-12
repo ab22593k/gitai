@@ -6,7 +6,6 @@ use crate::config::Config;
 use crate::core::messages;
 use crate::features::commit::types;
 use crate::git::GitRepo;
-use crate::instruction_presets::PresetType;
 use crate::tui::run_tui_commit;
 use crate::ui;
 
@@ -18,20 +17,11 @@ use std::sync::Arc;
 pub async fn handle_message_command(
     common: CommonParams,
     auto_commit: bool,
-    use_emoji: bool,
     print: bool,
     verify: bool,
     dry_run: bool,
     repository_url: Option<String>,
 ) -> Result<()> {
-    // Check if the preset is appropriate for commit messages
-    if !common.is_valid_preset_for_type(PresetType::Commit) {
-        ui::print_warning(
-            "The specified preset may not be suitable for commit messages. Consider using a commit or general preset instead.",
-        );
-        ui::print_info("Run 'git presets' to see available presets for commits.");
-    }
-
     let mut config = Config::load()?;
     common.apply_to_config(&mut config)?;
 
@@ -40,7 +30,6 @@ pub async fn handle_message_command(
         &common,
         repository_url,
         &config,
-        use_emoji && config.use_emoji,
         verify,
     ).map_err(|e| {
         ui::print_error(&format!("Error: {e}"));
@@ -71,7 +60,6 @@ pub async fn handle_message_command(
     let effective_instructions = common
         .instructions
         .unwrap_or_else(|| config.instructions.clone());
-    let preset_str = common.preset.as_deref().unwrap_or("");
 
     // Create and start the spinner
     let spinner = ui::create_spinner("");
@@ -86,9 +74,7 @@ pub async fn handle_message_command(
             message: "Updated the layout to properly handle dynamic constraints and improve user experience.".to_string(),
         }
     } else {
-        service
-            .generate_message(preset_str, &effective_instructions)
-            .await?
+        service.generate_message(&effective_instructions).await?
     };
 
     // Stop the spinner
@@ -133,15 +119,7 @@ pub async fn handle_message_command(
         return Ok(());
     }
 
-    run_tui_commit(
-        vec![initial_message],
-        effective_instructions,
-        String::from(preset_str),
-        git_info.user_name,
-        git_info.user_email,
-        service,
-    )
-    .await?;
+    run_tui_commit(vec![initial_message], effective_instructions, service).await?;
 
     Ok(())
 }
@@ -154,16 +132,6 @@ pub async fn handle_pr_command(
     from: Option<String>,
     to: Option<String>,
 ) -> Result<()> {
-    // Check if the preset is appropriate for PR descriptions
-    if !common.is_valid_preset_for_type(PresetType::Review)
-        && !common.is_valid_preset_for_type(PresetType::Both)
-    {
-        ui::print_warning(
-            "The specified preset may not be suitable for PR descriptions. Consider using a review or general preset instead.",
-        );
-        ui::print_info("Run 'git presets' to see available presets for PRs.");
-    }
-
     // Validate parameter combinations
     validate_pr_parameters(from.as_ref(), to.as_ref());
 
@@ -205,8 +173,7 @@ fn setup_pr_service(
         common,
         repository_url,
         config,
-        config.use_emoji, // Use emoji setting from config for PR descriptions
-        false,            // verification not needed for PR descriptions
+        false, // verification not needed for PR descriptions
     )
 }
 
@@ -221,7 +188,6 @@ async fn generate_pr_based_on_parameters(
     let effective_instructions = common
         .instructions
         .unwrap_or_else(|| config.instructions.clone());
-    let preset_str = common.preset.as_deref().unwrap_or("");
 
     // Create and start the spinner
     let spinner = ui::create_spinner("");
@@ -235,7 +201,6 @@ async fn generate_pr_based_on_parameters(
         (Some(from_ref), Some(to_ref)) => {
             handle_from_and_to_parameters(
                 service,
-                preset_str,
                 &effective_instructions,
                 from_ref,
                 to_ref,
@@ -244,28 +209,15 @@ async fn generate_pr_based_on_parameters(
             .await?
         }
         (None, Some(to_ref)) => {
-            handle_to_only_parameter(
-                service,
-                preset_str,
-                &effective_instructions,
-                to_ref,
-                random_message,
-            )
-            .await?
+            handle_to_only_parameter(service, &effective_instructions, to_ref, random_message)
+                .await?
         }
         (Some(from_ref), None) => {
-            handle_from_only_parameter(
-                service,
-                preset_str,
-                &effective_instructions,
-                from_ref,
-                random_message,
-            )
-            .await?
+            handle_from_only_parameter(service, &effective_instructions, from_ref, random_message)
+                .await?
         }
         (None, None) => {
-            handle_no_parameters(service, preset_str, &effective_instructions, random_message)
-                .await?
+            handle_no_parameters(service, &effective_instructions, random_message).await?
         }
     };
 
@@ -278,7 +230,6 @@ async fn generate_pr_based_on_parameters(
 /// Handle case where both --from and --to parameters are provided
 async fn handle_from_and_to_parameters(
     service: Arc<CommitService>,
-    preset_str: &str,
     effective_instructions: &str,
     from_ref: String,
     to_ref: String,
@@ -294,10 +245,9 @@ async fn handle_from_and_to_parameters(
 
         service
             .generate_pr_for_commit_range(
-                preset_str,
                 effective_instructions,
-                &format!("{from_ref}^"), // Parent of the commit
-                &from_ref,               // The commit itself
+                &format!("{from_ref}^"),
+                &from_ref,
             )
             .await
     } else if is_likely_commit_hash_or_commitish(&from_ref)
@@ -312,7 +262,7 @@ async fn handle_from_and_to_parameters(
         ));
 
         service
-            .generate_pr_for_commit_range(preset_str, effective_instructions, &from_ref, &to_ref)
+            .generate_pr_for_commit_range(effective_instructions, &from_ref, &to_ref)
             .await
     } else {
         // Treat as branch comparison
@@ -323,7 +273,7 @@ async fn handle_from_and_to_parameters(
         ));
 
         service
-            .generate_pr_for_branch_diff(preset_str, effective_instructions, &from_ref, &to_ref)
+            .generate_pr_for_branch_diff(effective_instructions, &from_ref, &to_ref)
             .await
     }
 }
@@ -331,7 +281,6 @@ async fn handle_from_and_to_parameters(
 /// Handle case where only --to parameter is provided
 async fn handle_to_only_parameter(
     service: Arc<CommitService>,
-    preset_str: &str,
     effective_instructions: &str,
     to_ref: String,
     random_message: &messages::ColoredMessage,
@@ -347,12 +296,7 @@ async fn handle_to_only_parameter(
         ));
 
         service
-            .generate_pr_for_commit_range(
-                preset_str,
-                effective_instructions,
-                &format!("{to_ref}^"), // Parent of the commit
-                &to_ref,               // The commit itself
-            )
+            .generate_pr_for_commit_range(effective_instructions, &format!("{to_ref}^"), &to_ref)
             .await
     } else if is_commitish_syntax(&to_ref) {
         // For commitish like HEAD~2, compare it against its parent (single commit analysis)
@@ -362,12 +306,7 @@ async fn handle_to_only_parameter(
         ));
 
         service
-            .generate_pr_for_commit_range(
-                preset_str,
-                effective_instructions,
-                &format!("{to_ref}^"), // Parent of the commitish
-                &to_ref,               // The commitish itself
-            )
+            .generate_pr_for_commit_range(effective_instructions, &format!("{to_ref}^"), &to_ref)
             .await
     } else {
         // Default from to "main" if only to is specified with a branch name
@@ -377,7 +316,7 @@ async fn handle_to_only_parameter(
         ));
 
         service
-            .generate_pr_for_branch_diff(preset_str, effective_instructions, "main", &to_ref)
+            .generate_pr_for_branch_diff(effective_instructions, "main", &to_ref)
             .await
     }
 }
@@ -385,7 +324,6 @@ async fn handle_to_only_parameter(
 /// Handle case where only --from parameter is provided
 async fn handle_from_only_parameter(
     service: Arc<CommitService>,
-    preset_str: &str,
     effective_instructions: &str,
     from_ref: String,
     random_message: &messages::ColoredMessage,
@@ -402,10 +340,9 @@ async fn handle_from_only_parameter(
 
         service
             .generate_pr_for_commit_range(
-                preset_str,
                 effective_instructions,
-                &format!("{from_ref}^"), // Parent of the commit
-                &from_ref,               // The commit itself
+                &format!("{from_ref}^"),
+                &from_ref,
             )
             .await
     } else if is_commitish_syntax(&from_ref) {
@@ -416,7 +353,7 @@ async fn handle_from_only_parameter(
         ));
 
         service
-            .generate_pr_for_commit_range(preset_str, effective_instructions, &from_ref, "HEAD")
+            .generate_pr_for_commit_range(effective_instructions, &from_ref, "HEAD")
             .await
     } else {
         // For a branch name, compare to HEAD
@@ -426,7 +363,7 @@ async fn handle_from_only_parameter(
         ));
 
         service
-            .generate_pr_for_commit_range(preset_str, effective_instructions, &from_ref, "HEAD")
+            .generate_pr_for_commit_range(effective_instructions, &from_ref, "HEAD")
             .await
     }
 }
@@ -434,7 +371,6 @@ async fn handle_from_only_parameter(
 /// Handle case where no parameters are provided
 async fn handle_no_parameters(
     service: Arc<CommitService>,
-    preset_str: &str,
     effective_instructions: &str,
     random_message: &messages::ColoredMessage,
 ) -> Result<super::types::GeneratedPullRequest> {
@@ -443,7 +379,7 @@ async fn handle_no_parameters(
     spinner.set_message(format!("{} - Comparing main -> HEAD", random_message.text));
 
     service
-        .generate_pr_for_branch_diff(preset_str, effective_instructions, "main", "HEAD")
+        .generate_pr_for_branch_diff(effective_instructions, "main", "HEAD")
         .await
 }
 
@@ -475,7 +411,6 @@ fn create_commit_service(
     common: &CommonParams,
     repository_url: Option<String>,
     config: &Config,
-    use_emoji: bool,
     verify: bool,
 ) -> Result<Arc<CommitService>> {
     // Combine repository URL from CLI and CommonParams
@@ -488,15 +423,8 @@ fn create_commit_service(
     let provider_name = &config.default_provider;
 
     let service = Arc::new(
-        CommitService::new(
-            config.clone(),
-            &repo_path,
-            provider_name,
-            use_emoji,
-            verify,
-            git_repo,
-        )
-        .context("Failed to create CommitService")?,
+        CommitService::new(config.clone(), &repo_path, provider_name, verify, git_repo)
+            .context("Failed to create CommitService")?,
     );
 
     // Check environment prerequisites

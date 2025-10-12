@@ -3,7 +3,6 @@ use crate::common::CommonParams;
 use crate::config::Config;
 use crate::core::messages;
 use crate::git::GitRepo;
-use crate::instruction_presets::PresetType;
 use crate::ui;
 
 use anyhow::{Context, Result};
@@ -528,9 +527,6 @@ pub async fn handle_review_command(
     from: Option<String>,
     to: Option<String>,
 ) -> Result<()> {
-    // Check if the preset is appropriate for code reviews
-    validate_preset_for_review(&common);
-
     // Validate parameter combinations
     validate_review_parameters(
         commit_id.as_ref(),
@@ -561,16 +557,6 @@ pub async fn handle_review_command(
     println!("{}", review.format());
 
     Ok(())
-}
-
-/// Validates that the preset is appropriate for code reviews
-fn validate_preset_for_review(common: &CommonParams) {
-    if !common.is_valid_preset_for_type(PresetType::Review) {
-        ui::print_warning(
-            "The specified preset may not be suitable for code reviews. Consider using a review or general preset instead.",
-        );
-        ui::print_info("Run 'git presets' to see available presets for reviews.");
-    }
 }
 
 /// Validates the parameter combinations for review command
@@ -617,15 +603,8 @@ fn setup_review_service(
     let provider_name = &config.default_provider;
 
     let service = Arc::new(
-        CommitService::new(
-            config.clone(),
-            &repo_path,
-            provider_name,
-            false, // emoji not needed for review
-            false, // verification not needed for review
-            git_repo,
-        )
-        .context("Failed to create CommitService")?,
+        CommitService::new(config.clone(), &repo_path, provider_name, false, git_repo)
+            .context("Failed to create CommitService")?,
     );
 
     // Check environment prerequisites
@@ -655,7 +634,6 @@ async fn generate_review_based_on_parameters(
     let effective_instructions = common
         .instructions
         .unwrap_or_else(|| config.instructions.clone());
-    let preset_str = common.preset.as_deref().unwrap_or("");
 
     // Create and start the spinner
     let spinner = ui::create_spinner("");
@@ -668,7 +646,6 @@ async fn generate_review_based_on_parameters(
             &service,
             &spinner,
             random_message,
-            preset_str,
             &effective_instructions,
             from_branch,
             to_branch,
@@ -681,7 +658,6 @@ async fn generate_review_based_on_parameters(
             &service,
             &spinner,
             random_message,
-            preset_str,
             &effective_instructions,
             from_branch,
             to_branch,
@@ -693,7 +669,6 @@ async fn generate_review_based_on_parameters(
             &service,
             &spinner,
             random_message,
-            preset_str,
             &effective_instructions,
             &commit_id,
         )
@@ -704,7 +679,6 @@ async fn generate_review_based_on_parameters(
             &service,
             &spinner,
             random_message,
-            preset_str,
             &effective_instructions,
             include_unstaged,
         )
@@ -722,7 +696,6 @@ async fn generate_branch_comparison_review(
     service: &Arc<CommitService>,
     spinner: &indicatif::ProgressBar,
     random_message: &messages::ColoredMessage,
-    preset_str: &str,
     effective_instructions: &str,
     from_branch: &str,
     to_branch: &str,
@@ -733,7 +706,7 @@ async fn generate_branch_comparison_review(
     ));
 
     service
-        .generate_review_for_branch_diff(preset_str, effective_instructions, from_branch, to_branch)
+        .generate_review_for_branch_diff(effective_instructions, from_branch, to_branch)
         .await
 }
 
@@ -742,7 +715,6 @@ async fn generate_commit_review(
     service: &Arc<CommitService>,
     spinner: &indicatif::ProgressBar,
     random_message: &messages::ColoredMessage,
-    preset_str: &str,
     effective_instructions: &str,
     commit_id: &str,
 ) -> Result<GeneratedReview> {
@@ -752,7 +724,7 @@ async fn generate_commit_review(
     ));
 
     service
-        .generate_review_for_commit(preset_str, effective_instructions, commit_id)
+        .generate_review_for_commit(effective_instructions, commit_id)
         .await
 }
 
@@ -761,7 +733,6 @@ async fn generate_working_directory_review(
     service: &Arc<CommitService>,
     spinner: &indicatif::ProgressBar,
     random_message: &messages::ColoredMessage,
-    preset_str: &str,
     effective_instructions: &str,
     include_unstaged: bool,
 ) -> Result<GeneratedReview> {
@@ -782,7 +753,7 @@ async fn generate_working_directory_review(
 
         // Generate the review with unstaged changes
         service
-            .generate_review_with_unstaged(preset_str, effective_instructions, include_unstaged)
+            .generate_review_with_unstaged(effective_instructions, include_unstaged)
             .await
     } else {
         // Original behavior - only staged changes
@@ -802,8 +773,6 @@ async fn generate_working_directory_review(
         }
 
         // Generate the review with only staged changes
-        service
-            .generate_review(preset_str, effective_instructions)
-            .await
+        service.generate_review(effective_instructions).await
     }
 }

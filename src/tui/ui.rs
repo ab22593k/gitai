@@ -4,7 +4,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap},
+    widgets::{Block, Borders, Clear, Paragraph, Wrap},
 };
 use unicode_width::UnicodeWidthStr;
 
@@ -13,14 +13,12 @@ const _APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 // Theme constants for consistent styling
 const ACCENT_COLOR: Color = Color::Cyan;
 const BORDER_COLOR: Color = Color::DarkGray;
-const HIGHLIGHT_COLOR: Color = Color::Yellow;
 const SEPARATOR_COLOR: Color = Color::DarkGray;
 
 /// Main UI rendering entry point
 pub fn draw_ui(f: &mut Frame, state: &mut TuiState) {
     let chunks = create_layout(f, state);
     render_sections(f, state, &chunks);
-    render_popups(f, state);
 }
 
 /// Creates dynamic layout based on visible sections
@@ -62,13 +60,6 @@ fn render_sections(f: &mut Frame, state: &mut TuiState, chunks: &[Rect]) {
     }
 
     draw_status(f, state, chunks[chunk_index]);
-}
-
-/// Renders modal popups if active
-fn render_popups(f: &mut Frame, state: &mut TuiState) {
-    if state.mode == Mode::SelectingPreset {
-        draw_preset_popup(f, state);
-    }
 }
 
 fn draw_nav_bar(f: &mut Frame, area: Rect) {
@@ -221,61 +212,4 @@ fn calculate_padding(terminal_width: usize, content_width: usize) -> (usize, usi
         let right = terminal_width - content_width - left;
         (left, right)
     }
-}
-
-fn draw_preset_popup(f: &mut Frame, state: &mut TuiState) {
-    let popup_block = create_popup_block("🌟 Select Preset");
-    let popup_area = calculate_popup_area(f.area(), 5, 5, 70, 20);
-
-    let items = create_preset_list_items(&state.preset_list);
-    let list = List::new(items).block(popup_block).highlight_style(
-        Style::default()
-            .fg(HIGHLIGHT_COLOR)
-            .add_modifier(Modifier::BOLD),
-    );
-
-    f.render_widget(Clear, popup_area);
-    f.render_stateful_widget(list, popup_area, &mut state.preset_list_state);
-}
-
-fn create_popup_block(title: &str) -> Block<'_> {
-    Block::default()
-        .title(Span::styled(
-            title,
-            Style::default()
-                .fg(ACCENT_COLOR)
-                .add_modifier(Modifier::BOLD),
-        ))
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(BORDER_COLOR))
-}
-
-fn calculate_popup_area(
-    area: Rect,
-    margin_x: u16,
-    margin_y: u16,
-    max_width: u16,
-    max_height: u16,
-) -> Rect {
-    Rect::new(
-        area.x + margin_x,
-        area.y + margin_y,
-        area.width.saturating_sub(margin_x * 2).min(max_width),
-        area.height.saturating_sub(margin_y * 2).min(max_height),
-    )
-}
-
-fn create_preset_list_items(preset_list: &[(String, String, String, String)]) -> Vec<ListItem<'_>> {
-    preset_list
-        .iter()
-        .map(|(_, emoji, name, description)| {
-            ListItem::new(Line::from(vec![
-                Span::styled(
-                    format!("{emoji} {name} "),
-                    Style::default().add_modifier(Modifier::BOLD),
-                ),
-                Span::styled(description, Style::default().fg(SEPARATOR_COLOR)),
-            ]))
-        })
-        .collect()
 }

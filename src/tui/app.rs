@@ -29,18 +29,9 @@ impl TuiCommit {
     pub fn new(
         initial_messages: Vec<GeneratedMessage>,
         custom_instructions: String,
-        preset: String,
-        user_name: String,
-        user_email: String,
         service: Arc<CommitService>,
     ) -> Self {
-        let state = TuiState::new(
-            initial_messages,
-            custom_instructions,
-            preset,
-            user_name,
-            user_email,
-        );
+        let state = TuiState::new(initial_messages, custom_instructions);
 
         Self { state, service }
     }
@@ -49,19 +40,9 @@ impl TuiCommit {
     pub async fn run(
         initial_messages: Vec<GeneratedMessage>,
         custom_instructions: String,
-        selected_preset: String,
-        user_name: String,
-        user_email: String,
         service: Arc<CommitService>,
     ) -> Result<()> {
-        let mut app = Self::new(
-            initial_messages,
-            custom_instructions,
-            selected_preset,
-            user_name,
-            user_email,
-            service,
-        );
+        let mut app = Self::new(initial_messages, custom_instructions, service);
 
         app.run_app().map_err(Error::from)
     }
@@ -121,13 +102,12 @@ impl TuiCommit {
             // Spawn the task only once when entering the Generating mode
             if self.state.mode == Mode::Generating && !task_spawned {
                 let service = self.service.clone();
-                let preset = self.state.selected_preset.clone();
                 let instructions = self.state.custom_instructions.clone();
                 let tx = tx.clone();
 
                 tokio::spawn(async move {
                     debug!("Generating message...");
-                    let result = service.generate_message(&preset, &instructions).await;
+                    let result = service.generate_message(&instructions).await;
                     let _ = tx.send(result).await;
                 });
 
@@ -218,20 +198,9 @@ impl TuiCommit {
 pub async fn run_tui_commit(
     initial_messages: Vec<GeneratedMessage>,
     custom_instructions: String,
-    selected_preset: String,
-    user_name: String,
-    user_email: String,
     service: Arc<CommitService>,
 ) -> Result<()> {
-    TuiCommit::run(
-        initial_messages,
-        custom_instructions,
-        selected_preset,
-        user_name,
-        user_email,
-        service,
-    )
-    .await
+    TuiCommit::run(initial_messages, custom_instructions, service).await
 }
 
 pub enum ExitStatus {

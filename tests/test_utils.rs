@@ -439,14 +439,6 @@ impl MockDataBuilder {
         Config::default()
     }
 
-    /// Create a mock Config with emoji enabled
-    pub fn config_with_emoji() -> Config {
-        Config {
-            use_emoji: true,
-            ..Default::default()
-        }
-    }
-
     /// Create a mock Config with custom instructions
     pub fn config_with_instructions(instructions: &str) -> Config {
         Config {
@@ -459,7 +451,7 @@ impl MockDataBuilder {
     pub fn test_config_with_api_key(provider: &str, api_key: &str) -> Config {
         let provider_config = ProviderConfig {
             api_key: api_key.to_string(),
-            model: "test-model".to_string(),
+            model_name: "test-model".to_string(),
             ..Default::default()
         };
 

@@ -1,6 +1,5 @@
 use crate::config::Config;
 use crate::core::llm::get_available_provider_names;
-use crate::instruction_presets::{PresetType, get_instruction_preset_library};
 use anyhow::Result;
 use clap::Args;
 use std::fmt::Write;
@@ -110,29 +109,7 @@ impl CommonParams {
             // Note: temp instructions don't count as permanent changes
         }
 
-        if let Some(preset) = &self.preset {
-            config.set_temp_preset(Some(preset.clone()));
-            // Note: temp preset doesn't count as permanent changes
-        }
-
-        if let Some(use_emoji) = self.emoji
-            && config.use_emoji != use_emoji
-        {
-            config.use_emoji = use_emoji;
-            changes_made = true;
-        }
-
         Ok(changes_made)
-    }
-
-    /// Check if the provided preset is valid for the specified preset type
-    pub fn is_valid_preset_for_type(&self, preset_type: PresetType) -> bool {
-        if let Some(preset_name) = &self.preset {
-            let library = get_instruction_preset_library();
-            let valid_presets = library.list_valid_presets_for_command(preset_type);
-            return valid_presets.iter().any(|(key, _)| *key == preset_name);
-        }
-        true // No preset specified is always valid
     }
 }
 
@@ -169,17 +146,6 @@ pub fn get_combined_instructions(config: &Config) -> String {
             &mut prompt,
             "\n\nAdditional instructions for the request:\n{}\n\n",
             config.instructions
-        )
-        .expect("write to string should not fail");
-    }
-
-    let preset_library = get_instruction_preset_library();
-    if let Some(preset_instructions) = preset_library.get_preset(config.instruction_preset.as_str())
-    {
-        write!(
-            &mut prompt,
-            "\n\nIMPORTANT: Use this style for your output:\n{}\n\n",
-            preset_instructions.instructions
         )
         .expect("write to string should not fail");
     }

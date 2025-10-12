@@ -18,7 +18,6 @@ pub fn handle_input(app: &mut TuiCommit, key: KeyEvent) -> InputResult {
             result
         }
         Mode::EditingInstructions => handle_editing_instructions(app, key),
-        Mode::SelectingPreset => handle_selecting_preset(app, key),
         Mode::Help => handle_help(app, key),
         Mode::Generating => {
             if key.code == KeyCode::Esc {
@@ -49,13 +48,6 @@ fn handle_normal_mode(app: &mut TuiCommit, key: KeyEvent) -> InputResult {
                 app.state.mode = Mode::Normal;
                 app.state.set_status(String::from("Instructions hidden."));
             }
-            InputResult::Continue
-        }
-        KeyCode::Char('p') => {
-            app.state.mode = Mode::SelectingPreset;
-            app.state.set_status(String::from(
-                "Selecting preset. Use arrow keys and Enter to select, Esc to cancel.",
-            ));
             InputResult::Continue
         }
         KeyCode::Char('R') => {
@@ -171,60 +163,6 @@ fn handle_editing_instructions(app: &mut TuiCommit, key: KeyEvent) -> InputResul
     } else {
         app.state.instructions_textarea.input(key);
         InputResult::Continue
-    }
-}
-
-fn handle_selecting_preset(app: &mut TuiCommit, key: KeyEvent) -> InputResult {
-    match key.code {
-        KeyCode::Esc => {
-            app.state.mode = Mode::Normal;
-            app.state
-                .set_status(String::from("Preset selection cancelled."));
-            InputResult::Continue
-        }
-        KeyCode::Enter => {
-            if let Some(selected) = app.state.preset_list_state.selected() {
-                app.state
-                    .selected_preset
-                    .clone_from(&app.state.preset_list[selected].0);
-                app.state.mode = Mode::Normal;
-                app.handle_regenerate();
-            }
-            InputResult::Continue
-        }
-        KeyCode::Up => {
-            let selected = app.state.preset_list_state.selected().unwrap_or(0);
-            let new_selected = if selected > 0 {
-                selected - 1
-            } else {
-                app.state.preset_list.len() - 1
-            };
-            app.state.preset_list_state.select(Some(new_selected));
-            InputResult::Continue
-        }
-        KeyCode::Down => {
-            let selected = app.state.preset_list_state.selected().unwrap_or(0);
-            let new_selected = (selected + 1) % app.state.preset_list.len();
-            app.state.preset_list_state.select(Some(new_selected));
-            InputResult::Continue
-        }
-        KeyCode::PageUp => {
-            let selected = app.state.preset_list_state.selected().unwrap_or(0);
-            let new_selected = selected.saturating_sub(10);
-            app.state.preset_list_state.select(Some(new_selected));
-            InputResult::Continue
-        }
-        KeyCode::PageDown => {
-            let selected = app.state.preset_list_state.selected().unwrap_or(0);
-            let new_selected = if selected + 10 < app.state.preset_list.len() {
-                selected + 10
-            } else {
-                app.state.preset_list.len() - 1
-            };
-            app.state.preset_list_state.select(Some(new_selected));
-            InputResult::Continue
-        }
-        _ => InputResult::Continue,
     }
 }
 

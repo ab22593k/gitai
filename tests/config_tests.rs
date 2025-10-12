@@ -44,7 +44,7 @@ fn test_project_config_security() {
     for provider_name in &["openai", "anthropic", "cohere"] {
         let provider_config = ProviderConfig {
             api_key: format!("secret_{provider_name}_api_key"),
-            model: format!("{provider_name}_model"),
+            model_name: format!("{provider_name}_model"),
             ..Default::default()
         };
 
@@ -80,12 +80,12 @@ fn test_project_config_security() {
         .providers
         .get_mut("openai")
         .expect("OpenAI provider should exist")
-        .model = "gpt-3.5-turbo".to_string();
+        .model_name = "gpt-3.5-turbo".to_string();
 
     let mut project_config = MockDataBuilder::config();
     let project_provider_config = ProviderConfig {
         api_key: String::new(), // Empty API key
-        model: "gpt-4".to_string(),
+        model_name: "gpt-4".to_string(),
         ..Default::default()
     };
     project_config
@@ -107,7 +107,7 @@ fn test_project_config_security() {
 
     // Verify model from project config is used
     assert_eq!(
-        provider_config.model, "gpt-4",
+        provider_config.model_name, "gpt-4",
         "Project model setting was not applied"
     );
 
