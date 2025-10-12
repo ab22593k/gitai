@@ -10,7 +10,6 @@ pub enum Mode {
     Normal,
     EditingMessage,
     EditingInstructions,
-    EditingUserInfo,
     SelectingPreset,
     Generating,
     Help,
@@ -21,19 +20,14 @@ pub struct TuiState {
     pub current_index: usize,
     pub custom_instructions: String,
     pub status: String,
-    pub selected_emoji: Option<String>,
     pub selected_preset: String,
     pub mode: Mode,
     pub message_textarea: TextArea<'static>,
     pub instructions_textarea: TextArea<'static>,
     pub preset_list: Vec<(String, String, String, String)>,
     pub preset_list_state: ListState,
-    pub user_name: String,
-    pub user_email: String,
-    pub user_name_textarea: TextArea<'static>,
-    pub user_email_textarea: TextArea<'static>,
     pub spinner: Option<SpinnerState>,
-    pub dirty: bool, // Used to track if we need to redraw
+    pub dirty: bool,
     pub last_spinner_update: std::time::Instant,
     pub instructions_visible: bool,
     pub nav_bar_visible: bool,
@@ -94,22 +88,17 @@ impl TuiState {
             current_index: 0,
             custom_instructions,
             status: "Press '?': help | 'Esc': exit".to_string(),
-            selected_emoji: None,
             selected_preset: preset,
             mode: Mode::Normal,
             message_textarea,
             instructions_textarea,
             preset_list,
             preset_list_state,
-            user_name,
-            user_email,
-            user_name_textarea,
-            user_email_textarea,
             spinner: None,
             dirty: true,
             last_spinner_update: std::time::Instant::now(),
             instructions_visible: false,
-            nav_bar_visible: false,
+            nav_bar_visible: true,
         }
     }
 
@@ -131,11 +120,5 @@ impl TuiState {
         new_textarea.insert_str(&message_content);
         self.message_textarea = new_textarea;
         self.dirty = true;
-    }
-
-    pub fn apply_selected_emoji(&mut self) {
-        if let Some(message) = self.messages.get_mut(self.current_index) {
-            message.emoji.clone_from(&self.selected_emoji);
-        }
     }
 }

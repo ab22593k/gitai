@@ -19,7 +19,6 @@ pub fn handle_input(app: &mut TuiCommit, key: KeyEvent) -> InputResult {
         }
         Mode::EditingInstructions => handle_editing_instructions(app, key),
         Mode::SelectingPreset => handle_selecting_preset(app, key),
-        Mode::EditingUserInfo => handle_editing_user_info(app, key),
         Mode::Help => handle_help(app, key),
         Mode::Generating => {
             if key.code == KeyCode::Esc {
@@ -56,13 +55,6 @@ fn handle_normal_mode(app: &mut TuiCommit, key: KeyEvent) -> InputResult {
             app.state.mode = Mode::SelectingPreset;
             app.state.set_status(String::from(
                 "Selecting preset. Use arrow keys and Enter to select, Esc to cancel.",
-            ));
-            InputResult::Continue
-        }
-        KeyCode::Char('u') => {
-            app.state.mode = Mode::EditingUserInfo;
-            app.state.set_status(String::from(
-                "Editing user info. Press Tab to switch fields, Enter to save, Esc to cancel.",
             ));
             InputResult::Continue
         }
@@ -232,26 +224,6 @@ fn handle_selecting_preset(app: &mut TuiCommit, key: KeyEvent) -> InputResult {
             app.state.preset_list_state.select(Some(new_selected));
             InputResult::Continue
         }
-        _ => InputResult::Continue,
-    }
-}
-
-fn handle_editing_user_info(app: &mut TuiCommit, key: KeyEvent) -> InputResult {
-    match key.code {
-        KeyCode::Esc => {
-            app.state.mode = Mode::Normal;
-            app.state
-                .set_status(String::from("User info editing cancelled."));
-            InputResult::Continue
-        }
-        KeyCode::Enter => {
-            app.state.user_name = app.state.user_name_textarea.lines().join("\n");
-            app.state.user_email = app.state.user_email_textarea.lines().join("\n");
-            app.state.mode = Mode::Normal;
-            app.state.set_status(String::from("User info updated."));
-            InputResult::Continue
-        }
-
         _ => InputResult::Continue,
     }
 }
