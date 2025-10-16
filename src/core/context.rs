@@ -82,6 +82,80 @@ impl ProjectMetadata {
     }
 }
 
+/// Fixed-size buffer with const generic size parameter
+#[derive(Debug, Clone)]
+pub struct FixedSizeBuffer<T, const N: usize> {
+    data: [T; N],
+    size: usize, // Current number of elements in the buffer
+}
+
+impl<T: Clone + Default, const N: usize> FixedSizeBuffer<T, N> {
+    /// Create a new buffer with all elements initialized to default values
+    pub fn new() -> Self {
+        Self {
+            data: [(); N].map(|()| T::default()),
+            size: 0,
+        }
+    }
+
+    /// Add an element to the buffer
+    /// Returns true if the element was added, false if the buffer is full
+    pub fn push(&mut self, item: T) -> bool {
+        if self.size < N {
+            self.data[self.size] = item;
+            self.size += 1;
+            true
+        } else {
+            false // Buffer is full
+        }
+    }
+
+    /// Get an element by index
+    pub fn get(&self, index: usize) -> Option<&T> {
+        if index < self.size {
+            Some(&self.data[index])
+        } else {
+            None
+        }
+    }
+
+    /// Get the number of elements currently in the buffer
+    pub fn len(&self) -> usize {
+        self.size
+    }
+
+    /// Check if the buffer is empty
+    pub fn is_empty(&self) -> bool {
+        self.size == 0
+    }
+
+    /// Check if the buffer is full
+    pub fn is_full(&self) -> bool {
+        self.size == N
+    }
+
+    /// Get the maximum capacity of the buffer
+    pub fn capacity(&self) -> usize {
+        N
+    }
+
+    /// Clear the buffer
+    pub fn clear(&mut self) {
+        self.size = 0;
+    }
+
+    /// Iterate over the elements in the buffer
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
+        self.data.iter().take(self.size)
+    }
+}
+
+impl<T: Clone + Default, const N: usize> Default for FixedSizeBuffer<T, N> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CommitContext {
     pub fn new(
         branch: String,
@@ -106,5 +180,57 @@ impl CommitContext {
         );
 
         let _ = optimizer.optimize_context(self);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_fixed_size_buffer() {
+        // Create a buffer of size 3
+        let mut buffer: FixedSizeBuffer<i32, 3> = FixedSizeBuffer::new();
+
+        // Initially empty
+        assert_eq!(buffer.len(), 0);
+        assert!(buffer.is_empty());
+        assert_eq!(buffer.capacity(), 3);
+
+        // Add elements
+        assert_eq!(buffer.push(1), true); // Should succeed
+        assert_eq!(buffer.push(2), true); // Should succeed
+        assert_eq!(buffer.push(3), true); // Should succeed
+        assert_eq!(buffer.push(4), false); // Should fail - buffer is full
+
+        // Check length and capacity
+        assert_eq!(buffer.len(), 3);
+        assert!(!buffer.is_empty());
+        assert!(buffer.is_full());
+
+        // Check elements
+        assert_eq!(buffer.get(0), Some(&1));
+        assert_eq!(buffer.get(1), Some(&2));
+        assert_eq!(buffer.get(2), Some(&3));
+        assert_eq!(buffer.get(3), None); // Out of bounds
+
+        // Test iteration
+        let collected: Vec<&i32> = buffer.iter().collect();
+        assert_eq!(collected, vec![&1, &2, &3]);
+
+        // Clear the buffer
+        buffer.clear();
+        assert_eq!(buffer.len(), 0);
+        assert!(buffer.is_empty());
+        assert_eq!(buffer.get(0), None);
+    }
+
+    #[test]
+    fn test_const_generic_different_sizes() {
+        let buffer_5: FixedSizeBuffer<u8, 5> = FixedSizeBuffer::new();
+        let buffer_10: FixedSizeBuffer<u8, 10> = FixedSizeBuffer::new();
+
+        assert_eq!(buffer_5.capacity(), 5);
+        assert_eq!(buffer_10.capacity(), 10);
     }
 }

@@ -43,11 +43,13 @@ impl FileAnalyzer for JavaAnalyzer {
         let mut analysis = Vec::new();
 
         if let Some(classes) = extract_modified_classes(&staged_file.diff) {
-            analysis.push(format!("Modified classes: {}", classes.join(", ")));
+            let classes_vec: Vec<String> = classes.collect();
+            analysis.push(format!("Modified classes: {}", classes_vec.join(", ")));
         }
 
         if let Some(methods) = extract_modified_methods(&staged_file.diff) {
-            analysis.push(format!("Modified methods: {}", methods.join(", ")));
+            let methods_vec: Vec<String> = methods.collect();
+            analysis.push(format!("Modified methods: {}", methods_vec.join(", ")));
         }
 
         if has_import_changes(&staged_file.diff) {
@@ -123,7 +125,7 @@ impl JavaAnalyzer {
     }
 }
 
-fn extract_modified_classes(diff: &str) -> Option<Vec<String>> {
+fn extract_modified_classes(diff: &str) -> Option<impl Iterator<Item = String>> {
     let classes: HashSet<String> = JAVA_CLASS_RE
         .captures_iter(diff)
         .filter_map(|cap| cap.get(3).map(|m| m.as_str().to_string()))
@@ -132,11 +134,11 @@ fn extract_modified_classes(diff: &str) -> Option<Vec<String>> {
     if classes.is_empty() {
         None
     } else {
-        Some(classes.into_iter().collect())
+        Some(classes.into_iter())
     }
 }
 
-fn extract_modified_methods(diff: &str) -> Option<Vec<String>> {
+fn extract_modified_methods(diff: &str) -> Option<impl Iterator<Item = String>> {
     let methods: HashSet<String> = JAVA_METHOD_RE
         .captures_iter(diff)
         .filter_map(|cap| cap.get(2).map(|m| m.as_str().to_string()))
@@ -145,7 +147,7 @@ fn extract_modified_methods(diff: &str) -> Option<Vec<String>> {
     if methods.is_empty() {
         None
     } else {
-        Some(methods.into_iter().collect())
+        Some(methods.into_iter())
     }
 }
 

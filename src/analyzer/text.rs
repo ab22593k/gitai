@@ -47,14 +47,19 @@ impl FileAnalyzer for GenericTextAnalyzer {
         if is_likely_config_file(file)
             && let Some(keys) = extract_modified_keys(&staged_file.diff)
         {
-            analysis.push(format!("Modified configuration keys: {}", keys.join(", ")));
+            let keys_vec: Vec<String> = keys.collect();
+            analysis.push(format!(
+                "Modified configuration keys: {}",
+                keys_vec.join(", ")
+            ));
         }
 
-        // For XML/HTML-like files, analyze tag changes
+        // For XML/HTML-like files, analyze tag changes - we'll implement the function if missing
         if (has_extension(file, "xml") || has_extension(file, "html") || has_extension(file, "htm"))
             && let Some(tags) = extract_modified_tags(&staged_file.diff)
         {
-            analysis.push(format!("Modified tags: {}", tags.join(", ")));
+            let tags_vec: Vec<String> = tags.collect();
+            analysis.push(format!("Modified tags: {}", tags_vec.join(", ")));
         }
 
         // Add a fallback analysis if nothing else was found
@@ -129,7 +134,7 @@ fn is_likely_config_file(file: &str) -> bool {
 }
 
 /// Extract modified keys from config-like files
-fn extract_modified_keys(diff: &str) -> Option<Vec<String>> {
+fn extract_modified_keys(diff: &str) -> Option<impl Iterator<Item = String>> {
     let keys: HashSet<String> = CONFIG_KV_RE
         .captures_iter(diff)
         .filter_map(|cap| {
@@ -141,12 +146,12 @@ fn extract_modified_keys(diff: &str) -> Option<Vec<String>> {
     if keys.is_empty() {
         None
     } else {
-        Some(keys.into_iter().collect())
+        Some(keys.into_iter())
     }
 }
 
 /// Extract modified tags from XML/HTML-like files
-fn extract_modified_tags(diff: &str) -> Option<Vec<String>> {
+fn extract_modified_tags(diff: &str) -> Option<impl Iterator<Item = String>> {
     let tags: HashSet<String> = TAG_RE
         .captures_iter(diff)
         .filter_map(|cap| {
@@ -158,6 +163,6 @@ fn extract_modified_tags(diff: &str) -> Option<Vec<String>> {
     if tags.is_empty() {
         None
     } else {
-        Some(tags.into_iter().collect())
+        Some(tags.into_iter())
     }
 }

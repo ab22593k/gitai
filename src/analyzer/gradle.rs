@@ -69,11 +69,11 @@ impl FileAnalyzer for GradleAnalyzer {
         }
 
         if let Some(dependencies) = extract_gradle_dependencies(content) {
-            metadata.dependencies = dependencies;
+            metadata.dependencies = dependencies.collect();
         }
 
         if let Some(plugins) = extract_gradle_plugins(content) {
-            metadata.plugins = plugins;
+            metadata.plugins = plugins.collect();
         }
 
         metadata
@@ -98,7 +98,7 @@ fn extract_gradle_version(content: &str) -> Option<String> {
         .map(|cap| cap[1].to_string())
 }
 
-fn extract_gradle_dependencies(content: &str) -> Option<Vec<String>> {
+fn extract_gradle_dependencies(content: &str) -> Option<impl Iterator<Item = String>> {
     let dependencies: HashSet<String> = GRADLE_DEPENDENCY_RE
         .captures_iter(content)
         .map(|cap| format!("{}:{}:{}", &cap[1], &cap[2], &cap[3]))
@@ -107,11 +107,11 @@ fn extract_gradle_dependencies(content: &str) -> Option<Vec<String>> {
     if dependencies.is_empty() {
         None
     } else {
-        Some(dependencies.into_iter().collect())
+        Some(dependencies.into_iter())
     }
 }
 
-fn extract_gradle_plugins(content: &str) -> Option<Vec<String>> {
+fn extract_gradle_plugins(content: &str) -> Option<impl Iterator<Item = String>> {
     let plugins: HashSet<String> = GRADLE_PLUGIN_RE
         .captures_iter(content)
         .map(|cap| cap[1].to_string())
@@ -120,6 +120,6 @@ fn extract_gradle_plugins(content: &str) -> Option<Vec<String>> {
     if plugins.is_empty() {
         None
     } else {
-        Some(plugins.into_iter().collect())
+        Some(plugins.into_iter())
     }
 }

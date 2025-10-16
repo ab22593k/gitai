@@ -27,7 +27,8 @@ impl FileAnalyzer for YamlAnalyzer {
         let mut analysis = Vec::new();
 
         if let Some(keys) = extract_modified_top_level_keys(&staged_file.diff) {
-            analysis.push(format!("Modified top-level keys: {}", keys.join(", ")));
+            let keys_vec: Vec<String> = keys.collect();
+            analysis.push(format!("Modified top-level keys: {}", keys_vec.join(", ")));
         }
 
         if has_list_changes(&staged_file.diff) {
@@ -67,7 +68,7 @@ impl FileAnalyzer for YamlAnalyzer {
     }
 }
 
-fn extract_modified_top_level_keys(diff: &str) -> Option<Vec<String>> {
+fn extract_modified_top_level_keys(diff: &str) -> Option<impl Iterator<Item = String>> {
     let keys: HashSet<String> = YAML_TOP_LEVEL_KEY_RE
         .captures_iter(diff)
         .filter_map(|cap| {
@@ -83,7 +84,7 @@ fn extract_modified_top_level_keys(diff: &str) -> Option<Vec<String>> {
     if keys.is_empty() {
         None
     } else {
-        Some(keys.into_iter().collect())
+        Some(keys.into_iter())
     }
 }
 

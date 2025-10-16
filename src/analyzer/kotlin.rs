@@ -33,11 +33,13 @@ impl FileAnalyzer for KotlinAnalyzer {
         let mut analysis = Vec::new();
 
         if let Some(classes) = extract_modified_classes(&staged_file.diff) {
-            analysis.push(format!("Modified classes: {}", classes.join(", ")));
+            let classes_vec: Vec<String> = classes.collect();
+            analysis.push(format!("Modified classes: {}", classes_vec.join(", ")));
         }
 
         if let Some(functions) = extract_modified_functions(&staged_file.diff) {
-            analysis.push(format!("Modified functions: {}", functions.join(", ")));
+            let functions_vec: Vec<String> = functions.collect();
+            analysis.push(format!("Modified functions: {}", functions_vec.join(", ")));
         }
 
         if has_import_changes(&staged_file.diff) {
@@ -97,7 +99,7 @@ impl KotlinAnalyzer {
     }
 }
 
-fn extract_modified_classes(diff: &str) -> Option<Vec<String>> {
+fn extract_modified_classes(diff: &str) -> Option<impl Iterator<Item = String>> {
     let classes: HashSet<String> = KOTLIN_CLASS_RE
         .captures_iter(diff)
         .filter_map(|cap| cap.get(2).map(|m| m.as_str().to_string()))
@@ -106,11 +108,11 @@ fn extract_modified_classes(diff: &str) -> Option<Vec<String>> {
     if classes.is_empty() {
         None
     } else {
-        Some(classes.into_iter().collect())
+        Some(classes.into_iter())
     }
 }
 
-fn extract_modified_functions(diff: &str) -> Option<Vec<String>> {
+fn extract_modified_functions(diff: &str) -> Option<impl Iterator<Item = String>> {
     let functions: HashSet<String> = KOTLIN_FUNCTION_RE
         .captures_iter(diff)
         .filter_map(|cap| cap.get(2).map(|m| m.as_str().to_string()))
@@ -119,7 +121,7 @@ fn extract_modified_functions(diff: &str) -> Option<Vec<String>> {
     if functions.is_empty() {
         None
     } else {
-        Some(functions.into_iter().collect())
+        Some(functions.into_iter())
     }
 }
 

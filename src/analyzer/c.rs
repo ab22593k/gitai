@@ -33,11 +33,13 @@ impl FileAnalyzer for CAnalyzer {
         let mut analysis = Vec::new();
 
         if let Some(functions) = extract_modified_functions(&staged_file.diff) {
-            analysis.push(format!("Modified functions: {}", functions.join(", ")));
+            let functions_vec: Vec<String> = functions.collect();
+            analysis.push(format!("Modified functions: {}", functions_vec.join(", ")));
         }
 
         if let Some(structs) = extract_modified_structs(&staged_file.diff) {
-            analysis.push(format!("Modified structs: {}", structs.join(", ")));
+            let structs_vec: Vec<String> = structs.collect();
+            analysis.push(format!("Modified structs: {}", structs_vec.join(", ")));
         }
 
         if has_include_changes(&staged_file.diff) {
@@ -91,7 +93,7 @@ impl CAnalyzer {
     }
 }
 
-fn extract_modified_functions(diff: &str) -> Option<Vec<String>> {
+fn extract_modified_functions(diff: &str) -> Option<impl Iterator<Item = String>> {
     let functions: HashSet<String> = C_FUNCTION_RE
         .captures_iter(diff)
         .filter_map(|cap| cap.get(1).map(|m| m.as_str().to_string()))
@@ -100,11 +102,11 @@ fn extract_modified_functions(diff: &str) -> Option<Vec<String>> {
     if functions.is_empty() {
         None
     } else {
-        Some(functions.into_iter().collect())
+        Some(functions.into_iter())
     }
 }
 
-fn extract_modified_structs(diff: &str) -> Option<Vec<String>> {
+fn extract_modified_structs(diff: &str) -> Option<impl Iterator<Item = String>> {
     let structs: HashSet<String> = C_STRUCT_RE
         .captures_iter(diff)
         .filter_map(|cap| cap.get(1).map(|m| m.as_str().to_string()))
@@ -113,7 +115,7 @@ fn extract_modified_structs(diff: &str) -> Option<Vec<String>> {
     if structs.is_empty() {
         None
     } else {
-        Some(structs.into_iter().collect())
+        Some(structs.into_iter())
     }
 }
 

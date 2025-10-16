@@ -34,7 +34,8 @@ impl FileAnalyzer for MarkdownAnalyzer {
         let mut analysis = Vec::new();
 
         if let Some(headers) = extract_modified_headers(&staged_file.diff) {
-            analysis.push(format!("Modified headers: {}", headers.join(", ")));
+            let headers_vec: Vec<String> = headers.collect();
+            analysis.push(format!("Modified headers: {}", headers_vec.join(", ")));
         }
 
         if has_list_changes(&staged_file.diff) {
@@ -92,7 +93,7 @@ impl MarkdownAnalyzer {
     }
 }
 
-fn extract_modified_headers(diff: &str) -> Option<Vec<String>> {
+fn extract_modified_headers(diff: &str) -> Option<impl Iterator<Item = String>> {
     let headers: Vec<String> = MD_MODIFIED_HEADER_RE
         .captures_iter(diff)
         .filter_map(|cap| cap.get(2).map(|m| m.as_str().to_string()))
@@ -101,7 +102,7 @@ fn extract_modified_headers(diff: &str) -> Option<Vec<String>> {
     if headers.is_empty() {
         None
     } else {
-        Some(headers)
+        Some(headers.into_iter())
     }
 }
 

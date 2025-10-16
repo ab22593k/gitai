@@ -138,7 +138,6 @@ jobs:
             ./target/${{ matrix.target }}/release/git-pr${{ matrix.os == 'windows-latest' && '.exe' || '' }}
             ./target/${{ matrix.target }}/release/git-release-notes${{ matrix.os == 'windows-latest' && '.exe' || '' }}
             ./target/${{ matrix.target }}/release/git-review${{ matrix.os == 'windows-latest' && '.exe' || '' }}
-            ./target/${{ matrix.target }}/release/git-serve${{ matrix.os == 'windows-latest' && '.exe' || '' }}
             ./target/${{ matrix.target }}/release/git-wire${{ matrix.os == 'windows-latest' && '.exe' || '' }}
           if-no-files-found: error
           retention-days: 1

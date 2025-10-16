@@ -37,17 +37,20 @@ impl FileAnalyzer for RustAnalyzer {
 
         // Check for new or modified functions
         if let Some(functions) = extract_modified_functions(&staged_file.diff) {
-            analysis.push(format!("Modified functions: {}", functions.join(", ")));
+            let functions_vec: Vec<String> = functions.collect();
+            analysis.push(format!("Modified functions: {}", functions_vec.join(", ")));
         }
 
         // Check for new or modified structs
         if let Some(structs) = extract_modified_structs(&staged_file.diff) {
-            analysis.push(format!("Modified structs: {}", structs.join(", ")));
+            let structs_vec: Vec<String> = structs.collect();
+            analysis.push(format!("Modified structs: {}", structs_vec.join(", ")));
         }
 
         // Check for new or modified traits
         if let Some(traits) = extract_modified_traits(&staged_file.diff) {
-            analysis.push(format!("Modified traits: {}", traits.join(", ")));
+            let traits_vec: Vec<String> = traits.collect();
+            analysis.push(format!("Modified traits: {}", traits_vec.join(", ")));
         }
 
         // Check for new or modified imports
@@ -107,7 +110,7 @@ impl RustAnalyzer {
     }
 }
 
-fn extract_modified_functions(diff: &str) -> Option<Vec<String>> {
+fn extract_modified_functions(diff: &str) -> Option<impl Iterator<Item = String>> {
     let functions: Vec<String> = RUST_FN_RE
         .captures_iter(diff)
         .filter_map(|cap| cap.get(1).map(|m| m.as_str().to_string()))
@@ -116,11 +119,11 @@ fn extract_modified_functions(diff: &str) -> Option<Vec<String>> {
     if functions.is_empty() {
         None
     } else {
-        Some(functions)
+        Some(functions.into_iter())
     }
 }
 
-fn extract_modified_structs(diff: &str) -> Option<Vec<String>> {
+fn extract_modified_structs(diff: &str) -> Option<impl Iterator<Item = String>> {
     let structs: Vec<String> = RUST_STRUCT_RE
         .captures_iter(diff)
         .filter_map(|cap| cap.get(1).map(|m| m.as_str().to_string()))
@@ -129,11 +132,11 @@ fn extract_modified_structs(diff: &str) -> Option<Vec<String>> {
     if structs.is_empty() {
         None
     } else {
-        Some(structs)
+        Some(structs.into_iter())
     }
 }
 
-fn extract_modified_traits(diff: &str) -> Option<Vec<String>> {
+fn extract_modified_traits(diff: &str) -> Option<impl Iterator<Item = String>> {
     let traits: Vec<String> = RUST_TRAIT_RE
         .captures_iter(diff)
         .filter_map(|cap| cap.get(1).map(|m| m.as_str().to_string()))
@@ -142,7 +145,7 @@ fn extract_modified_traits(diff: &str) -> Option<Vec<String>> {
     if traits.is_empty() {
         None
     } else {
-        Some(traits)
+        Some(traits.into_iter())
     }
 }
 

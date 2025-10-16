@@ -33,11 +33,13 @@ impl FileAnalyzer for JavaScriptAnalyzer {
         let mut analysis = Vec::new();
 
         if let Some(functions) = extract_modified_functions(&staged_file.diff) {
-            analysis.push(format!("Modified functions: {}", functions.join(", ")));
+            let functions_vec: Vec<String> = functions.collect();
+            analysis.push(format!("Modified functions: {}", functions_vec.join(", ")));
         }
 
         if let Some(classes) = extract_modified_classes(&staged_file.diff) {
-            analysis.push(format!("Modified classes: {}", classes.join(", ")));
+            let classes_vec: Vec<String> = classes.collect();
+            analysis.push(format!("Modified classes: {}", classes_vec.join(", ")));
         }
 
         if has_import_changes(&staged_file.diff) {
@@ -45,9 +47,10 @@ impl FileAnalyzer for JavaScriptAnalyzer {
         }
 
         if let Some(components) = extract_modified_react_components(&staged_file.diff) {
+            let components_vec: Vec<String> = components.collect();
             analysis.push(format!(
                 "Modified React components: {}",
-                components.join(", ")
+                components_vec.join(", ")
             ));
         }
 
@@ -119,7 +122,7 @@ impl JavaScriptAnalyzer {
     }
 }
 
-fn extract_modified_functions(diff: &str) -> Option<Vec<String>> {
+fn extract_modified_functions(diff: &str) -> Option<impl Iterator<Item = String>> {
     let functions: Vec<String> = JS_FUNCTION_RE
         .captures_iter(diff)
         .filter_map(|cap| cap.get(2).or(cap.get(3)).map(|m| m.as_str().to_string()))
@@ -128,11 +131,11 @@ fn extract_modified_functions(diff: &str) -> Option<Vec<String>> {
     if functions.is_empty() {
         None
     } else {
-        Some(functions)
+        Some(functions.into_iter())
     }
 }
 
-fn extract_modified_classes(diff: &str) -> Option<Vec<String>> {
+fn extract_modified_classes(diff: &str) -> Option<impl Iterator<Item = String>> {
     let classes: Vec<String> = JS_CLASS_RE
         .captures_iter(diff)
         .filter_map(|cap| cap.get(1).map(|m| m.as_str().to_string()))
@@ -141,7 +144,7 @@ fn extract_modified_classes(diff: &str) -> Option<Vec<String>> {
     if classes.is_empty() {
         None
     } else {
-        Some(classes)
+        Some(classes.into_iter())
     }
 }
 
@@ -149,7 +152,7 @@ fn has_import_changes(diff: &str) -> bool {
     JS_IMPORT_EXPORT_RE.is_match(diff)
 }
 
-fn extract_modified_react_components(diff: &str) -> Option<Vec<String>> {
+fn extract_modified_react_components(diff: &str) -> Option<impl Iterator<Item = String>> {
     let mut components = HashSet::new();
 
     for cap in REACT_CLASS_COMPONENT_RE.captures_iter(diff) {
@@ -167,6 +170,6 @@ fn extract_modified_react_components(diff: &str) -> Option<Vec<String>> {
     if components.is_empty() {
         None
     } else {
-        Some(components.into_iter().collect())
+        Some(components.into_iter())
     }
 }
