@@ -1,4 +1,6 @@
-# Git AI workflow
+![Git Smart workflow logo](assets/gitsw.png)
+
+# Git Smart workflow
 
 AI-powered `Git` toolkit that enhances workflow with intelligent commit messages, pull request generation, code reviews, changelogs, and more. It integrates with various LLM providers to automate and improve your development process.
 
@@ -34,7 +36,7 @@ These rules provide a concise framework for building lightweight Rust code. Focu
 
 - Minimize DependenciesAudit with cargo audit; prefer stable crates. Use features flags for optional deps.
 
-- Profile for PerformanceUse cargo flamegraph or perf; optimize hot paths with #[inline]. Benchmark with criterion.
+- Benchmarks: Add performance-critical operations to benches, for Performance Use cargo flamegraph or perf; optimize hot paths with #[inline]. Benchmark with criterion.
 
 - Use the git2 crate for core version control domain logic.
 
