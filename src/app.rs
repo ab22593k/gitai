@@ -2,7 +2,7 @@ use crate::common::CommonParams;
 use crate::core::llm::get_available_provider_names;
 use crate::debug;
 use crate::features::changelog::{handle_changelog_command, handle_release_notes_command};
-use crate::features::commit;
+use crate::features::{commit, rebase};
 use crate::ui;
 use clap::builder::{Styles, styling::AnsiColor};
 use clap::{Parser, Subcommand, crate_version};
@@ -244,6 +244,49 @@ Supported commitish syntax: HEAD~2, HEAD^, @~3, main~1, origin/main^, etc."
         #[arg(long, help = "Explicit version name to use in the release notes")]
         version_name: Option<String>,
     },
+
+    /// Interactive rebase with AI assistance
+    #[command(
+        about = "Interactive rebase with AI assistance",
+        long_about = "Perform an interactive rebase with AI-powered suggestions for commit operations including reword, squash, fixup, and drop actions.\\
+\\
+Usage examples:\\
+• Rebase current branch onto main: git rebase main\\
+• Rebase with AI suggestions: git rebase --auto-apply main\\
+• Rebase specific branch: git rebase --branch feature-branch main\\
+• Focus on specific commit types: git rebase --commit-types feat,fix main\\
+\\
+Supported actions:\\
+• pick: Keep commit as-is\\
+• reword: Change commit message\\
+• edit: Stop for manual editing\\
+• squash: Combine with previous commit\\
+• fixup: Combine without keeping message\\
+• drop: Remove commit"
+    )]
+    Rebase {
+        #[command(flatten)]
+        common: CommonParams,
+
+        /// Upstream branch/commit to rebase onto
+        #[arg(required = true, help = "Upstream branch/commit to rebase onto")]
+        upstream: String,
+
+        /// Branch to rebase (defaults to current branch)
+        #[arg(short, long, help = "Branch to rebase (defaults to current branch)")]
+        branch: Option<String>,
+
+        /// Auto-apply AI suggestions without interactive prompt
+        #[arg(long, help = "Auto-apply AI suggestions without interactive prompt")]
+        auto_apply: bool,
+
+        /// Focus on specific commit types (feat, fix, refactor, etc.)
+        #[arg(
+            long,
+            help = "Focus on specific commit types (comma-separated: feat,fix,refactor,etc.)"
+        )]
+        commit_types: Option<String>,
+    },
 }
 
 /// Define custom styles for Clap
@@ -443,6 +486,13 @@ pub async fn handle_command(command: GitAI, repository_url: Option<String>) -> a
             from,
             to,
         } => handle_pr_command(common, print, from, to, repository_url).await,
+        GitAI::Rebase {
+            common,
+            upstream,
+            branch,
+            auto_apply,
+            commit_types,
+        } => handle_rebase_command(common, upstream, branch, auto_apply, commit_types, repository_url).await,
     }
 }
 
@@ -461,4 +511,23 @@ pub async fn handle_pr_command(
     ui::print_version(crate_version!());
     ui::print_newline();
     commit::handle_pr_command(common, print, repository_url, from, to).await
+}
+
+/// Handle the `Rebase` command
+pub async fn handle_rebase_command(
+    common: CommonParams,
+    upstream: String,
+    branch: Option<String>,
+    auto_apply: bool,
+    commit_types: Option<String>,
+    repository_url: Option<String>,
+) -> anyhow::Result<()> {
+    debug!(
+        "Handling 'rebase' command with common: {:?}, upstream: {}, branch: {:?}, auto_apply: {}, commit_types: {:?}",
+        common, upstream, branch, auto_apply, commit_types
+    );
+    ui::print_version(crate_version!());
+    ui::print_newline();
+
+    rebase::handle_rebase_command(common, upstream, branch, auto_apply, commit_types, repository_url).await
 }
