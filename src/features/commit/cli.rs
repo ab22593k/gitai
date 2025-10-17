@@ -43,7 +43,7 @@ pub async fn handle_message_command(
 
     let git_info = service.get_git_info().await?;
 
-    if git_info.staged_files.is_empty() {
+    if git_info.staged_files.is_empty() && !dry_run {
         ui::print_warning(
             "No staged changes. Please stage your changes before generating a commit message.",
         );
