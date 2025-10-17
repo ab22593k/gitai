@@ -5,7 +5,6 @@ use super::ui::draw_ui;
 use crate::debug;
 use crate::features::commit::{CommitService, format_commit_result, types::GeneratedMessage};
 use anyhow::{Error, Result};
-use crossterm::event::KeyEventKind;
 use ratatui::{
     Terminal,
     backend::CrosstermBackend,
@@ -148,7 +147,7 @@ impl TuiCommit {
             // Poll for input events
             if event::poll(Duration::from_millis(20))?
                 && let Event::Key(key) = event::read()?
-                && key.kind == KeyEventKind::Press
+                && key.kind == crossterm::event::KeyEventKind::Press
             {
                 match handle_input(self, key) {
                     InputResult::Exit => return Ok(ExitStatus::Cancelled),
