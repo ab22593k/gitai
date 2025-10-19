@@ -8,8 +8,6 @@ use ratatui::{
 };
 use unicode_width::UnicodeWidthStr;
 
-const _APP_VERSION: &str = env!("CARGO_PKG_VERSION");
-
 // Enhanced theme with richer color palette
 const ACCENT_COLOR: Color = Color::Cyan;
 const ACCENT_COLOR_DIM: Color = Color::Blue;

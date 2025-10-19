@@ -64,17 +64,6 @@ pub fn print_success(message: &str) {
     }
 }
 
-pub fn print_version(version: &str) {
-    if !is_quiet_mode() {
-        println!(
-            "{} {} {}",
-            "Smart Workflow".magenta().bold(),
-            "version".cyan(),
-            version.green()
-        );
-    }
-}
-
 /// Print content with decorative borders
 pub fn print_bordered_content(content: &str) {
     if !is_quiet_mode() {

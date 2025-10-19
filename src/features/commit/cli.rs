@@ -9,6 +9,49 @@ use crate::git::GitRepo;
 use crate::tui::run_tui_commit;
 use crate::ui::{self, SpinnerState};
 
+use std::io::{self, Write};
+use std::time::Duration;
+use tokio::time;
+
+/// Run an async operation with a CLI spinner display
+async fn run_with_spinner<F, Fut, T>(
+    mut spinner: SpinnerState,
+    operation: F,
+) -> Result<T, anyhow::Error>
+where
+    F: FnOnce() -> Fut,
+    Fut: std::future::Future<Output = Result<T, anyhow::Error>>,
+{
+    let (tx, mut rx) = tokio::sync::mpsc::channel(1);
+
+    // Spawn spinner animation task
+    let spinner_handle = tokio::spawn(async move {
+        let mut stdout = io::stdout();
+        loop {
+            tokio::select! {
+                _ = rx.recv() => break, // Stop signal received
+                _ = time::sleep(Duration::from_millis(100)) => {
+                    let (frame, message, _color, _width) = spinner.tick();
+                    let _ = write!(stdout, "\r{} {}", frame, message);
+                    let _ = stdout.flush();
+                }
+            }
+        }
+        // Clear the spinner line
+        let _ = write!(stdout, "\r{}\r", " ".repeat(80));
+        let _ = stdout.flush();
+    });
+
+    // Run the operation
+    let result = operation().await;
+
+    // Stop the spinner
+    let _ = tx.send(()).await;
+    spinner_handle.await?;
+
+    Ok(result?)
+}
+
 use anyhow::{Context, Result};
 use std::sync::Arc;
 
@@ -75,11 +118,11 @@ pub async fn handle_message_command(
         .instructions
         .unwrap_or_else(|| config.instructions.clone());
 
-    // Create and start the spinner
+    // Create spinner for message generation
     let random_message = messages::get_waiting_message();
-    let mut spinner = ui::create_tui_spinner(&random_message.text);
+    let spinner = ui::create_tui_spinner(&random_message.text);
 
-    // Generate an initial message
+    // Generate an initial message with spinner display
     let initial_message = if dry_run {
         types::GeneratedMessage {
             emoji: Some("🔧".to_string()),
@@ -87,11 +130,8 @@ pub async fn handle_message_command(
             message: "Updated the layout to properly handle dynamic constraints and improve user experience.".to_string(),
         }
     } else {
-        service.generate_message(&effective_instructions).await?
+        run_with_spinner(spinner, || service.generate_message(&effective_instructions)).await?
     };
-
-    // Stop the spinner
-    spinner.tick();
 
     if print {
         println!("{}", format_commit_message(&initial_message));
@@ -208,38 +248,39 @@ async fn generate_pr_based_on_parameters(
         .instructions
         .unwrap_or_else(|| config.instructions.clone());
 
-    // Create and start the spinner
+    // Create spinner for PR generation
     let random_message = messages::get_waiting_message();
-    let mut spinner = ui::create_tui_spinner(
+    let spinner = ui::create_tui_spinner(
         format!("{} - Generating PR description", random_message.text).as_str(),
     );
 
-    let pr_description = match (from, to) {
-        (Some(from_ref), Some(to_ref)) => {
-            handle_from_and_to_parameters(
-                service,
-                &effective_instructions,
-                from_ref,
-                to_ref,
-                random_message,
-            )
-            .await?
+    // Generate PR description with spinner display
+    let pr_description = run_with_spinner(spinner, || async {
+        match (from, to) {
+            (Some(from_ref), Some(to_ref)) => {
+                handle_from_and_to_parameters(
+                    service,
+                    &effective_instructions,
+                    from_ref,
+                    to_ref,
+                    random_message,
+                )
+                .await
+            }
+            (None, Some(to_ref)) => {
+                handle_to_only_parameter(service, &effective_instructions, to_ref, random_message)
+                    .await
+            }
+            (Some(from_ref), None) => {
+                handle_from_only_parameter(service, &effective_instructions, from_ref, random_message)
+                    .await
+            }
+            (None, None) => {
+                handle_no_parameters(service, &effective_instructions, random_message).await
+            }
         }
-        (None, Some(to_ref)) => {
-            handle_to_only_parameter(service, &effective_instructions, to_ref, random_message)
-                .await?
-        }
-        (Some(from_ref), None) => {
-            handle_from_only_parameter(service, &effective_instructions, from_ref, random_message)
-                .await?
-        }
-        (None, None) => {
-            handle_no_parameters(service, &effective_instructions, random_message).await?
-        }
-    };
-
-    // Stop the spinner
-    spinner.tick();
+    })
+    .await?;
 
     Ok(pr_description)
 }

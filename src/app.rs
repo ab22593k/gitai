@@ -2,7 +2,6 @@ use crate::common::CommonParams;
 use crate::core::llm::get_available_provider_names;
 use crate::features::changelog::{handle_changelog_command, handle_release_notes_command};
 use crate::features::commit;
-use crate::ui;
 use clap::builder::{Styles, styling::AnsiColor};
 use clap::{Parser, Subcommand, crate_version};
 use colored::Colorize;
@@ -247,8 +246,6 @@ Supported commitish syntax: HEAD~2, HEAD^, @~3, main~1, origin/main^, etc."
         #[arg(long, help = "Explicit version name to use in the release notes")]
         version_name: Option<String>,
     },
-
-
 }
 
 /// Define custom styles for Clap
@@ -313,8 +310,6 @@ pub async fn handle_message(
         config.commit_ref
     );
 
-    ui::print_version(crate_version!());
-
     commit::handle_message_command(
         common,
         config.auto_commit,
@@ -342,8 +337,6 @@ pub async fn handle_review(
         "Handling 'review' command with common: {:?}, print: {}, include_unstaged: {}, commit: {:?}, from: {:?}, to: {:?}",
         common, print, include_unstaged, commit, from, to
     );
-    ui::print_version(crate_version!());
-    ui::print_newline();
     commit::review::handle_review_command(
         common,
         print,
@@ -453,7 +446,7 @@ pub async fn handle_command(command: GitAI, repository_url: Option<String>) -> a
             print,
             from,
             to,
-        } => handle_pr_command(common, print, from, to, repository_url).await
+        } => handle_pr_command(common, print, from, to, repository_url).await,
     }
 }
 
@@ -469,9 +462,5 @@ pub async fn handle_pr_command(
         "Handling 'pr' command with common: {:?}, print: {}, from: {:?}, to: {:?}",
         common, print, from, to
     );
-    ui::print_version(crate_version!());
-    ui::print_newline();
     commit::handle_pr_command(common, print, repository_url, from, to).await
 }
-
-
