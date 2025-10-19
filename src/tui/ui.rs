@@ -64,6 +64,7 @@ fn render_sections(f: &mut Frame, state: &mut TuiState, chunks: &[Rect]) {
 
 fn draw_nav_bar(f: &mut Frame, state: &TuiState, area: Rect) {
     let nav_items: Vec<(&str, &str)> = match state.mode {
+<<<<<<< HEAD
         Mode::RebaseList => vec![
             ("↑↓", "Navigate"),
             ("⏎", "Edit"),
@@ -73,6 +74,16 @@ fn draw_nav_bar(f: &mut Frame, state: &TuiState, area: Rect) {
         Mode::RebaseEdit => vec![
             ("Esc", "Save"),
         ],
+||||||| parent of a9d2184 (Remove rebase functionality)
+        Mode::RebaseList => vec![
+            ("↑↓", "Navigate"),
+            ("⏎", "Edit"),
+            ("␣", "Action"),
+            ("Esc", "Exit"),
+        ],
+        Mode::RebaseEdit => vec![("Esc", "Save")],
+=======
+>>>>>>> a9d2184 (Remove rebase functionality)
         _ => vec![
             ("↔", "Navigate"),
             ("E", "Message"),
@@ -110,8 +121,7 @@ fn draw_nav_bar(f: &mut Frame, state: &TuiState, area: Rect) {
 
 fn draw_commit_message(f: &mut Frame, state: &mut TuiState, area: Rect) {
     match state.mode {
-        Mode::RebaseList => draw_rebase_list(f, state, area),
-        Mode::RebaseEdit => draw_rebase_edit(f, state, area),
+        Mode::Help => draw_help(f, state, area),
         _ => {
             let title = format!(
                 "✦ Commit Message ({}/{})",
@@ -220,16 +230,44 @@ fn create_centered_status_line(
     ])
 }
 
-fn draw_rebase_list(f: &mut Frame, state: &mut TuiState, area: Rect) {
-    let title = format!(
-        "🔄 Rebase Commits ({}/{})",
-        state.rebase_current_index + 1,
-        state.rebase_commits.len()
-    );
 
-    let list_block = Block::default()
+
+
+
+
+fn draw_help(f: &mut Frame, _state: &mut TuiState, area: Rect) {
+    let help_text = vec![
+        Line::from(vec![
+            Span::styled("✨ Commit Message TUI Help", Style::default().fg(ACCENT_COLOR).add_modifier(Modifier::BOLD))
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Navigation:", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+        ]),
+        Line::from("  ←→ / hl         Navigate between messages"),
+        Line::from("  ↑↓ / jk         Navigate within message"),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Actions:", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+        ]),
+        Line::from("  Enter            Commit with selected message"),
+        Line::from("  E                Edit current message"),
+        Line::from("  I                Edit custom instructions"),
+        Line::from("  R                Regenerate messages"),
+        Line::from("  ?                Toggle navigation bar"),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Other:", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+        ]),
+        Line::from("  Esc              Exit without committing"),
+        Line::from("  ?                Show this help"),
+        Line::from(""),
+        Line::from("Press any key to close help"),
+    ];
+
+    let help_block = Block::default()
         .title(Span::styled(
-            title,
+            "❓ Help",
             Style::default()
                 .fg(ACCENT_COLOR)
                 .add_modifier(Modifier::BOLD),
@@ -237,6 +275,7 @@ fn draw_rebase_list(f: &mut Frame, state: &mut TuiState, area: Rect) {
         .borders(Borders::ALL)
         .border_style(Style::default().fg(BORDER_COLOR));
 
+<<<<<<< HEAD
     let mut lines = vec![];
     for (i, commit) in state.rebase_commits.iter().enumerate() {
         let is_selected = i == state.rebase_current_index;
@@ -263,29 +302,52 @@ fn draw_rebase_list(f: &mut Frame, state: &mut TuiState, area: Rect) {
 
     let list = Paragraph::new(lines)
         .block(list_block)
+||||||| parent of a9d2184 (Remove rebase functionality)
+    let mut lines = vec![];
+    for (i, commit) in state.rebase_commits.iter().enumerate() {
+        let is_selected = i == state.rebase_current_index;
+        let prefix = if is_selected { "▶ " } else { "  " };
+        let action = format!("{:6}", commit.suggested_action.to_string());
+        let hash = format!("{:8}", &commit.hash);
+        let message = commit.message.lines().next().unwrap_or("");
+
+        let style = if is_selected {
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default()
+        };
+
+        lines.push(Line::from(vec![
+            Span::styled(prefix, style),
+            Span::styled(action, Style::default().fg(Color::Cyan)),
+            Span::raw(" "),
+            Span::styled(hash, Style::default().fg(Color::DarkGray)),
+            Span::raw(" "),
+            Span::styled(message, style),
+        ]));
+    }
+
+    let list = Paragraph::new(lines)
+        .block(list_block)
+=======
+    let help_paragraph = Paragraph::new(help_text)
+        .block(help_block)
+>>>>>>> a9d2184 (Remove rebase functionality)
         .style(Style::default())
         .wrap(Wrap { trim: true });
 
-    f.render_widget(list, area);
+    f.render_widget(help_paragraph, area);
 }
 
-fn draw_rebase_edit(f: &mut Frame, state: &mut TuiState, area: Rect) {
-    let title = "✏️  Edit Commit Message".to_string();
 
-    let edit_block = Block::default()
-        .title(Span::styled(
-            title,
-            Style::default()
-                .fg(ACCENT_COLOR)
-                .add_modifier(Modifier::BOLD),
-        ))
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(BORDER_COLOR));
 
-    state.rebase_textarea.set_block(edit_block);
-    state.rebase_textarea.set_style(Style::default());
-    f.render_widget(&state.rebase_textarea, area);
-}
+
+
+
+
+
 
 fn calculate_padding(terminal_width: usize, content_width: usize) -> (usize, usize) {
     if content_width >= terminal_width {

@@ -1,6 +1,6 @@
 use crate::config::Config;
 use crate::core::context::{CommitContext, ProjectMetadata, RecentCommit, StagedFile};
-use crate::features::rebase::RebaseResult;
+
 use crate::git::commit::{self, CommitResult};
 use crate::git::files::{RepoFilesInfo, get_file_statuses, get_unstaged_file_statuses};
 use crate::git::metadata;
@@ -675,110 +675,7 @@ impl GitRepo {
         commit::amend_commit(&repo, message, commit_ref, self.is_remote)
     }
 
-    /// Perform an interactive rebase
-    pub fn rebase(&self, upstream: &str, branch: Option<&str>) -> Result<RebaseResult> {
-        let repo = self.open_repo()?;
 
-        if self.is_remote {
-            return Err(anyhow!("Cannot perform rebase operations on remote repositories"));
-        }
-
-        // Get the current branch
-        let default_branch = self.get_current_branch().unwrap_or("HEAD".to_string());
-        let branch_name = branch.unwrap_or(default_branch.as_str());
-
-        // Find the merge base
-        let upstream_commit = repo.revparse_single(upstream)?.peel_to_commit()?;
-        let branch_commit = repo.revparse_single(&branch_name)?.peel_to_commit()?;
-        let merge_base_oid = repo.merge_base(upstream_commit.id(), branch_commit.id())?;
-
-        // Get commits to rebase
-        let mut revwalk = repo.revwalk()?;
-        revwalk.push(branch_commit.id())?;
-        revwalk.hide(merge_base_oid)?;
-
-        let commits_to_rebase: Vec<_> = revwalk.collect::<Result<Vec<_>, _>>()?;
-        let num_commits = commits_to_rebase.len();
-
-        if commits_to_rebase.is_empty() {
-            return Ok(RebaseResult {
-                operations_performed: 0,
-                commits_processed: 0,
-                success: true,
-                conflicts: vec![],
-            });
-        }
-
-        // For now, implement a simple rebase that cherry-picks all commits
-        // TODO: Implement selective actions (pick, reword, squash, etc.)
-
-        // Create a temporary branch for the rebase
-        let temp_branch_name = format!("gitai-rebase-{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_secs());
-        let _temp_branch = repo.branch(&temp_branch_name, &upstream_commit, false)?;
-
-        // Checkout the temp branch
-        repo.set_head(&format!("refs/heads/{}", temp_branch_name))?;
-        repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))?;
-
-        let mut operations_performed = 0;
-        let mut conflicts = vec![];
-
-        // Cherry-pick each commit
-        for commit_oid in commits_to_rebase.into_iter().rev() { // Reverse to maintain order
-            let commit = repo.find_commit(commit_oid)?;
-
-            match repo.cherrypick(&commit, None) {
-                Ok(_) => {
-                    // Create a new commit
-                    let signature = repo.signature()?;
-                    let tree = repo.head()?.peel_to_tree()?;
-                    let parent = repo.head()?.peel_to_commit()?;
-
-                    repo.commit(
-                        Some("HEAD"),
-                        &signature,
-                        &signature,
-                        commit.message().unwrap_or(""),
-                        &tree,
-                        &[&parent],
-                    )?;
-                    operations_performed += 1;
-                }
-                Err(e) => {
-                    // Check for conflicts
-                    if repo.index()?.has_conflicts() {
-                        conflicts.push(format!("Conflict when applying commit {}", commit_oid));
-                        // For now, abort on conflicts
-                        return Ok(RebaseResult {
-                            operations_performed,
-                            commits_processed: num_commits,
-                            success: false,
-                            conflicts,
-                        });
-                    } else {
-                        return Err(anyhow!("Failed to cherry-pick commit {}: {}", commit_oid, e));
-                    }
-                }
-            }
-        }
-
-        // Switch back to original branch and reset it to the temp branch
-        repo.set_head(&format!("refs/heads/{}", branch_name))?;
-        let temp_commit = repo.find_branch(&temp_branch_name, git2::BranchType::Local)?
-            .get().peel_to_commit()?;
-        repo.reset(temp_commit.as_object(), git2::ResetType::Hard, None)?;
-
-        // Clean up temp branch
-        repo.find_branch(&temp_branch_name, git2::BranchType::Local)?
-            .delete()?;
-
-        Ok(RebaseResult {
-            operations_performed,
-            commits_processed: num_commits,
-            success: true,
-            conflicts,
-        })
-    }
 
     /// Check if inside a working tree
     pub fn is_inside_work_tree() -> Result<bool> {

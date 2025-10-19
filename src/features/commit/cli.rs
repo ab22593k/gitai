@@ -50,8 +50,8 @@ pub async fn handle_message_command(
     }
 
     if amend && commit_ref.is_some() && commit_ref.as_deref() != Some("HEAD") {
-        ui::print_error("Currently, only amending HEAD is supported. For amending other commits, use interactive rebase.");
-        ui::print_info("Example: git rebase -i HEAD~3");
+        ui::print_error("Currently, only amending HEAD is supported. For amending other commits, use git directly.");
+        ui::print_info("Example: git commit --amend");
         return Err(anyhow::anyhow!("Only HEAD amendments are currently supported"));
     }
 

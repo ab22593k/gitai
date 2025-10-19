@@ -21,9 +21,7 @@ path = "src/bin/review.rs"
 name = "git-pr"
 path = "src/bin/pr.rs"
 
-[[bin]]
-name = "git-rebase"
-path = "src/bin/rebase.rs"
+
 
 [[bin]]
 name = "git-changelog"

@@ -1,36 +1,21 @@
 use super::app::TuiCommit;
-use super::rebase::TuiRebase;
 use super::spinner::SpinnerState;
 use super::state::Mode;
 
 pub trait TuiApp {
     fn get_state(&mut self) -> &mut super::state::TuiState;
-    fn perform_rebase(&self) -> Result<super::rebase::RebaseExitStatus, Box<dyn std::error::Error>>;
 }
 
 impl TuiApp for TuiCommit {
     fn get_state(&mut self) -> &mut super::state::TuiState {
         &mut self.state
     }
-
-    fn perform_rebase(&self) -> Result<super::rebase::RebaseExitStatus, Box<dyn std::error::Error>> {
-        Err("Rebase not supported for commit mode".into())
-    }
 }
 
-impl TuiApp for TuiRebase {
-    fn get_state(&mut self) -> &mut super::state::TuiState {
-        &mut self.state
-    }
-
-    fn perform_rebase(&self) -> Result<super::rebase::RebaseExitStatus, Box<dyn std::error::Error>> {
-        self.perform_rebase().map_err(|e| e.into())
-    }
-}
 use crate::features::commit::types::format_commit_message;
 use crossterm::event::{KeyCode, KeyEvent};
 
-pub fn handle_input<A: TuiApp>(app: &mut A, key: KeyEvent) -> InputResult {
+pub async fn handle_input<A: TuiApp>(app: &mut A, key: KeyEvent) -> InputResult {
     let mode = app.get_state().mode.clone();
     match mode {
         Mode::Normal => {
@@ -49,13 +34,10 @@ pub fn handle_input<A: TuiApp>(app: &mut A, key: KeyEvent) -> InputResult {
             if key.code == KeyCode::Esc {
                 let state = app.get_state();
                 state.mode = Mode::Normal;
-                state
-                    .set_status(String::from("Message generation cancelled."));
+                state.set_status(String::from("Message generation cancelled."));
             }
             InputResult::Continue
         }
-        Mode::RebaseList => handle_rebase_list(app, key),
-        Mode::RebaseEdit => handle_rebase_edit(app, key),
     }
 }
 
@@ -64,16 +46,14 @@ fn handle_normal_mode<A: TuiApp>(app: &mut A, key: KeyEvent) -> InputResult {
     match key.code {
         KeyCode::Char('e') => {
             state.mode = Mode::EditingMessage;
-            state
-                .set_status(String::from("Editing commit message. Press Esc to finish."));
+            state.set_status(String::from("Editing commit message. Press Esc to finish."));
             InputResult::Continue
         }
         KeyCode::Char('i') => {
             state.instructions_visible = !state.instructions_visible;
             if state.instructions_visible {
                 state.mode = Mode::EditingInstructions;
-                state
-                    .set_status(String::from("Editing instructions. Press Esc to finish."));
+                state.set_status(String::from("Editing instructions. Press Esc to finish."));
             } else {
                 state.mode = Mode::Normal;
                 state.set_status(String::from("Instructions hidden."));
@@ -113,8 +93,7 @@ fn handle_normal_mode<A: TuiApp>(app: &mut A, key: KeyEvent) -> InputResult {
             InputResult::Continue
         }
         KeyCode::Enter => {
-            let commit_message =
-                format_commit_message(&state.messages[state.current_index]);
+            let commit_message = format_commit_message(&state.messages[state.current_index]);
             state.set_status(String::from("Committing..."));
             state.spinner = Some(SpinnerState::new());
 
@@ -131,8 +110,7 @@ fn handle_normal_mode<A: TuiApp>(app: &mut A, key: KeyEvent) -> InputResult {
         }
         KeyCode::Char('h') => {
             state.mode = Mode::Help;
-            state
-                .set_status(String::from("Viewing help. Press any key to close."));
+            state.set_status(String::from("Viewing help. Press any key to close."));
             InputResult::Continue
         }
         KeyCode::Esc => InputResult::Exit,
@@ -172,8 +150,7 @@ fn handle_editing_message<A: TuiApp>(app: &mut A, key: KeyEvent) -> InputResult 
                 .collect::<Vec<&str>>()
                 .join("\n");
         }
-        state
-            .set_status(String::from("Commit message updated."));
+        state.set_status(String::from("Commit message updated."));
         state.update_message_textarea();
         InputResult::Continue
     } else {
@@ -198,11 +175,12 @@ fn handle_editing_instructions<A: TuiApp>(app: &mut A, key: KeyEvent) -> InputRe
 
 fn handle_help<A: TuiApp>(app: &mut A, _key: KeyEvent) -> InputResult {
     let state = app.get_state();
-    state.mode = Mode::Normal;
-    state.set_status(String::from("Help closed."));
+    state.mode = Mode::Normal; // Return to normal mode
+    state.set_status(String::from("Help closed. Press '?' for help."));
     InputResult::Continue
 }
 
+<<<<<<< HEAD
 fn handle_rebase_list<A: TuiApp>(app: &mut A, key: KeyEvent) -> InputResult {
     if key.code == KeyCode::Char('r') {
         match app.perform_rebase() {
@@ -299,6 +277,94 @@ fn handle_rebase_edit<A: TuiApp>(app: &mut A, key: KeyEvent) -> InputResult {
     }
 }
 
+||||||| parent of a9d2184 (Remove rebase functionality)
+fn handle_rebase_list<A: TuiApp>(app: &mut A, key: KeyEvent) -> InputResult {
+    if key.code == KeyCode::Char('r') {
+        match app.perform_rebase() {
+            Ok(exit_status) => match exit_status {
+                super::rebase::RebaseExitStatus::Completed => {
+                    app.get_state().set_status(String::from("Rebase completed successfully."));
+                    InputResult::Exit
+                }
+                super::rebase::RebaseExitStatus::Cancelled => {
+                    app.get_state().set_status(String::from("Rebase cancelled."));
+                    InputResult::Exit
+                }
+                super::rebase::RebaseExitStatus::Error(msg) => {
+                    app.get_state().set_status(format!("Rebase failed: {}", msg));
+                    InputResult::Continue
+                }
+            },
+            Err(e) => {
+                app.get_state().set_status(format!("Rebase failed: {}", e));
+                InputResult::Continue
+            }
+        }
+    } else {
+        let state = app.get_state();
+        match key.code {
+            KeyCode::Up | KeyCode::Char('k') => {
+                state.prev_rebase_commit();
+                state.set_status(format!(
+                    "Selected commit {}/{}",
+                    state.rebase_current_index + 1,
+                    state.rebase_commits.len()
+                ));
+                InputResult::Continue
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                state.next_rebase_commit();
+                state.set_status(format!(
+                    "Selected commit {}/{}",
+                    state.rebase_current_index + 1,
+                    state.rebase_commits.len()
+                ));
+                InputResult::Continue
+            }
+            KeyCode::Enter => {
+                state.mode = Mode::RebaseEdit;
+                state.update_rebase_textarea();
+                state.set_status(String::from("Editing commit message. Press Esc to finish."));
+                InputResult::Continue
+            }
+            KeyCode::Char(' ') => {
+                state.toggle_rebase_action();
+                if let Some(commit) = state.rebase_commits.get(state.rebase_current_index) {
+                    state.set_status(format!(
+                        "Action changed to: {}",
+                        commit.suggested_action
+                    ));
+                }
+                InputResult::Continue
+            }
+            KeyCode::Esc => {
+                state.set_status(String::from("Rebase cancelled."));
+                InputResult::Exit
+            }
+            _ => InputResult::Continue,
+        }
+    }
+}
+
+fn handle_rebase_edit<A: TuiApp>(app: &mut A, key: KeyEvent) -> InputResult {
+    let state = app.get_state();
+    if key.code == KeyCode::Esc {
+        state.mode = Mode::RebaseList;
+        // Save the edited message back to the rebase commit
+        let edited_content = state.rebase_textarea.lines().join("\n");
+        if let Some(commit) = state.rebase_commits.get_mut(state.rebase_current_index) {
+            commit.message = edited_content;
+        }
+        state.set_status(String::from("Commit message updated."));
+        InputResult::Continue
+    } else {
+        state.rebase_textarea.input(key);
+        InputResult::Continue
+    }
+}
+
+=======
+>>>>>>> a9d2184 (Remove rebase functionality)
 fn is_emoji(c: char) -> bool {
     matches!(c,
         '\u{1F300}'..='\u{1F5FF}' | '\u{1F900}'..='\u{1F9FF}' |

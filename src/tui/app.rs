@@ -43,10 +43,10 @@ impl TuiCommit {
     ) -> Result<()> {
         let mut app = Self::new(initial_messages, custom_instructions, service);
 
-        app.run_app().map_err(Error::from)
+        app.run_app().await.map_err(Error::from)
     }
 
-    pub fn run_app(&mut self) -> io::Result<()> {
+    pub async fn run_app(&mut self) -> io::Result<()> {
         // Setup
         enable_raw_mode()?;
         let mut stdout = io::stdout();
@@ -55,7 +55,7 @@ impl TuiCommit {
         let mut terminal = Terminal::new(backend)?;
 
         // Run main loop
-        let result = self.main_loop(&mut terminal);
+        let result = self.main_loop(&mut terminal).await;
 
         // Cleanup
         disable_raw_mode()?;
@@ -84,7 +84,7 @@ impl TuiCommit {
         Ok(())
     }
 
-    fn main_loop(
+    async fn main_loop(
         &mut self,
         terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     ) -> anyhow::Result<ExitStatus> {
@@ -144,12 +144,26 @@ impl TuiCommit {
                 }
             }
 
-            // Poll for input events
-            if event::poll(Duration::from_millis(20))?
-                && let Event::Key(key) = event::read()?
-                && key.kind == crossterm::event::KeyEventKind::Press
-            {
-                match handle_input(self, key) {
+            // Poll for input events asynchronously
+            let event = tokio::task::spawn_blocking(|| {
+                if event::poll(Duration::from_millis(20)).unwrap_or(false) {
+                    if let Ok(Event::Key(key)) = event::read() {
+                        if key.kind == crossterm::event::KeyEventKind::Press {
+                            Some(key)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            }).await.unwrap();
+
+            if let Some(key) = event {
+                let input_result = handle_input(self, key).await;
+                match input_result {
                     InputResult::Exit => return Ok(ExitStatus::Cancelled),
                     InputResult::Commit(message) => match self.perform_commit(&message) {
                         Ok(status) => return Ok(status),
