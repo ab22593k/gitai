@@ -5,17 +5,26 @@ use super::state::Mode;
 
 pub trait TuiApp {
     fn get_state(&mut self) -> &mut super::state::TuiState;
+    fn perform_rebase(&self) -> Result<super::rebase::RebaseExitStatus, Box<dyn std::error::Error>>;
 }
 
 impl TuiApp for TuiCommit {
     fn get_state(&mut self) -> &mut super::state::TuiState {
         &mut self.state
     }
+
+    fn perform_rebase(&self) -> Result<super::rebase::RebaseExitStatus, Box<dyn std::error::Error>> {
+        Err("Rebase not supported for commit mode".into())
+    }
 }
 
 impl TuiApp for TuiRebase {
     fn get_state(&mut self) -> &mut super::state::TuiState {
         &mut self.state
+    }
+
+    fn perform_rebase(&self) -> Result<super::rebase::RebaseExitStatus, Box<dyn std::error::Error>> {
+        self.perform_rebase().map_err(|e| e.into())
     }
 }
 use crate::features::commit::types::format_commit_message;
@@ -195,48 +204,81 @@ fn handle_help<A: TuiApp>(app: &mut A, _key: KeyEvent) -> InputResult {
 }
 
 fn handle_rebase_list<A: TuiApp>(app: &mut A, key: KeyEvent) -> InputResult {
-    let state = app.get_state();
-    match key.code {
-        KeyCode::Up | KeyCode::Char('k') => {
-            state.prev_rebase_commit();
-            state.set_status(format!(
-                "Selected commit {}/{}",
-                state.rebase_current_index + 1,
-                state.rebase_commits.len()
-            ));
-            InputResult::Continue
-        }
-        KeyCode::Down | KeyCode::Char('j') => {
-            state.next_rebase_commit();
-            state.set_status(format!(
-                "Selected commit {}/{}",
-                state.rebase_current_index + 1,
-                state.rebase_commits.len()
-            ));
-            InputResult::Continue
-        }
-        KeyCode::Enter => {
-            state.mode = Mode::RebaseEdit;
-            state.update_rebase_textarea();
-            state.set_status(String::from("Editing commit message. Press Esc to finish."));
-            InputResult::Continue
-        }
-        KeyCode::Char(' ') => {
-            state.toggle_rebase_action();
-            if let Some(commit) = state.rebase_commits.get(state.rebase_current_index) {
-                state.set_status(format!(
-                    "Action changed to: {}",
-                    commit.suggested_action
-                ));
+    if key.code == KeyCode::Char('r') {
+        match app.perform_rebase() {
+            Ok(exit_status) => match exit_status {
+                super::rebase::RebaseExitStatus::Completed => {
+                    app.get_state().set_status(String::from("Rebase completed successfully."));
+                    InputResult::Exit
+                }
+                super::rebase::RebaseExitStatus::Cancelled => {
+                    app.get_state().set_status(String::from("Rebase cancelled."));
+                    InputResult::Exit
+                }
+                super::rebase::RebaseExitStatus::Error(msg) => {
+                    app.get_state().set_status(format!("Rebase failed: {}", msg));
+                    InputResult::Continue
+                }
+            },
+            Err(e) => {
+                app.get_state().set_status(format!("Rebase failed: {}", e));
+                InputResult::Continue
             }
-            InputResult::Continue
         }
+<<<<<<< HEAD
         KeyCode::Esc => {
             state.mode = Mode::Normal;
             state.set_status(String::from("Rebase cancelled."));
             InputResult::Continue
+||||||| parent of 558cb39 (Refactor TUI rebase input handling)
+        KeyCode::Esc => {
+            state.set_status(String::from("Rebase cancelled."));
+            InputResult::Exit
+=======
+    } else {
+        let state = app.get_state();
+        match key.code {
+            KeyCode::Up | KeyCode::Char('k') => {
+                state.prev_rebase_commit();
+                state.set_status(format!(
+                    "Selected commit {}/{}",
+                    state.rebase_current_index + 1,
+                    state.rebase_commits.len()
+                ));
+                InputResult::Continue
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                state.next_rebase_commit();
+                state.set_status(format!(
+                    "Selected commit {}/{}",
+                    state.rebase_current_index + 1,
+                    state.rebase_commits.len()
+                ));
+                InputResult::Continue
+            }
+            KeyCode::Enter => {
+                state.mode = Mode::RebaseEdit;
+                state.update_rebase_textarea();
+                state.set_status(String::from("Editing commit message. Press Esc to finish."));
+                InputResult::Continue
+            }
+            KeyCode::Char(' ') => {
+                state.toggle_rebase_action();
+                if let Some(commit) = state.rebase_commits.get(state.rebase_current_index) {
+                    state.set_status(format!(
+                        "Action changed to: {}",
+                        commit.suggested_action
+                    ));
+                }
+                InputResult::Continue
+            }
+            KeyCode::Esc => {
+                state.set_status(String::from("Rebase cancelled."));
+                InputResult::Exit
+            }
+            _ => InputResult::Continue,
+>>>>>>> 558cb39 (Refactor TUI rebase input handling)
         }
-        _ => InputResult::Continue,
     }
 }
 

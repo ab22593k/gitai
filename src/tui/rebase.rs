@@ -24,15 +24,16 @@ pub struct TuiRebase {
 }
 
 impl TuiRebase {
-    pub fn new(
-        analysis: RebaseAnalysis,
-        service: Arc<RebaseService>,
-    ) -> Self {
+    pub fn new(analysis: RebaseAnalysis, service: Arc<RebaseService>) -> Self {
         let mut state = TuiState::new(vec![], String::new());
         state.mode = Mode::RebaseList;
         state.set_rebase_commits(analysis.commits.clone());
 
-        Self { state, service, analysis }
+        Self {
+            state,
+            service,
+            analysis,
+        }
     }
 
     #[allow(clippy::unused_async)]
@@ -109,13 +110,22 @@ impl TuiRebase {
     }
 
     pub fn perform_rebase(&self) -> Result<RebaseExitStatus, Error> {
-        // TODO: Implement actual rebase execution
-        // For now, just return success
-        Ok(RebaseExitStatus::Completed)
+        // Use the service to perform the rebase with the analysis
+        let rt = tokio::runtime::Runtime::new()?;
+        rt.block_on(async {
+            match self.service.perform_rebase_auto(self.analysis.clone()).await {
+                Ok(result) => {
+                    if result.success {
+                        Ok(RebaseExitStatus::Completed)
+                    } else {
+                        Ok(RebaseExitStatus::Error("Rebase completed with conflicts".to_string()))
+                    }
+                }
+                Err(e) => Ok(RebaseExitStatus::Error(e.to_string())),
+            }
+        })
     }
 }
-
-
 
 pub enum RebaseExitStatus {
     Completed,
@@ -124,9 +134,6 @@ pub enum RebaseExitStatus {
 }
 
 #[allow(clippy::unused_async)]
-pub async fn run_tui_rebase(
-    analysis: RebaseAnalysis,
-    service: Arc<RebaseService>,
-) -> Result<()> {
+pub async fn run_tui_rebase(analysis: RebaseAnalysis, service: Arc<RebaseService>) -> Result<()> {
     TuiRebase::run(analysis, service).await
 }

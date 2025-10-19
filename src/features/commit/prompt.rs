@@ -4,11 +4,13 @@ use super::types::GeneratedMessage;
 use crate::common::get_combined_instructions;
 use crate::config::Config;
 use crate::core::context::{ChangeType, CommitContext, ProjectMetadata, RecentCommit, StagedFile};
-use crate::core::template::{render_template, CommitSystemTemplateContext, CommitUserTemplateContext};
+use crate::core::template::{
+    CommitSystemTemplateContext, CommitUserTemplateContext, render_template,
+};
 
+use log::debug;
 use std::collections::HashMap;
 use std::fmt::Write;
-use log::debug;
 
 pub fn create_system_prompt(config: &Config) -> anyhow::Result<String> {
     let commit_schema = schemars::schema_for!(GeneratedMessage);
@@ -205,61 +207,6 @@ fn format_change_type(change_type: &ChangeType) -> &'static str {
         ChangeType::Modified => "Modified",
         ChangeType::Deleted => "Deleted",
     }
-}
-
-fn generate_dimensions_descriptions() -> String {
-    QualityDimension::all()
-        .iter()
-        .map(|dim| dim.description())
-        .collect::<Vec<_>>()
-        .join("\n")
-}
-
-fn generate_dimensions_json() -> String {
-    let mut json = String::new();
-    let mut is_first = true;
-
-    for dimension in QualityDimension::all() {
-        let dim_name = match dimension {
-            QualityDimension::Complexity => "complexity",
-            QualityDimension::Abstraction => "abstraction",
-            QualityDimension::Deletion => "deletion",
-            QualityDimension::Hallucination => "hallucination",
-            QualityDimension::Style => "style",
-            QualityDimension::Security => "security",
-            QualityDimension::Performance => "performance",
-            QualityDimension::Duplication => "duplication",
-            QualityDimension::ErrorHandling => "error_handling",
-            QualityDimension::Testing => "testing",
-            QualityDimension::BestPractices => "best_practices",
-        };
-
-        if is_first {
-            is_first = false;
-            json.push_str(&format!(
-                "\n          \"{dim_name}\": {{
-            \"issues_found\": true/false,
-            \"issues\": [
-              {{
-                \"description\": \"Brief description\",
-                \"severity\": \"Critical/High/Medium/Low\",
-                \"location\": \"filename.rs:line_numbers or path/to/file.rs:lines_range\",
-                \"explanation\": \"Detailed explanation of the issue\",
-                \"recommendation\": \"Specific suggestion for improvement\"
-              }},
-              ...
-            ]
-          }}"
-            ));
-        } else {
-            json.push_str(&format!(
-                ",
-          \"{dim_name}\": {{ ... similar structure ... }}"
-            ));
-        }
-    }
-
-    json
 }
 
 /// Creates a system prompt for code review generation
