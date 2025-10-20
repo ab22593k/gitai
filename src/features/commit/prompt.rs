@@ -12,9 +12,16 @@ pub fn create_system_prompt(config: &Config) -> anyhow::Result<String> {
     let commit_schema_str = serde_json::to_string_pretty(&commit_schema)?;
 
     let combined_instructions = get_combined_instructions(config);
-
     Ok(format!(
-        "As an expert Git Commit Message Generator, your role is to infer and generate a complete,\nwell-structured Conventional Commit message from the supplied context.\n\nCore Directives:\n1. Execute these instructions: {}\n2. Output Format Enforcement: Your final output MUST STRICTLY conform to the following JSON schema,\ndesigned for structured data extraction: {}\n\nOutput ONLY the resulting JSON object, ensuring no explanatory text, preambles,\nor extraneous content is included.\n",
+        "As an expert Git Commit Message Generator, your role is to infer and\n\
+         generate a complete, well-structured Conventional Commit message from the\n\
+         supplied context.\n\n\
+         Core Directives:\n\
+         1. Execute these instructions: {}\n\
+         2. Output Format Enforcement: Your final output MUST STRICTLY conform to\n\
+            the following JSON schema, designed for structured data extraction: {}\n\n\
+         Output ONLY the resulting JSON object, ensuring no explanatory text,\n\
+         preambles, or extraneous content is included.\n",
         combined_instructions, commit_schema_str
     ))
 }
@@ -50,7 +57,13 @@ pub fn create_user_prompt(context: &CommitContext) -> String {
     );
 
     format!(
-        "ANALYZE the provided context,\nincluding the Branch ({}), Recent Commits ({}),\nStaged Changes ({}), Project Metadata ({}),\nand Detailed Changes ({}).\n\nSpecifically, examine the Author's Commit History ({}) to ADAPT the tone,\nstyle, and formatting of the generated message to ensure strict consistency with the author's\nprevious patterns.\n",
+        "ANALYZE the provided context,\n\
+         including the Branch ({}), Recent Commits ({}),\n\
+         Staged Changes ({}), Project Metadata ({}),\n\
+         and Detailed Changes ({}).\n\n\
+         Specifically, examine the Author's Commit History ({}) to ADAPT the tone,\n\
+         style, and formatting of the generated message to ensure strict consistency \
+         with the author's previous patterns.\n",
         context.branch,
         recent_commits,
         staged_changes,
