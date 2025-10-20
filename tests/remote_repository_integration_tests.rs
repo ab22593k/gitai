@@ -65,24 +65,7 @@ async fn test_cli_with_remote_repository() -> Result<()> {
         "Command should fail because we're using a mock provider"
     );
 
-    // 3. Test Review command with repository URL
-    let review_command = GitAI::Review {
-        common: common.clone(),
-        print: true,
-        commit: None,
-        include_unstaged: false,
-        from: None,
-        to: None,
-    };
-
-    // Just testing that it doesn't panic
-    let result = gitai::app::handle_command(review_command, None).await;
-    assert!(
-        result.is_err(),
-        "Command should fail because we're using a mock provider"
-    );
-
-    // 4. Test cmsg command with repository URL
+    // 3. Test cmsg command with repository URL
     let gen_command = GitAI::Message {
         common,
         auto_commit: false,

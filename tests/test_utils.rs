@@ -515,7 +515,6 @@ impl MockDataBuilder {
     /// Create a mock `GeneratedPullRequest`
     pub fn generated_pull_request() -> GeneratedPullRequest {
         GeneratedPullRequest {
-            emoji: None,
             title: "Add JWT authentication with user registration".to_string(),
             summary: "Implements comprehensive JWT-based authentication system with user registration, login, and middleware for protected routes.".to_string(),
             description: "This PR introduces a complete authentication system:\n\n**Features Added:**\n- JWT token generation and validation\n- User registration endpoint\n- Authentication middleware for protected routes\n- Password hashing with bcrypt\n\n**Technical Details:**\n- Uses industry-standard JWT libraries\n- Implements secure password storage\n- Includes comprehensive error handling".to_string(),

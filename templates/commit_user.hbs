@@ -1,20 +1,8 @@
-Based on the following context, generate a Git commit message:
+ANALYZE the provided context,
+including the Branch ({{context.branch}}), Recent Commits ({{recent_commits}}),
+Staged Changes ({{staged_changes}}), Project Metadata ({{project_metadata}}),
+and Detailed Changes ({{detailed_changes}}).
 
-Branch: {{context.branch}}
-
-Recent commits:
-{{recent_commits}}
-
-Author's recent commit history:
-{{author_history}}
-
-Staged changes:
-{{staged_changes}}
-
-Project metadata:
-{{project_metadata}}
-
-Detailed changes:
-{{detailed_changes}}
-
-When generating the commit message, analyze the author's recent commit history above and adapt your writing style to match their typical patterns, tone, and formatting preferences. This will ensure consistency with their previous work.
+Specifically, examine the Author's Commit History ({{author_history}}) to ADAPT the tone,
+style, and formatting of the generated message to ensure strict consistency with the author's
+previous patterns.

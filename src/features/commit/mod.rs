@@ -1,14 +1,12 @@
-mod cli;
-mod relevance;
-pub mod review;
-pub mod types;
+ mod cli;
+ mod relevance;
+ pub mod types;
 
 pub mod prompt;
 pub mod service;
 
 pub use cli::{handle_message_command, handle_pr_command};
 use git2::FileMode;
-pub use review::handle_review_command;
 pub use service::CommitService;
 pub use types::{
     GeneratedMessage, GeneratedPullRequest, format_commit_message, format_pull_request,

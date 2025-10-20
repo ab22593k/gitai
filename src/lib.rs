@@ -19,7 +19,6 @@ pub use core::context::FixedSizeBuffer;
 
 // Re-exports from the new types organization
 pub use features::commit::{
-    review::{CodeIssue, DimensionAnalysis, GeneratedReview, QualityDimension},
     types::{GeneratedMessage, GeneratedPullRequest, format_commit_message, format_pull_request},
 };
 

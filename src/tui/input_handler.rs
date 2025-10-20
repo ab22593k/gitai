@@ -127,22 +127,7 @@ fn handle_editing_message<A: TuiApp>(app: &mut A, key: KeyEvent) -> InputResult 
             // Split the edited content into title and message
             let mut lines = edited_content.lines();
             let title_line = lines.next().unwrap_or("").trim();
-
-            // Extract emoji if present at the start of the title
-            let (emoji, title) = if let Some(first_char) = title_line.chars().next() {
-                if is_emoji(first_char) {
-                    let (emoji, rest) = title_line.split_at(first_char.len_utf8());
-                    (Some(emoji.to_string()), rest.trim().to_string())
-                } else {
-                    (None, title_line.to_string())
-                }
-            } else {
-                (None, title_line.to_string())
-            };
-
-            // Update message fields
-            message.emoji = emoji;
-            message.title = title;
+            message.title = title_line.to_string();
 
             // Collect the rest of the lines, skipping any leading empty lines
             message.message = lines
@@ -178,15 +163,6 @@ fn handle_help<A: TuiApp>(app: &mut A, _key: KeyEvent) -> InputResult {
     state.mode = Mode::Normal; // Return to normal mode
     state.set_status(String::from("Help closed. Press '?' for help."));
     InputResult::Continue
-}
-
-fn is_emoji(c: char) -> bool {
-    matches!(c,
-        '\u{1F300}'..='\u{1F5FF}' | '\u{1F900}'..='\u{1F9FF}' |
-        '\u{1F600}'..='\u{1F64F}' | '\u{1FA70}'..='\u{1FAFF}' |
-        '\u{2600}'..='\u{26FF}' | '\u{2700}'..='\u{27BF}' |
-        '\u{1F680}'..='\u{1F6FF}'
-    )
 }
 
 pub enum InputResult {

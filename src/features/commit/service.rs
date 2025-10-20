@@ -1,5 +1,4 @@
 use super::prompt::{create_system_prompt, create_user_prompt};
-use super::review::GeneratedReview;
 use super::types::GeneratedMessage;
 use crate::config::Config;
 use crate::core::context::CommitContext;
@@ -8,10 +7,10 @@ use crate::core::token_optimizer::TokenOptimizer;
 use crate::git::{CommitResult, GitRepo};
 
 use anyhow::Result;
+use log::debug;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::{RwLock, mpsc};
-use log::debug;
 
 /// Service for handling Git commit operations with AI assistance
 pub struct CommitService {
@@ -159,7 +158,7 @@ impl CommitService {
                     "openai" => 16_000,
                     "anthropic" => 100_000,
                     "groq" => 32_000,
-                    "openrouter" => 2_000_000,
+                    "openrouter" => 32_000,
                     "google" => 1_000_000,
                     _ => 8_000,
                 }
@@ -249,177 +248,6 @@ impl CommitService {
         .await?;
 
         Ok(generated_message)
-    }
-
-    /// Generate a review for unstaged changes
-    ///
-    /// # Arguments
-    ///
-    /// * `preset` - The instruction preset to use
-    /// * `instructions` - Custom instructions for the AI
-    /// * `include_unstaged` - Whether to include unstaged changes in the review
-    ///
-    /// # Returns
-    ///
-    /// A Result containing the generated code review or an error
-    pub async fn generate_review_with_unstaged(
-        &self,
-        instructions: &str,
-        include_unstaged: bool,
-    ) -> anyhow::Result<GeneratedReview> {
-        let mut config_clone = self.config.clone();
-
-        config_clone.instructions = instructions.to_string();
-
-        // Get context including unstaged changes if requested
-        let context = self.get_git_info_with_unstaged(include_unstaged).await?;
-
-        // Create system prompt
-        let system_prompt = super::prompt::create_review_system_prompt(&config_clone)?;
-
-        // Use the shared optimization logic
-        let (_, final_user_prompt) = self.optimize_prompt(
-            &config_clone,
-            &system_prompt,
-            context,
-            super::prompt::create_review_user_prompt,
-        );
-
-        llm::get_message::<GeneratedReview>(
-            &config_clone,
-            &self.provider_name,
-            &system_prompt,
-            &final_user_prompt,
-        )
-        .await
-    }
-
-    /// Generate a review for a specific commit
-    ///
-    /// # Arguments
-    ///
-    /// * `preset` - The instruction preset to use
-    /// * `instructions` - Custom instructions for the AI
-    /// * `commit_id` - The ID of the commit to review
-    ///
-    /// # Returns
-    ///
-    /// A Result containing the generated code review or an error
-    pub async fn generate_review_for_commit(
-        &self,
-        instructions: &str,
-        commit_id: &str,
-    ) -> anyhow::Result<GeneratedReview> {
-        let mut config_clone = self.config.clone();
-
-        config_clone.instructions = instructions.to_string();
-
-        // Get context for the specific commit
-        let context = self.get_git_info_for_commit(commit_id).await?;
-
-        // Create system prompt
-        let system_prompt = super::prompt::create_review_system_prompt(&config_clone)?;
-
-        // Use the shared optimization logic
-        let (_, final_user_prompt) = self.optimize_prompt(
-            &config_clone,
-            &system_prompt,
-            context,
-            super::prompt::create_review_user_prompt,
-        );
-
-        llm::get_message::<GeneratedReview>(
-            &config_clone,
-            &self.provider_name,
-            &system_prompt,
-            &final_user_prompt,
-        )
-        .await
-    }
-
-    /// Generate a review for branch comparison
-    ///
-    /// # Arguments
-    ///
-    /// * `preset` - The instruction preset to use
-    /// * `instructions` - Custom instructions for the AI
-    /// * `base_branch` - The base branch (e.g., "main")
-    /// * `target_branch` - The target branch (e.g., "feature-branch")
-    ///
-    /// # Returns
-    ///
-    /// A Result containing the generated code review or an error
-    pub async fn generate_review_for_branch_diff(
-        &self,
-        instructions: &str,
-        base_branch: &str,
-        target_branch: &str,
-    ) -> anyhow::Result<GeneratedReview> {
-        let mut config_clone = self.config.clone();
-
-        config_clone.instructions = instructions.to_string();
-
-        // Get context for the branch comparison
-        let context = self
-            .repo
-            .get_git_info_for_branch_diff(&self.config, base_branch, target_branch)
-            .await?;
-
-        // Create system prompt
-        let system_prompt = super::prompt::create_review_system_prompt(&config_clone)?;
-
-        // Use the shared optimization logic
-        let (_, final_user_prompt) = self.optimize_prompt(
-            &config_clone,
-            &system_prompt,
-            context,
-            super::prompt::create_review_user_prompt,
-        );
-
-        llm::get_message::<GeneratedReview>(
-            &config_clone,
-            &self.provider_name,
-            &system_prompt,
-            &final_user_prompt,
-        )
-        .await
-    }
-
-    /// Generate a code review using AI
-    ///
-    /// # Arguments
-    ///
-    /// * `preset` - The instruction preset to use
-    /// * `instructions` - Custom instructions for the AI
-    ///
-    /// # Returns
-    ///
-    /// A Result containing the generated code review or an error
-    pub async fn generate_review(&self, instructions: &str) -> anyhow::Result<GeneratedReview> {
-        let mut config_clone = self.config.clone();
-
-        config_clone.instructions = instructions.to_string();
-
-        let context = self.get_git_info().await?;
-
-        // Create system prompt
-        let system_prompt = super::prompt::create_review_system_prompt(&config_clone)?;
-
-        // Use the shared optimization logic
-        let (_, final_user_prompt) = self.optimize_prompt(
-            &config_clone,
-            &system_prompt,
-            context,
-            super::prompt::create_review_user_prompt,
-        );
-
-        llm::get_message::<GeneratedReview>(
-            &config_clone,
-            &self.provider_name,
-            &system_prompt,
-            &final_user_prompt,
-        )
-        .await
     }
 
     /// Generate a PR description for a commit range
@@ -533,18 +361,28 @@ impl CommitService {
     /// # Returns
     ///
     /// A Result containing the `CommitResult` or an error.
-    pub fn perform_commit(&self, message: &str, amend: bool, commit_ref: Option<&str>) -> Result<CommitResult> {
+    pub fn perform_commit(
+        &self,
+        message: &str,
+        amend: bool,
+        commit_ref: Option<&str>,
+    ) -> Result<CommitResult> {
         // Check if this is a remote repository
         if self.is_remote_repository() {
             return Err(anyhow::anyhow!("Cannot commit to a remote repository"));
         }
 
-        debug!("Performing commit with message: {}, amend: {}, commit_ref: {:?}", message, amend, commit_ref);
+        debug!(
+            "Performing commit with message: {}, amend: {}, commit_ref: {:?}",
+            message, amend, commit_ref
+        );
 
         if !self.verify {
             debug!("Skipping pre-commit hook (verify=false)");
             if amend {
-                return self.repo.amend_commit(message, commit_ref.unwrap_or("HEAD"));
+                return self
+                    .repo
+                    .amend_commit(message, commit_ref.unwrap_or("HEAD"));
             } else {
                 return self.repo.commit(message);
             }
@@ -560,7 +398,8 @@ impl CommitService {
 
         // Perform the commit
         let commit_result = if amend {
-            self.repo.amend_commit(message, commit_ref.unwrap_or("HEAD"))
+            self.repo
+                .amend_commit(message, commit_ref.unwrap_or("HEAD"))
         } else {
             self.repo.commit(message)
         };

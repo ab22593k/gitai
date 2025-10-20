@@ -6,9 +6,6 @@ use textwrap;
 /// Model for commit message generation results
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
 pub struct GeneratedMessage {
-    /// Optional emoji for the commit message
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub emoji: Option<String>,
     /// Commit message title/subject line
     pub title: String,
     /// Detailed commit message body
@@ -18,9 +15,6 @@ pub struct GeneratedMessage {
 /// Model for pull request description generation results
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
 pub struct GeneratedPullRequest {
-    /// Optional emoji for the pull request title
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub emoji: Option<String>,
     /// Pull request title
     pub title: String,
     /// Brief summary of the changes
@@ -45,10 +39,6 @@ pub struct GeneratedPullRequest {
 pub fn format_commit_message(response: &GeneratedMessage) -> String {
     let mut message = String::new();
 
-    if let Some(emoji) = &response.emoji {
-        let _ = write!(&mut message, "{emoji} ");
-    }
-
     message.push_str(&response.title);
     message.push_str("\n\n");
 
@@ -63,17 +53,6 @@ pub fn format_commit_message(response: &GeneratedMessage) -> String {
 /// Formats a pull request description from a `GeneratedPullRequest`
 pub fn format_pull_request(response: &GeneratedPullRequest) -> String {
     let mut message = String::new();
-
-    // Title with optional emoji
-    match &response.emoji {
-        Some(emoji) => {
-            let _ = writeln!(&mut message, "# {emoji} {}", response.title);
-        }
-        None => {
-            let _ = writeln!(&mut message, "# {}", response.title);
-        }
-    }
-    message.push('\n');
 
     // Summary - no word wrapping for web UI display
     let _ = writeln!(&mut message, "## Summary");

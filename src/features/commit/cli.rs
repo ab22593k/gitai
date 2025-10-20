@@ -93,9 +93,13 @@ pub async fn handle_message_command(
     }
 
     if amend && commit_ref.is_some() && commit_ref.as_deref() != Some("HEAD") {
-        ui::print_error("Currently, only amending HEAD is supported. For amending other commits, use git directly.");
+        ui::print_error(
+            "Currently, only amending HEAD is supported. For amending other commits, use git directly.",
+        );
         ui::print_info("Example: git commit --amend");
-        return Err(anyhow::anyhow!("Only HEAD amendments are currently supported"));
+        return Err(anyhow::anyhow!(
+            "Only HEAD amendments are currently supported"
+        ));
     }
 
     let git_info = service.get_git_info().await?;
@@ -125,12 +129,14 @@ pub async fn handle_message_command(
     // Generate an initial message with spinner display
     let initial_message = if dry_run {
         types::GeneratedMessage {
-            emoji: Some("🔧".to_string()),
             title: "Fix bug in UI rendering".to_string(),
             message: "Updated the layout to properly handle dynamic constraints and improve user experience.".to_string(),
         }
     } else {
-        run_with_spinner(spinner, || service.generate_message(&effective_instructions)).await?
+        run_with_spinner(spinner, || {
+            service.generate_message(&effective_instructions)
+        })
+        .await?
     };
 
     if print {
@@ -155,7 +161,11 @@ pub async fn handle_message_command(
             return Ok(());
         }
 
-        match service.perform_commit(&format_commit_message(&initial_message), amend, commit_ref.as_deref()) {
+        match service.perform_commit(
+            &format_commit_message(&initial_message),
+            amend,
+            commit_ref.as_deref(),
+        ) {
             Ok(result) => {
                 let output =
                     format_commit_result(&result, &format_commit_message(&initial_message));
@@ -272,8 +282,13 @@ async fn generate_pr_based_on_parameters(
                     .await
             }
             (Some(from_ref), None) => {
-                handle_from_only_parameter(service, &effective_instructions, from_ref, random_message)
-                    .await
+                handle_from_only_parameter(
+                    service,
+                    &effective_instructions,
+                    from_ref,
+                    random_message,
+                )
+                .await
             }
             (None, None) => {
                 handle_no_parameters(service, &effective_instructions, random_message).await

@@ -114,45 +114,6 @@ pub enum GitAI {
         commit: Option<String>,
     },
 
-    /// Review staged changes and provide feedback
-    #[command(
-        about = "Review staged changes using AI",
-        long_about = "Generate a comprehensive multi-dimensional code review of staged changes using AI. Analyzes code across 10 dimensions including complexity, security, performance, and more."
-    )]
-    Review {
-        #[command(flatten)]
-        common: CommonParams,
-
-        /// Print the generated review to stdout and exit
-        #[arg(short, long, help = "Print the generated review to stdout and exit")]
-        print: bool,
-
-        /// Include unstaged changes in the review
-        #[arg(long, help = "Include unstaged changes in the review")]
-        include_unstaged: bool,
-
-        /// Review a specific commit by ID (hash, branch, or reference)
-        #[arg(
-            long,
-            help = "Review a specific commit by ID (hash, branch, or reference)"
-        )]
-        commit: Option<String>,
-
-        /// Starting branch for comparison (defaults to 'main')
-        #[arg(
-            long,
-            help = "Starting branch for comparison (defaults to 'main'). Used with --to for branch comparison reviews"
-        )]
-        from: Option<String>,
-
-        /// Target branch for comparison (e.g., 'feature-branch', 'pr-branch')
-        #[arg(
-            long,
-            help = "Target branch for comparison (e.g., 'feature-branch', 'pr-branch'). Used with --from for branch comparison reviews"
-        )]
-        to: Option<String>,
-    },
-
     /// Generate a pull request description
     #[command(
         about = "Generate a pull request description using AI",
@@ -323,32 +284,6 @@ pub async fn handle_message(
     .await
 }
 
-/// Handle the `Review` command
-pub async fn handle_review(
-    common: CommonParams,
-    print: bool,
-    repository_url: Option<String>,
-    include_unstaged: bool,
-    commit: Option<String>,
-    from: Option<String>,
-    to: Option<String>,
-) -> anyhow::Result<()> {
-    debug!(
-        "Handling 'review' command with common: {:?}, print: {}, include_unstaged: {}, commit: {:?}, from: {:?}, to: {:?}",
-        common, print, include_unstaged, commit, from, to
-    );
-    commit::review::handle_review_command(
-        common,
-        print,
-        repository_url,
-        include_unstaged,
-        commit,
-        from,
-        to,
-    )
-    .await
-}
-
 /// Handle the `Changelog` command
 pub async fn handle_changelog(
     common: CommonParams,
@@ -405,25 +340,6 @@ pub async fn handle_command(command: GitAI, repository_url: Option<String>) -> a
                     commit_ref: commit,
                 },
                 repository_url,
-            )
-            .await
-        }
-        GitAI::Review {
-            common,
-            print,
-            include_unstaged,
-            commit,
-            from,
-            to,
-        } => {
-            handle_review(
-                common,
-                print,
-                repository_url,
-                include_unstaged,
-                commit,
-                from,
-                to,
             )
             .await
         }

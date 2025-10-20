@@ -14,10 +14,6 @@ name = "git-message"
 path = "src/bin/message.rs"
 
 [[bin]]
-name = "git-review"
-path = "src/bin/review.rs"
-
-[[bin]]
 name = "git-pr"
 path = "src/bin/pr.rs"
 

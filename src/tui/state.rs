@@ -1,7 +1,6 @@
 use super::spinner::SpinnerState;
 use crate::features::commit::types::{GeneratedMessage, format_commit_message};
 
-
 use tui_textarea::TextArea;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -33,7 +32,6 @@ impl TuiState {
         let mut message_textarea = TextArea::default();
         let messages = if initial_messages.is_empty() {
             vec![GeneratedMessage {
-                emoji: None,
                 title: String::new(),
                 message: String::new(),
             }]
@@ -82,6 +80,4 @@ impl TuiState {
         self.message_textarea = new_textarea;
         self.dirty = true;
     }
-
-
 }
