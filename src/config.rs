@@ -7,8 +7,38 @@ use anyhow::{Context, Result, anyhow};
 use git2::Config as GitConfig;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::process::Command;
 use log::debug;
+
+/// Get a configuration value with layered priority: env var > local git config > global git config
+fn get_layered_value(
+    key: &str,
+    env_var: Option<&str>,
+    local_config: Option<&GitConfig>,
+    global_config: Option<&GitConfig>,
+) -> Option<String> {
+    // First, check environment variable
+    if let Some(env) = env_var {
+        if let Ok(val) = std::env::var(env) {
+            return Some(val);
+        }
+    }
+
+    // Then, check local git config
+    if let Some(local) = local_config {
+        if let Ok(val) = local.get_string(key) {
+            return Some(val.to_string());
+        }
+    }
+
+    // Finally, check global git config
+    if let Some(global) = global_config {
+        if let Ok(val) = global.get_string(key) {
+            return Some(val.to_string());
+        }
+    }
+
+    None
+}
 
 /// Configuration structure
 #[derive(Deserialize, Serialize, Clone, Debug)]
@@ -42,41 +72,61 @@ pub struct ProviderConfig {
 }
 
 impl Config {
-    /// Load the configuration from git config
+    /// Load the configuration with layered priority: env > local git > global git
     pub fn load() -> Result<Self> {
-        let mut config = Self::load_from_config("gitai");
+        // Open git configs
+        let global_config = GitConfig::open_default().ok();
+        let local_config = git2::Repository::discover(".")
+            .ok()
+            .and_then(|repo| repo.config().ok());
 
-        // Then try to load and merge project config if available
-        if let Ok(project_config) = Self::load_project_config() {
-            config.merge_with_project_config(project_config);
-        }
+        let default_provider = get_layered_value(
+            "gitai.defaultprovider",
+            Some("GITAI_DEFAULT_PROVIDER"),
+            local_config.as_ref(),
+            global_config.as_ref(),
+        ).unwrap_or_else(|| "openai".to_string()); // fallback to openai if not set
 
-        debug!("Configuration loaded: {config:?}");
-        Ok(config)
-    }
-
-    /// Load configuration from git config
-    fn load_from_config(prefix: &str) -> Self {
-        let default_provider = Self::get_git_config_value(&format!("{prefix}.defaultprovider"))
-            .expect("Failed to get default provider from git config. Please set 'gitai.defaultprovider' e.g. `git config --global gitai.defaultprovider openai`");
-        let instructions =
-            Self::get_git_config_value(&format!("{prefix}.instructions")).unwrap_or_default();
+        let instructions = get_layered_value(
+            "gitai.instructions",
+            Some("GITAI_INSTRUCTIONS"),
+            local_config.as_ref(),
+            global_config.as_ref(),
+        ).unwrap_or_default();
 
         let mut providers = HashMap::new();
-        // To load providers, we need to iterate over all keys with prefix
-        // But git2 Config doesn't have easy way to iterate, so for now, assume known providers
         for provider in get_available_provider_names() {
-            if let Some(api_key) =
-                Self::get_git_config_value(&format!("{prefix}.{provider}-apikey"))
-            {
+            let api_key_env = match provider.as_str() {
+                "openai" => Some("OPENAI_API_KEY"),
+                "anthropic" => Some("ANTHROPIC_API_KEY"),
+                "google" => Some("GOOGLE_API_KEY"),
+                _ => None,
+            };
+
+            if let Some(api_key) = get_layered_value(
+                &format!("gitai.{provider}-apikey"),
+                api_key_env,
+                local_config.as_ref(),
+                global_config.as_ref(),
+            ) {
                 let default_model = get_default_model_for_provider(&provider).to_string();
-                let model = Self::get_git_config_value(&format!("{prefix}.{provider}-model"))
-                    .unwrap_or(default_model);
-                let token_limit =
-                    Self::get_git_config_i64(&format!("{prefix}.{provider}-tokenlimit"))
-                        .and_then(|v| usize::try_from(v).ok());
-                let additional_params = HashMap::new();
-                // For additional params, it's hard to iterate, so skip for now
+                let model = get_layered_value(
+                    &format!("gitai.{provider}-model"),
+                    None, // no env for model yet
+                    local_config.as_ref(),
+                    global_config.as_ref(),
+                ).unwrap_or(default_model);
+
+                let token_limit = get_layered_value(
+                    &format!("gitai.{provider}-tokenlimit"),
+                    None,
+                    local_config.as_ref(),
+                    global_config.as_ref(),
+                ).and_then(|s| s.parse::<i64>().ok())
+                .and_then(|v| usize::try_from(v).ok());
+
+                let additional_params = HashMap::new(); // TODO: handle additional params if needed
+
                 providers.insert(
                     provider.to_string(),
                     ProviderConfig {
@@ -89,42 +139,19 @@ impl Config {
             }
         }
 
-        Self {
+        let config = Self {
             default_provider,
             providers,
             instructions,
             temp_instructions: None,
             is_local: false,
-        }
+        };
+
+        debug!("Configuration loaded: {config:?}");
+        Ok(config)
     }
 
-    fn get_git_config_value(key: &str) -> Option<String> {
-        let output = Command::new("git")
-            .args(["config", "--get", key])
-            .output()
-            .ok()?;
 
-        output
-            .status
-            .success()
-            .then(|| String::from_utf8_lossy(&output.stdout).trim().to_string())
-    }
-
-    #[allow(unused)]
-    fn get_git_config_bool(key: &str) -> Option<bool> {
-        Self::get_git_config_value(key)?.parse().ok()
-    }
-
-    fn get_git_config_i64(key: &str) -> Option<i64> {
-        Self::get_git_config_value(key)?.parse().ok()
-    }
-
-    /// Load project-specific configuration
-    pub fn load_project_config() -> Result<Self> {
-        let mut project_config = Self::load_from_config("gitai");
-        project_config.is_local = true;
-        Ok(project_config)
-    }
 
     /// Merge this config with project-specific config, with project config taking precedence
     /// But never allow API keys from project config
