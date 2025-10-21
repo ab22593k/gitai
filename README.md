@@ -1,6 +1,6 @@
 ![Git Smart workflow logo](assets/gitsw.png)
 
-# Git Smart workflow
+# Git workflow
 
 AI-powered `Git` toolkit that enhances workflow with intelligent commit messages, pull request generation, code reviews, changelogs, and more. It integrates with various LLM providers to automate and improve your development process.
 
@@ -8,7 +8,6 @@ AI-powered `Git` toolkit that enhances workflow with intelligent commit messages
 
 - **Smart Commit Messages**: Generate meaningful commit messages based on your code changes
 - **Pull Request Generation**: Automatically create detailed PR descriptions with context
-- **Code Reviews**: Get AI-assisted code reviews with suggestions
 - **Changelogs**: Generate release notes and changelogs from commit history
 - **Multiple LLM Support**: Works with OpenAI, Anthropic, Google, and other providers
 - **Git Config Integration**: Store configurations in Git config for project-specific settings

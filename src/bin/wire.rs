@@ -65,7 +65,8 @@ enum Command {
     },
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     init_logger();
 
     let cli = Cli::parse();
@@ -79,7 +80,7 @@ fn main() {
     };
 
     let result = match cli.command {
-        Command::Sync => sync::sync_with_caching(&Target::Declared(target), mode),
+        Command::Sync => sync::sync_with_caching(&Target::Declared(target), mode).await,
         Command::Check => check::check(Target::Declared(target), &mode),
         Command::DirectSync { url, rev, src, dst } => sync::sync_with_caching(
             // Also use caching for direct sync
@@ -93,7 +94,7 @@ fn main() {
                 dst,
             }),
             mode,
-        ),
+        ).await,
         Command::DirectCheck { url, rev, src, dst } => check::check(
             Target::Direct(Parsed {
                 name: None,

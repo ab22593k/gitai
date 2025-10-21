@@ -5,28 +5,39 @@ use cause::{Cause, cause};
 use git2::Repository;
 use std::process::Command;
 
+#[derive(Clone)]
 pub struct RepositoryFetcher;
 
 impl RepositoryFetcher {
     /// Fetch a repository to a temporary directory
     /// This is a wrapper around the existing fetch functionality with caching logic
-    pub fn fetch_repository(
+    pub async fn fetch_repository(
         &self,
         config: &RepositoryConfiguration,
         cache_path: &str,
     ) -> Result<(), Cause<ErrorType>> {
+        let config = config.clone();
+        let cache_path = cache_path.to_string();
+
         // Check if the repository is already cached and up-to-date
-        if Self::is_cache_valid(config, cache_path) {
+        if Self::is_cache_valid(&config, &cache_path) {
             println!("Using cached repository: {}", config.url);
             return Ok(());
         }
 
         println!("Fetching repository: {} to cache", config.url);
 
-        Self::execute_git_clone(config, cache_path)?;
-        if !matches!(config.mtd, Some(Method::ShallowNoSparse)) {
-            Self::execute_git_checkout(cache_path, &config.branch)?;
-        }
+        // Wrap blocking operations in spawn_blocking
+        let cache_path_clone = cache_path.clone();
+        tokio::task::spawn_blocking(move || {
+            Self::execute_git_clone(&config, &cache_path_clone)?;
+            if !matches!(config.mtd, Some(Method::ShallowNoSparse)) {
+                Self::execute_git_checkout(&cache_path_clone, &config.branch)?;
+            }
+            Ok(())
+        })
+        .await
+        .map_err(|e| cause!(ErrorType::GitCloneCommand).msg(format!("Task join error: {:?}", e)))??;
 
         println!("Repository fetched and cached at: {cache_path}");
         Ok(())

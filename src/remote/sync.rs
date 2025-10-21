@@ -4,6 +4,7 @@ use std::path::Path;
 
 use cause::{Cause, cause};
 use fs_extra::{copy_items, dir::CopyOptions, remove_items};
+use futures::future::join_all;
 use log::{debug, info};
 
 use super::cache::{
@@ -61,7 +62,7 @@ fn get_repo_configs(
 }
 
 // Enhanced sync functionality that integrates caching
-pub fn sync_with_caching(
+pub async fn sync_with_caching(
     target: &Target,
     _mode: super::common::sequence::Mode,
 ) -> Result<bool, Cause<ErrorType>> {
@@ -86,21 +87,32 @@ pub fn sync_with_caching(
         repo_configs.len().saturating_sub(unique_configs.len())
     );
 
-    // Fetch each unique repository to its cache location
-    for config in &unique_configs {
-        let cache_key = CacheKeyGenerator::generate_key(config);
-        let cache_dir = env::temp_dir().join("git-wire-cache").join(cache_key);
-        fs::create_dir_all(&cache_dir).map_err(|e| cause!(ErrorType::TempDirCreation).src(e))?;
-        let cache_path = cache_dir.to_string_lossy().to_string();
+    // Fetch each unique repository to its cache location in parallel
+    let fetch_futures = unique_configs.iter().map(|config| {
+        let config = config.clone();
+        let fetcher = fetcher.clone();
+        async move {
+            let cache_key = CacheKeyGenerator::generate_key(&config);
+            let cache_dir = env::temp_dir().join("git-wire-cache").join(cache_key);
+            fs::create_dir_all(&cache_dir).map_err(|e| cause!(ErrorType::TempDirCreation).src(e))?;
+            let cache_path = cache_dir.to_string_lossy().to_string();
 
-        debug!(
-            "Fetching repository {} to cache path {}",
-            config.url, cache_path
-        );
-        fetcher.fetch_repository(config, &cache_path)?;
-        debug!("Repository {} successfully cached", config.url);
+            debug!(
+                "Fetching repository {} to cache path {}",
+                config.url, cache_path
+            );
 
-        // Update the wire operations to use the actual cache path
+            fetcher.fetch_repository(&config, &cache_path).await?;
+            debug!("Repository {} successfully cached", config.url);
+            Ok((config, cache_path))
+        }
+    }).collect::<Vec<_>>();
+
+    let fetch_results = join_all(fetch_futures).await;
+
+    // Collect successful fetches and update wire operations
+    for result in fetch_results {
+        let (config, cache_path) = result?;
         for op in &mut wire_operations {
             if op.source_config.url == config.url && op.source_config.branch == config.branch {
                 op.cached_repo_path.clone_from(&cache_path);
