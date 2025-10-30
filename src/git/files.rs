@@ -1,4 +1,5 @@
-use crate::analyzer::{self, should_exclude_file};
+use crate::analyzer;
+use crate::analyzer::GitIgnoreMatcher;
 use crate::core::context::{ChangeType, RecentCommit, StagedFile};
 use crate::git::utils::is_binary_diff;
 use anyhow::{Context, Result};
@@ -18,10 +19,15 @@ pub struct RepoFilesInfo {
 
 /// Retrieves the status of files in the repository.
 ///
+/// # Arguments
+///
+/// * `repo` - The git repository
+/// * `gitignore_matcher` - The gitignore matcher for file exclusion
+///
 /// # Returns
 ///
 /// A Result containing a Vec of `StagedFile` objects or an error.
-pub fn get_file_statuses(repo: &Repository) -> Result<Vec<StagedFile>> {
+pub fn get_file_statuses(repo: &Repository, gitignore_matcher: &GitIgnoreMatcher) -> Result<Vec<StagedFile>> {
     debug!("Getting file statuses");
     let mut staged_files = Vec::new();
 
@@ -36,18 +42,18 @@ pub fn get_file_statuses(repo: &Repository) -> Result<Vec<StagedFile>> {
         if status.is_index_new() || status.is_index_modified() || status.is_index_deleted() {
             let change_type = if status.is_index_new() {
                 ChangeType::Added
-            } else if status.is_index_modified() {
-                ChangeType::Modified
-            } else {
-                ChangeType::Deleted
-            };
+             } else if status.is_index_modified() {
+                 ChangeType::Modified
+             } else {
+                 ChangeType::Deleted
+             };
 
-            let should_exclude = should_exclude_file(path);
-            let diff = if should_exclude {
-                String::from("[Content excluded]")
-            } else {
-                get_diff_for_file(repo, path)?
-            };
+             let should_exclude = gitignore_matcher.should_exclude(path);
+             let diff = if should_exclude {
+                 String::from("[Content excluded]")
+             } else {
+                 get_diff_for_file(repo, path)?
+             };
 
             let content =
                 if should_exclude || change_type != ChangeType::Modified || is_binary_diff(&diff) {
@@ -141,7 +147,7 @@ pub fn get_diff_for_file(repo: &Repository, path: &str) -> Result<String> {
 /// # Returns
 ///
 /// A Result containing a Vec of `StagedFile` objects for unstaged changes or an error.
-pub fn get_unstaged_file_statuses(repo: &Repository) -> Result<Vec<StagedFile>> {
+pub fn get_unstaged_file_statuses(repo: &Repository, gitignore_matcher: &GitIgnoreMatcher) -> Result<Vec<StagedFile>> {
     debug!("Getting unstaged file statuses");
     let mut unstaged_files = Vec::new();
 
@@ -159,12 +165,12 @@ pub fn get_unstaged_file_statuses(repo: &Repository) -> Result<Vec<StagedFile>> 
                 ChangeType::Added
             } else if status.is_wt_modified() {
                 ChangeType::Modified
-            } else {
-                ChangeType::Deleted
-            };
+             } else {
+                 ChangeType::Deleted
+             };
 
-            let should_exclude = should_exclude_file(path);
-            let diff = if should_exclude {
+             let should_exclude = gitignore_matcher.should_exclude(path);
+             let diff = if should_exclude {
                 String::from("[Content excluded]")
             } else {
                 get_diff_for_unstaged_file(repo, path)?

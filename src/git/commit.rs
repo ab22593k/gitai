@@ -82,7 +82,7 @@ pub fn amend_commit(repo: &Repository, message: &str, commit_ref: &str, is_remot
 
     // Manually update HEAD to point to the new commit
     repo.head()?.set_target(commit_oid, "amend commit message")?;
-    
+
 
     let branch_name = repo.head()?.shorthand().unwrap_or("HEAD").to_string();
     let commit = repo.find_commit(commit_oid)?;
@@ -289,7 +289,7 @@ where
 /// # Returns
 ///
 /// A Result containing a Vec of `StagedFile` objects for the commit or an error.
-pub fn get_commit_files(repo: &Repository, commit_id: &str) -> Result<Vec<StagedFile>> {
+pub fn get_commit_files(repo: &Repository, commit_id: &str, gitignore_matcher: &analyzer::GitIgnoreMatcher) -> Result<Vec<StagedFile>> {
     debug!("Getting files for commit: {}", commit_id);
 
     // Parse the commit ID
@@ -313,16 +313,16 @@ pub fn get_commit_files(repo: &Repository, commit_id: &str) -> Result<Vec<Staged
     diff.foreach(
         &mut |delta, _| {
             if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
-                let change_type = match delta.status() {
-                    git2::Delta::Added => ChangeType::Added,
-                    git2::Delta::Modified => ChangeType::Modified,
-                    git2::Delta::Deleted => ChangeType::Deleted,
-                    _ => return true, // Skip other types of changes
-                };
+                 let change_type = match delta.status() {
+                     git2::Delta::Added => ChangeType::Added,
+                     git2::Delta::Modified => ChangeType::Modified,
+                     git2::Delta::Deleted => ChangeType::Deleted,
+                     _ => return true, // Skip other types of changes
+                 };
 
-                let should_exclude = analyzer::should_exclude_file(path);
+                 let should_exclude = gitignore_matcher.should_exclude(path);
 
-                commit_files.push(StagedFile {
+                 commit_files.push(StagedFile {
                     path: path.to_string(),
                     change_type,
                     diff: String::new(), // Will be populated later
@@ -489,11 +489,7 @@ pub fn get_commit_date(repo: &Repository, commit_ish: &str) -> Result<String> {
 /// # Returns
 ///
 /// A Result containing a Vec of `StagedFile` objects for the branch comparison or an error.
-pub fn get_branch_diff_files(
-    repo: &Repository,
-    base_branch: &str,
-    target_branch: &str,
-) -> Result<Vec<StagedFile>> {
+pub fn get_branch_diff_files(repo: &Repository, base_branch: &str, target_branch: &str, gitignore_matcher: &analyzer::GitIgnoreMatcher) -> Result<Vec<StagedFile>> {
     debug!(
         "Getting files changed between branches: {} -> {}",
         base_branch, target_branch
@@ -523,16 +519,16 @@ pub fn get_branch_diff_files(
     diff.foreach(
         &mut |delta, _| {
             if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
-                let change_type = match delta.status() {
-                    git2::Delta::Added => ChangeType::Added,
-                    git2::Delta::Modified => ChangeType::Modified,
-                    git2::Delta::Deleted => ChangeType::Deleted,
-                    _ => return true, // Skip other types of changes
-                };
+                 let change_type = match delta.status() {
+                     git2::Delta::Added => ChangeType::Added,
+                     git2::Delta::Modified => ChangeType::Modified,
+                     git2::Delta::Deleted => ChangeType::Deleted,
+                     _ => return true, // Skip other types of changes
+                 };
 
-                let should_exclude = analyzer::should_exclude_file(path);
+                 let should_exclude = gitignore_matcher.should_exclude(path);
 
-                branch_files.push(StagedFile {
+                 branch_files.push(StagedFile {
                     path: path.to_string(),
                     change_type,
                     diff: String::new(), // Will be populated later
@@ -608,6 +604,7 @@ pub fn extract_branch_diff_info(
     repo: &Repository,
     base_branch: &str,
     target_branch: &str,
+    gitignore_matcher: &analyzer::GitIgnoreMatcher,
 ) -> Result<(String, Vec<RecentCommit>, Vec<String>)> {
     // Get the target branch name for display
     let display_branch = format!("{base_branch} -> {target_branch}");
@@ -643,7 +640,7 @@ pub fn extract_branch_diff_info(
     let recent_commits = recent_commits?;
 
     // Get file paths from the diff for metadata
-    let diff_files = get_branch_diff_files(repo, base_branch, target_branch)?;
+    let diff_files = get_branch_diff_files(repo, base_branch, target_branch, gitignore_matcher)?;
     let file_paths: Vec<String> = diff_files.iter().map(|file| file.path.clone()).collect();
 
     Ok((display_branch, recent_commits, file_paths))
@@ -699,7 +696,7 @@ pub fn get_commits_for_pr(repo: &Repository, from: &str, to: &str) -> Result<Vec
 /// # Returns
 ///
 /// A Result containing a Vec of `StagedFile` objects for the commit range or an error.
-pub fn get_commit_range_files(repo: &Repository, from: &str, to: &str) -> Result<Vec<StagedFile>> {
+pub fn get_commit_range_files(repo: &Repository, from: &str, to: &str, gitignore_matcher: &analyzer::GitIgnoreMatcher) -> Result<Vec<StagedFile>> {
     debug!("Getting files changed in commit range: {} -> {}", from, to);
 
     // Resolve commit references
@@ -718,16 +715,16 @@ pub fn get_commit_range_files(repo: &Repository, from: &str, to: &str) -> Result
     diff.foreach(
         &mut |delta, _| {
             if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
-                let change_type = match delta.status() {
-                    git2::Delta::Added => ChangeType::Added,
-                    git2::Delta::Modified => ChangeType::Modified,
-                    git2::Delta::Deleted => ChangeType::Deleted,
-                    _ => return true, // Skip other types of changes
-                };
+                 let change_type = match delta.status() {
+                     git2::Delta::Added => ChangeType::Added,
+                     git2::Delta::Modified => ChangeType::Modified,
+                     git2::Delta::Deleted => ChangeType::Deleted,
+                     _ => return true, // Skip other types of changes
+                 };
 
-                let should_exclude = analyzer::should_exclude_file(path);
+                 let should_exclude = gitignore_matcher.should_exclude(path);
 
-                range_files.push(StagedFile {
+                 range_files.push(StagedFile {
                     path: path.to_string(),
                     change_type,
                     diff: String::new(), // Will be populated later
@@ -797,6 +794,7 @@ pub fn extract_commit_range_info(
     repo: &Repository,
     from: &str,
     to: &str,
+    gitignore_matcher: &analyzer::GitIgnoreMatcher,
 ) -> Result<(String, Vec<RecentCommit>, Vec<String>)> {
     // Get the range name for display
     let display_range = format!("{from}..{to}");
@@ -807,7 +805,7 @@ pub fn extract_commit_range_info(
     let recent_commits = recent_commits?;
 
     // Get file paths from the range for metadata
-    let range_files = get_commit_range_files(repo, from, to)?;
+    let range_files = get_commit_range_files(repo, from, to, gitignore_matcher)?;
     let file_paths: Vec<String> = range_files.iter().map(|file| file.path.clone()).collect();
 
     Ok((display_range, recent_commits, file_paths))

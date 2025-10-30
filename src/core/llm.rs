@@ -5,6 +5,7 @@ use llm::{
     builder::{LLMBackend, LLMBuilder},
     chat::ChatMessage,
 };
+use log::debug;
 use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
 use std::collections::HashMap;
@@ -12,7 +13,6 @@ use std::str::FromStr;
 use std::time::Duration;
 use tokio_retry::Retry;
 use tokio_retry::strategy::ExponentialBackoff;
-use log::debug;
 
 #[derive(Debug)]
 struct ProviderDefault {

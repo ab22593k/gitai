@@ -8,31 +8,10 @@ use log::debug;
 
 /// Analyzes a single file and extracts its metadata
 #[allow(dead_code)]
-pub async fn analyze_file(file_path: &str) -> Option<ProjectMetadata> {
-    let file_name = Path::new(file_path)
-        .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or_default();
 
-    let analyzer: Box<dyn analyzer::FileAnalyzer + Send + Sync> = analyzer::get_analyzer(file_name);
-
-    debug!("Analyzing file: {}", file_path);
-
-    if analyzer::should_exclude_file(file_path) {
-        debug!("File excluded: {}", file_path);
-        None
-    } else if let Ok(content) = tokio::fs::read_to_string(file_path).await {
-        let metadata = analyzer.extract_metadata(file_name, &content);
-        debug!("Extracted metadata for {}: {:?}", file_name, metadata);
-        Some(metadata)
-    } else {
-        debug!("Failed to read file: {}", file_path);
-        None
-    }
-}
 
 /// Synchronous version of analyze_file for use with rayon
-fn analyze_file_sync(file_path: &str) -> Option<ProjectMetadata> {
+fn analyze_file_sync(file_path: &str, gitignore_matcher: &crate::analyzer::GitIgnoreMatcher) -> Option<ProjectMetadata> {
     let file_name = Path::new(file_path)
         .file_name()
         .and_then(|name| name.to_str())
@@ -42,7 +21,7 @@ fn analyze_file_sync(file_path: &str) -> Option<ProjectMetadata> {
 
     debug!("Analyzing file (sync): {}", file_path);
 
-    if analyzer::should_exclude_file(file_path) {
+    if gitignore_matcher.should_exclude(file_path) {
         debug!("File excluded: {}", file_path);
         None
     } else if let Ok(content) = std::fs::read_to_string(file_path) {
@@ -61,6 +40,7 @@ fn analyze_file_sync(file_path: &str) -> Option<ProjectMetadata> {
 pub async fn extract_project_metadata(
     changed_files: &[String],
     _batch_size: usize, // Kept for API compatibility but not used
+    gitignore_matcher: &crate::analyzer::GitIgnoreMatcher,
 ) -> Result<ProjectMetadata> {
     debug!(
         "Getting project metadata for {} changed files",
@@ -71,13 +51,14 @@ pub async fn extract_project_metadata(
     let file_paths: Vec<String> = changed_files.to_vec();
 
     // Use tokio::task::spawn_blocking to run CPU-intensive parallel processing
+    let gitignore_matcher_clone = gitignore_matcher.clone();
     let combined_metadata = task::spawn_blocking(move || {
         // Use rayon for parallel processing of file analysis
         let metadata_results: Vec<Option<ProjectMetadata>> = file_paths
             .par_iter()
             .map(|file_path| {
                 // Use the synchronous version for rayon parallel processing
-                analyze_file_sync(file_path)
+                analyze_file_sync(file_path, &gitignore_matcher_clone)
             })
             .collect();
 

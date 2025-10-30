@@ -1,3 +1,4 @@
+use crate::analyzer::GitIgnoreMatcher;
 use crate::config::Config;
 use crate::core::context::{CommitContext, ProjectMetadata, RecentCommit, StagedFile};
 
@@ -25,6 +26,8 @@ pub struct GitRepo {
     is_remote: bool,
     /// Original remote URL if this is a cloned repository
     remote_url: Option<String>,
+    /// GitIgnore matcher for file exclusion
+    gitignore_matcher: GitIgnoreMatcher,
 }
 
 impl GitRepo {
@@ -43,6 +46,7 @@ impl GitRepo {
             temp_dir: None,
             is_remote: false,
             remote_url: None,
+            gitignore_matcher: GitIgnoreMatcher::new(repo_path),
         })
     }
 
@@ -81,12 +85,12 @@ impl GitRepo {
 
         // Create a temporary directory for the clone
         let temp_dir = TempDir::new()?;
-        let temp_path = temp_dir.path();
+        let temp_path_buf = temp_dir.path().to_path_buf();
 
-        debug!("Created temporary directory for clone: {:?}", temp_path);
+        debug!("Created temporary directory for clone: {:?}", temp_path_buf);
 
         // Clone the repository into the temporary directory
-        let repo = match Repository::clone(url, temp_path) {
+        let repo = match Repository::clone(url, &temp_path_buf) {
             Ok(repo) => repo,
             Err(e) => return Err(anyhow!("Failed to clone repository: {e}")),
         };
@@ -94,10 +98,11 @@ impl GitRepo {
         debug!("Successfully cloned repository to {:?}", repo.path());
 
         Ok(Self {
-            repo_path: temp_path.to_path_buf(),
+            repo_path: temp_path_buf.clone(),
             temp_dir: Some(temp_dir),
             is_remote: true,
             remote_url: Some(url.to_string()),
+            gitignore_matcher: GitIgnoreMatcher::new(&temp_path_buf),
         })
     }
 
@@ -327,7 +332,7 @@ impl GitRepo {
         let recent_commits = self.get_recent_commits(5)?;
 
         // Get staged and unstaged files
-        let mut staged_files = get_file_statuses(&repo)?;
+        let mut staged_files = get_file_statuses(&repo, &self.gitignore_matcher)?;
         if include_unstaged {
             let unstaged_files = self.get_unstaged_files()?;
             staged_files.extend(unstaged_files);
@@ -348,7 +353,7 @@ impl GitRepo {
     /// Gets unstaged file changes from the repository
     pub fn get_unstaged_files(&self) -> Result<Vec<StagedFile>> {
         let repo = self.open_repo()?;
-        get_unstaged_file_statuses(&repo)
+        get_unstaged_file_statuses(&repo, &self.gitignore_matcher)
     }
 
     /// Retrieves project metadata for changed files.
@@ -362,7 +367,7 @@ impl GitRepo {
     /// A Result containing the `ProjectMetadata` or an error.
     pub async fn get_project_metadata(&self, changed_files: &[String]) -> Result<ProjectMetadata> {
         // Default batch size of 10 files at a time to limit concurrency
-        metadata::extract_project_metadata(changed_files, 10).await
+        metadata::extract_project_metadata(changed_files, 10, &self.gitignore_matcher).await
     }
 
     /// Helper method for creating `CommitContext`
@@ -420,7 +425,7 @@ impl GitRepo {
 
         let branch = self.get_current_branch()?;
         let recent_commits = self.get_recent_commits(5)?;
-        let staged_files = get_file_statuses(&repo)?;
+        let staged_files = get_file_statuses(&repo, &self.gitignore_matcher)?;
 
         let changed_files: Vec<String> =
             staged_files.iter().map(|file| file.path.clone()).collect();
@@ -492,10 +497,10 @@ impl GitRepo {
 
         // Extract branch diff info
         let (display_branch, recent_commits, file_paths) =
-            commit::extract_branch_diff_info(&repo, base_branch, target_branch)?;
+            commit::extract_branch_diff_info(&repo, base_branch, target_branch, &self.gitignore_matcher)?;
 
         // Get the actual file changes
-        let branch_files = commit::get_branch_diff_files(&repo, base_branch, target_branch)?;
+        let branch_files = commit::get_branch_diff_files(&repo, base_branch, target_branch, &self.gitignore_matcher)?;
 
         // Get project metadata with async operations
         let project_metadata = self.get_project_metadata(&file_paths).await?;
@@ -531,10 +536,10 @@ impl GitRepo {
 
         // Extract commit range info
         let (display_range, recent_commits, file_paths) =
-            commit::extract_commit_range_info(&repo, from, to)?;
+            commit::extract_commit_range_info(&repo, from, to, &self.gitignore_matcher)?;
 
         // Get the actual file changes
-        let range_files = commit::get_commit_range_files(&repo, from, to)?;
+        let range_files = commit::get_commit_range_files(&repo, from, to, &self.gitignore_matcher)?;
 
         // Get project metadata with async operations
         let project_metadata = self.get_project_metadata(&file_paths).await?;
@@ -552,7 +557,7 @@ impl GitRepo {
     /// Get files changed in a commit range
     pub fn get_commit_range_files(&self, from: &str, to: &str) -> Result<Vec<StagedFile>> {
         let repo = self.open_repo()?;
-        commit::get_commit_range_files(&repo, from, to)
+        commit::get_commit_range_files(&repo, from, to, &self.gitignore_matcher)
     }
 
     /// Retrieves recent commits.
@@ -701,7 +706,7 @@ impl GitRepo {
         let project_metadata = self.get_project_metadata(&commit_info.file_paths).await?;
 
         // Get the files from commit after async boundary
-        let commit_files = commit::get_commit_files(&repo, commit_id)?;
+        let commit_files = commit::get_commit_files(&repo, commit_id, &self.gitignore_matcher)?;
 
         // Create and return the context
         self.create_commit_context(
@@ -754,7 +759,7 @@ impl GitRepo {
     /// Get the files changed in a specific commit
     pub fn get_commit_files(&self, commit_id: &str) -> Result<Vec<StagedFile>> {
         let repo = self.open_repo()?;
-        commit::get_commit_files(&repo, commit_id)
+        commit::get_commit_files(&repo, commit_id, &self.gitignore_matcher)
     }
 
     /// Get just the file paths for a specific commit
