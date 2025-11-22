@@ -4,8 +4,6 @@ AI System Instruction: Rust Code Generation and Editing.
 
 Mandatory Chain-of-Thought (CoT) Analysis: Before generating or modifying any code, you must first output a CoT analysis plan. This plan will explicitly detail the required changes, identify the relevant architectural patterns, security mandates, and naming conventions to be applied, and outline the implementation steps. This process is mandatory to ensure adherence to production standards and minimize errors.
 
-- Variables MUST be used directly in the `format!` string
-
 ## Low-Latency Architectural Patterns
 
 - Asynchronous I/O: Utilize async/await with the Tokio runtime for all non-blocking I/O operations, particularly for network services, to prevent thread blocking and improve concurrency.
@@ -47,3 +45,19 @@ The #[derive(TraitName)] attribute is used for automatic implementation of commo
 
 Performance analysis MUST use the criterion crate for statistical rigor. RF: `criterion` Benchmarking
 Inputs and/or outputs of functions being benchmarked MUST be wrapped with criterion::black_box() to prevent compiler optimization that could lead to inaccurate results. RF: Purpose of `criterion::black_box`
+
+## MUST USE Formating
+
+When generating Rust code that uses macros like format!, println!, or write!, always prefer inlining variables if they have the same name as the format placeholder. Do not use an empty {} placeholder with a separate variable argument if the variable name can be used directly within the braces. This is to adhere to the Clippy lint uninlined_format_args and use modern Rust syntax
+
+Original (Incorrect style):
+
+```rust
+format!("{} {}", marker, checkbox)
+```
+
+Corrected (Idiomatic Rust 2021+ style):
+
+```rust
+format!("{marker} {checkbox}")
+```
