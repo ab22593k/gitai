@@ -37,6 +37,12 @@ impl DetailLevel {
 
 #[derive(Args, Clone, Default, Debug)]
 pub struct CommonParams {
+    /// Dump exact raw LLM prompts sent and raw responses received to ./target/debug/gait-llm-debug.jsonl for debugging
+    #[arg(
+        long = "debug-llm",
+        help = "Dump exact raw LLM prompt sent and raw JSON response received to ./target/debug/gait-llm-debug.jsonl"
+    )]
+    pub debug_llm: bool,
     /// Override default LLM provider
     #[arg(long, help = "Override default LLM provider", value_parser = available_providers_parser)]
     pub provider: Option<String>,
@@ -64,6 +70,7 @@ pub struct CommonParams {
 
 impl CommonParams {
     pub fn apply_to_config(&self, config: &mut Config) -> Result<bool> {
+        config.debug_llm = self.debug_llm;
         let mut changes_made = false;
 
         if let Some(provider) = &self.provider {

@@ -52,6 +52,8 @@ pub struct Config {
     pub instructions: String,
     #[serde(skip)]
     pub temp_instructions: Option<String>,
+    /// Enable LLM debugging (dumps prompts/responses to file)
+    pub debug_llm: bool,
     /// Flag indicating if this config is local
     #[serde(skip)]
     pub is_local: bool,
@@ -150,6 +152,7 @@ impl Config {
             instructions,
             temp_instructions: None,
             is_local: false,
+            debug_llm: false,
         };
 
         debug!("Configuration loaded: {config:?}");
@@ -408,6 +411,7 @@ impl Default for Config {
             instructions: String::new(),
             temp_instructions: None,
             is_local: false,
+            debug_llm: false,
         }
     }
 }

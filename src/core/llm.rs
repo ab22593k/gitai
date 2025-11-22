@@ -13,6 +13,12 @@ use std::str::FromStr;
 use std::time::Duration;
 use tokio_retry::Retry;
 use tokio_retry::strategy::ExponentialBackoff;
+use chrono::Utc;
+use serde_json::{json, to_string};
+use std::fs::OpenOptions;
+use std::io::Write;
+use std::path::Path;
+use log::warn;
 
 #[derive(Debug)]
 struct ProviderDefault {
@@ -163,7 +169,7 @@ where
         .map_err(|e| anyhow!("Failed to build provider: {e}"))?;
 
     // Generate the message
-    get_message_with_provider(provider, user_prompt, provider_name).await
+    get_message_with_provider(provider, user_prompt, provider_name, config.debug_llm).await
 }
 
 /// Generates a message using the given provider (mainly for testing purposes)
@@ -171,6 +177,7 @@ pub async fn get_message_with_provider<T>(
     provider: Box<dyn LLMProvider + Send + Sync>,
     user_prompt: &str,
     provider_type: &str,
+    debug_llm: bool,
 ) -> Result<T>
 where
     T: DeserializeOwned + JsonSchema,
@@ -190,7 +197,7 @@ where
         };
 
         // Create chat message with user prompt
-        let mut messages = vec![ChatMessage::user().content(enhanced_prompt).build()];
+        let mut messages = vec![ChatMessage::user().content(enhanced_prompt.clone()).build()];
 
         // Special handling for Anthropic - use the "prefill" technique with "{"
         if provider_type.to_lowercase() == "anthropic" && std::any::type_name::<T>() != std::any::type_name::<String>() {
@@ -199,8 +206,16 @@ where
 
         match tokio::time::timeout(Duration::from_secs(30), provider.chat(&messages)).await {
             Ok(Ok(response)) => {
-                debug!("Received response from provider");
                 let response_text = response.text().unwrap_or_default();
+                
+                // Debug logging if enabled
+                if debug_llm {
+                    // System prompt is not easily accessible here, using empty string
+                    let system_prompt = "";
+                    dump_llm_interaction_jsonl(system_prompt, &enhanced_prompt, provider_type, &response_text);
+                }
+                
+                debug!("Received response from provider");
 
                 // Provider-specific response parsing
                 let result = match provider_type.to_lowercase().as_str() {
@@ -427,4 +442,48 @@ fn clean_json_from_llm(json_str: &str) -> String {
         .map_or(without_codeblock.len(), |i| i + 1);
 
     without_codeblock[start..end].trim().to_string()
+}
+
+fn dump_llm_interaction_jsonl(
+    system_prompt: &str,
+    enhanced_user_prompt: &str,
+    provider: &str,
+    raw_response: &str,
+) {
+    let timestamp = Utc::now().to_rfc3339();
+    let entry = json!({
+        "timestamp": timestamp,
+        "provider": provider,
+        "system_prompt": system_prompt,
+        "enhanced_user_prompt": enhanced_user_prompt,
+        "raw_response": raw_response,
+    });
+
+    let log_line = match to_string(&entry) {
+        Ok(line) => line,
+        Err(e) => {
+            warn!("Failed to serialize LLM debug entry: {}", e);
+            return;
+        }
+    };
+
+    // Ensure target/debug directory exists
+    let log_dir = Path::new("./target/debug");
+    if let Err(e) = std::fs::create_dir_all(log_dir) {
+        warn!("Failed to create debug directory {}: {}", log_dir.display(), e);
+        return;
+    }
+
+    let log_path = log_dir.join("gait-llm-debug.jsonl");
+    if let Ok(mut file) = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_path)
+    {
+        if let Err(e) = writeln!(file, "{}", log_line) {
+            warn!("Failed to write LLM debug log: {}", e);
+        }
+    } else {
+        warn!("Failed to open LLM debug log file {}", log_path.display());
+    }
 }
