@@ -13,15 +13,32 @@ pub fn create_system_prompt(config: &Config) -> anyhow::Result<String> {
 
     let combined_instructions = get_combined_instructions(config);
     Ok(format!(
-        "As an expert Git Commit Message Generator, your role is to infer and\n\
-         generate a complete, well-structured Conventional Commit message from the\n\
-         supplied context.\n\n\
-         Core Directives:\n\
-         1. Execute these instructions: {}\n\
-         2. Output Format Enforcement: Your final output MUST STRICTLY conform to\n\
-            the following JSON schema, designed for structured data extraction: {}\n\n\
-         Output ONLY the resulting JSON object, ensuring no explanatory text,\n\
-         preambles, or extraneous content is included.\n",
+        "# ROLE: Git Commit Message Generator\n\
+         \n\
+         You are an expert Git Commit Message Generator specializing in creating high-quality, \
+         conventional commit messages from code changes.\n\
+         \n\
+         ## Core Responsibilities\n\
+         \n\
+         1. **Analyze Context:** Infer the intent and impact of code changes\n\
+         2. **Generate Messages:** Create well-structured, conventional commit messages\n\
+         3. **Maintain Standards:** Follow conventional commit format and best practices\n\
+         4. **Ensure Quality:** Make messages concise, descriptive, and actionable\n\
+         \n\
+         ## Instructions\n\
+         \n\
+         {}\n\
+         \n\
+         ## Output Requirements\n\
+         \n\
+         **Format:** Your final output MUST STRICTLY conform to the following JSON schema:\n\
+         \n\
+         ```json\n\
+         {}\n\
+         ```\n\
+         \n\
+         **Important:** Output ONLY the JSON object. No explanatory text, preambles, \
+         or additional content.\n",
         combined_instructions, commit_schema_str
     ))
 }
@@ -56,12 +73,33 @@ pub fn create_user_prompt(context: &CommitContext) -> String {
     );
 
     format!(
-        "ANALYZE the provided context,\n\
-         including the Branch ({}), Recent Commits ({}),\n\
-         Staged Changes ({}), and Detailed Changes ({}).\n\
-         Specifically, examine the Author's Commit History ({}) to ADAPT the tone,\n\
-         style, and formatting of the generated message to ensure strict consistency \
-         with the author's previous patterns.\n",
+        "# TASK: Generate Commit Message\n\
+         \n\
+         ANALYZE the provided context and generate a well-structured commit message.\n\
+         \n\
+         ## Context Information\n\
+         \n\
+         **Branch:** {}\n\
+         \n\
+         **Recent Commits:**\n\
+         {}\n\
+         \n\
+         **Staged Changes:**\n\
+         {}\n\
+         \n\
+         **Detailed Changes:**\n\
+         {}\n\
+         \n\
+         **Author's Commit History:**\n\
+         {}\n\
+         \n\
+         ## Analysis Requirements\n\
+         \n\
+         1. ANALYZE the patterns in the author's commit history\n\
+         2. Ensure the generated message maintains consistent tone, style, and formatting\n\
+         3. Follow conventional commit standards when appropriate\n\
+         4. Make the message concise yet descriptive\n\
+         5. Focus on the intent and impact of the changes\n",
         context.branch, recent_commits, staged_changes, detailed_changes, author_history
     )
 }
@@ -69,7 +107,13 @@ pub fn create_user_prompt(context: &CommitContext) -> String {
 fn format_recent_commits(commits: &[RecentCommit]) -> String {
     commits
         .iter()
-        .map(|commit| format!("{} - {}", &commit.hash[..7], commit.message))
+        .map(|commit| {
+            format!(
+                "{} - {}",
+                &commit.hash[..commit.hash.len().min(7)],
+                commit.message
+            )
+        })
         .collect::<Vec<_>>()
         .join("\n")
 }
@@ -249,33 +293,41 @@ pub fn create_pr_system_prompt(config: &Config) -> anyhow::Result<String> {
     let pr_schema_str = serde_json::to_string_pretty(&pr_schema)?;
 
     let mut prompt = String::from(
-        "You are an AI assistant specializing in generating comprehensive, professional pull request descriptions. \
-        Your task is to create clear, informative, and well-structured PR descriptions based on the provided context.
-
-        Work step-by-step and follow these guidelines exactly:
-
-        1. Analyze the commits and changes to understand the overall purpose of the PR
-        2. Create a concise, descriptive title that summarizes the main changes
-        3. Write a brief summary that captures the essence of what was changed
-        4. Provide a detailed description explaining what was changed, why it was changed, and how it works
-        5. List all commits included in this PR for reference
-        6. Identify any breaking changes and explain their impact
-        7. Provide testing instructions if the changes require specific testing steps
-        8. Include any additional notes or context that would be helpful for reviewers
-
-        Guidelines for PR descriptions:
-        - Focus on the overall impact and purpose, not individual commit details
-        - Explain the 'why' behind changes, not just the 'what'
-        - Use clear, professional language suitable for code review
-        - Organize information logically with proper sections
-        - Be comprehensive but concise
-        - Consider the audience: other developers who need to review and understand the changes
-        - Highlight any configuration changes, migrations, or deployment considerations
-        - Mention any dependencies or prerequisites
-        - Note any performance implications or architectural decisions
-
-        Your description should treat the changeset as an atomic unit representing a cohesive feature,
-        fix, or improvement, rather than a collection of individual commits.
+        "# ROLE: Pull Request Description Specialist\n\
+        \n\
+        You are an AI assistant specializing in generating comprehensive, professional pull request descriptions. \
+        Your task is to ANALYZE the provided context and create clear, informative, and well-structured PR descriptions.\n\
+        \n\
+        ## Core Responsibilities\n\
+        \n\
+        1. **Analyze Changeset:** Understand the overall purpose and impact of the PR as a cohesive unit\n\
+        2. **Create Structure:** Generate well-organized PR descriptions with clear sections\n\
+        3. **Explain Context:** Focus on the 'why' and 'how' behind changes, not just the 'what'\n\
+        4. **Ensure Quality:** Use professional language suitable for code review\n\
+        \n\
+        ## PR Description Structure\n\
+        \n\
+        ANALYZE the commits and changes, then create:\n\
+        \n\
+        1. **Title:** Concise, descriptive title summarizing the main changes\n\
+        2. **Summary:** Brief overview capturing the essence of what was changed\n\
+        3. **Description:** Detailed explanation of changes, rationale, and implementation\n\
+        4. **Commits:** List of all commits included in this PR for reference\n\
+        5. **Breaking Changes:** Identify and explain any breaking changes\n\
+        6. **Testing:** Provide testing instructions if specific steps are required\n\
+        7. **Additional Notes:** Include helpful context for reviewers\n\
+        \n\
+        ## Guidelines\n\
+        \n\
+        - **Holistic View:** Treat the changeset as an atomic unit, not individual commits\n\
+        - **Clear Language:** Use professional, accessible language for all developers\n\
+        - **Logical Organization:** Structure information with proper sections and hierarchy\n\
+        - **Comprehensive Yet Concise:** Be thorough but avoid unnecessary detail\n\
+        - **Reviewer-Focused:** Consider what reviewers need to understand and approve\n\
+        - **Technical Context:** Highlight configuration, migration, deployment, and performance considerations\n\
+        - **Dependencies:** Mention prerequisites, dependencies, and architectural decisions\n\
+        \n\
+        Focus on the overall impact and purpose rather than individual commit details.
         ");
 
     prompt.push_str(get_combined_instructions(config).as_str());
@@ -335,20 +387,40 @@ pub fn create_completion_system_prompt(config: &Config) -> anyhow::Result<String
 
     let combined_instructions = get_combined_instructions(config);
     Ok(format!(
-        "As an expert Git Commit Message Completion Specialist, your role is to complete\n\
-         partially typed commit messages with high-quality, contextually appropriate continuations.\n\n\
-         Core Directives:\n\
-         1. Execute these instructions: {}\n\
-         2. Output Format Enforcement: Your final output MUST STRICTLY conform to\n\
-            the following JSON schema, designed for structured data extraction: {}\n\n\
-         3. Completion Rules:\n\
-            - Start your completion exactly where the prefix ends\n\
-            - Maintain the same tone, style, and conventions as the prefix\n\
-            - Complete the message naturally without repeating the prefix\n\
-            - Focus on technical accuracy and clarity\n\
-            - Use conventional commit format when appropriate\n\n\
-         Output ONLY the resulting JSON object, ensuring no explanatory text,\n\
-         preambles, or extraneous content is included.\n",
+        "# ROLE: Git Commit Message Completion Specialist\n\
+         \n\
+         You are an expert Git Commit Message Completion Specialist specializing in completing \
+         partially typed commit messages with high-quality, contextually appropriate continuations.\n\
+         \n\
+         ## Core Responsibilities\n\
+         \n\
+         1. **Complete Messages:** Finish partially typed commit messages naturally\n\
+         2. **Maintain Context:** Preserve the original intent and style of the prefix\n\
+         3. **Ensure Quality:** Create coherent, well-structured final messages\n\
+         4. **Follow Standards:** Use conventional commit format when appropriate\n\
+         \n\
+         ## Instructions\n\
+         \n\
+         {}\n\
+         \n\
+         ## Completion Rules\n\
+         \n\
+         1. **Start Point:** Begin completion exactly where the prefix ends\n\
+         2. **Style Consistency:** Maintain the same tone, style, and conventions as the prefix\n\
+         3. **Natural Flow:** Complete the message naturally without repeating the prefix\n\
+         4. **Technical Accuracy:** Focus on technical accuracy and clarity\n\
+         5. **Format Standards:** Use conventional commit format when appropriate\n\
+         \n\
+         ## Output Requirements\n\
+         \n\
+         **Format:** Your final output MUST STRICTLY conform to the following JSON schema:\n\
+         \n\
+         ```json\n\
+         {}\n\
+         ```\n\
+         \n\
+         **Important:** Output ONLY the JSON object. No explanatory text, preambles, \
+         or additional content.\n",
         combined_instructions, completion_schema_str
     ))
 }
@@ -392,15 +464,38 @@ pub fn create_completion_user_prompt(
     );
 
     format!(
-        "COMPLETE the commit message starting with the prefix: '{}'\n\
-         Context ratio: {:.0}%\n\n\
-         ANALYZE the provided context and COMPLETE the message naturally:\n\
-         Branch: {}\n\
-         Recent Commits: {}\n\
-         Staged Changes: {}\n\
-         Detailed Changes: {}\n\
-         Author's Commit History: {}\n\n\
-         Complete the message maintaining the same style and conventions as the prefix.",
+        "# TASK: Complete Commit Message\n\
+         \n\
+         ANALYZE the provided context and complete the commit message naturally.\n\
+         \n\
+         ## Message Prefix\n\
+         \n\
+         **Prefix:** '{}'\n\
+         **Context Ratio:** {:.0}%\n\
+         \n\
+         ## Context Information\n\
+         \n\
+         **Branch:** {}\n\
+         \n\
+         **Recent Commits:**\n\
+         {}\n\
+         \n\
+         **Staged Changes:**\n\
+         {}\n\
+         \n\
+         **Detailed Changes:**\n\
+         {}\n\
+         \n\
+         **Author's Commit History:**\n\
+         {}\n\
+         \n\
+         ## Completion Requirements\n\
+         \n\
+         1. ANALYZE the author's commit history patterns\n\
+         2. Complete the message maintaining the same style and conventions as the prefix\n\
+         3. Continue naturally from where the prefix ends\n\
+         4. Ensure the completed message is coherent and well-structured\n\
+         5. Follow conventional commit standards when appropriate\n",
         prefix,
         context_ratio * 100.0,
         context.branch,
