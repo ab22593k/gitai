@@ -26,19 +26,6 @@ This toolkit implements features from the paper ["From Commit Message Generation
 - **Dataset Filtering**: Apply restrictive filters as used in previous CMG research
 - **Batch Evaluation**: Run comprehensive experiments comparing different approaches
 
-### Running Evaluations
-
-```bash
-# Build the git-message binary
-cargo build --release --bin git-message
-
-# Run evaluation on a dataset
-git-message --evaluate --dataset data/commit_messages.json --with-history --eval-output results.json --eval-limit 100
-
-# Run full experiment suite
-./scripts/experiments.sh data/commit_messages.json results/ 1000
-```
-
 ## License
 
 Licensed under the MIT License. See [LICENSE.md](LICENSE.md) for details.

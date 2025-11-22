@@ -11,7 +11,6 @@ use crate::tui::run_tui_commit;
 use crate::ui::{self, SpinnerState};
 
 use anyhow::{Context, Result};
-use serde::{Deserialize, Serialize};
 use std::{
     io::{self, Write},
     sync::Arc,
@@ -679,13 +678,4 @@ fn create_completion_service(
         .context("Environment check failed")?;
 
     Ok(service)
-}
-
-/// Dataset entry structure for evaluation
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct EvaluationExample {
-    pub diff: String,
-    pub message: String,
-    pub author_history: Vec<String>,
-    pub repository: String,
 }

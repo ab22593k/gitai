@@ -198,10 +198,10 @@ impl CommitContext {
         // Add some recent history for recency
         let recent_count = (max_history / 2).min(self.author_history.len());
         for i in 0..recent_count {
-            if let Some(msg) = self.author_history.get(i) {
-                if !enhanced_history.contains(msg) {
-                    enhanced_history.push(msg.clone());
-                }
+            if let Some(msg) = self.author_history.get(i)
+                && !enhanced_history.contains(msg)
+            {
+                enhanced_history.push(msg.clone());
             }
         }
 

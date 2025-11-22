@@ -117,13 +117,13 @@ pub fn amend_commit(
     let statuses = repo.statuses(None)?;
 
     for entry in statuses.iter() {
-        if entry.status().contains(git2::Status::INDEX_NEW) {
-            if let Some(path) = entry.path() {
-                let mode = entry
-                    .index_to_workdir()
-                    .map_or(git2::FileMode::Blob, |d| d.new_file().mode());
-                new_files.push((path.to_string(), mode));
-            }
+        if entry.status().contains(git2::Status::INDEX_NEW)
+            && let Some(path) = entry.path()
+        {
+            let mode = entry
+                .index_to_workdir()
+                .map_or(git2::FileMode::Blob, |d| d.new_file().mode());
+            new_files.push((path.to_string(), mode));
         }
     }
 

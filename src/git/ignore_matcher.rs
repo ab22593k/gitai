@@ -114,13 +114,13 @@ impl GitIgnoreMatcher {
         // Recursively check subdirectories
         if let Ok(entries) = std::fs::read_dir(dir) {
             for entry in entries.flatten() {
-                if let Ok(file_type) = entry.file_type() {
-                    if file_type.is_dir() {
-                        let subdir = entry.path();
-                        // Skip .git directory
-                        if !subdir.ends_with(".git") {
-                            self.add_gitignore_from_dir(builder, &subdir);
-                        }
+                if let Ok(file_type) = entry.file_type()
+                    && file_type.is_dir()
+                {
+                    let subdir = entry.path();
+                    // Skip .git directory
+                    if !subdir.ends_with(".git") {
+                        self.add_gitignore_from_dir(builder, &subdir);
                     }
                 }
             }

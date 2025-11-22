@@ -138,27 +138,27 @@ impl TuiCommit {
             }
 
             // Spawn completion task if there's a pending completion request
-            if let Some(prefix) = &self.state.pending_completion_prefix.clone() {
-                if !completion_task_spawned {
-                    let _completion_service = self.completion_service.clone();
-                    let prefix = prefix.clone();
-                    let completion_tx = completion_tx.clone();
+            if let Some(prefix) = &self.state.pending_completion_prefix.clone()
+                && !completion_task_spawned
+            {
+                let _completion_service = self.completion_service.clone();
+                let prefix = prefix.clone();
+                let completion_tx = completion_tx.clone();
 
-                    tokio::spawn(async move {
-                        debug!("Generating completion for prefix: {prefix}");
-                        // For now, generate some mock suggestions based on the prefix
-                        // In the future, this should call completion_service.complete_message
-                        let suggestions = vec![
-                            format!("{}: add new feature", prefix),
-                            format!("{}: fix bug", prefix),
-                            format!("{}: update documentation", prefix),
-                        ];
-                        let _ = completion_tx.send(Ok(suggestions)).await;
-                    });
+                tokio::spawn(async move {
+                    debug!("Generating completion for prefix: {prefix}");
+                    // For now, generate some mock suggestions based on the prefix
+                    // In the future, this should call completion_service.complete_message
+                    let suggestions = vec![
+                        format!("{}: add new feature", prefix),
+                        format!("{}: fix bug", prefix),
+                        format!("{}: update documentation", prefix),
+                    ];
+                    let _ = completion_tx.send(Ok(suggestions)).await;
+                });
 
-                    completion_task_spawned = true;
-                    self.state.pending_completion_prefix = None; // Clear the pending request
-                }
+                completion_task_spawned = true;
+                self.state.pending_completion_prefix = None; // Clear the pending request
             }
 
             // Check if a message has been received from the generation task

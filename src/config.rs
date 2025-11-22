@@ -17,24 +17,24 @@ fn get_layered_value(
     global_config: Option<&GitConfig>,
 ) -> Option<String> {
     // First, check environment variable
-    if let Some(env) = env_var {
-        if let Ok(val) = std::env::var(env) {
-            return Some(val);
-        }
+    if let Some(env) = env_var
+        && let Ok(val) = std::env::var(env)
+    {
+        return Some(val);
     }
 
     // Then, check local git config
-    if let Some(local) = local_config {
-        if let Ok(val) = local.get_string(key) {
-            return Some(val.to_string());
-        }
+    if let Some(local) = local_config
+        && let Ok(val) = local.get_string(key)
+    {
+        return Some(val.clone());
     }
 
     // Finally, check global git config
-    if let Some(global) = global_config {
-        if let Ok(val) = global.get_string(key) {
-            return Some(val.to_string());
-        }
+    if let Some(global) = global_config
+        && let Ok(val) = global.get_string(key)
+    {
+        return Some(val.clone());
     }
 
     None
@@ -132,7 +132,8 @@ impl Config {
                 let additional_params = HashMap::new(); // TODO: handle additional params if needed
 
                 providers.insert(
-                    provider.to_string(),
+                    #[allow(clippy::implicit_clone)]
+                    provider.to_owned(),
                     ProviderConfig {
                         api_key,
                         model_name: model,
