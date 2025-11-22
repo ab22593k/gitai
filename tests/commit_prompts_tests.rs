@@ -37,7 +37,9 @@ fn test_create_user_prompt_includes_recent_commits() {
     assert!(prompt.contains("Recent Commits"));
     // Since we can't easily check the exact format without duplicating logic,
     // we check that it's not empty after "Recent Commits ("
-    let recent_commits_start = prompt.find("Recent Commits (").unwrap();
+    let recent_commits_start = prompt
+        .find("Recent Commits (")
+        .expect("Recent Commits ( should be in prompt");
     let after_start = &prompt[recent_commits_start + "Recent Commits (".len()..];
     assert!(!after_start.starts_with(')'));
 }
@@ -80,7 +82,7 @@ fn test_system_prompt_includes_valid_json_schema() {
     // Extract the schema part from the prompt
     let schema_start = prompt
         .find("designed for structured data extraction:")
-        .unwrap();
+        .expect("schema marker should be in prompt");
     let schema_part = &prompt[schema_start + "designed for structured data extraction:".len()..];
 
     // The schema should be valid JSON

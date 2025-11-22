@@ -17,8 +17,6 @@ path = "src/bin/message.rs"
 name = "git-pr"
 path = "src/bin/pr.rs"
 
-
-
 [[bin]]
 name = "git-changelog"
 path = "src/bin/changelog.rs"

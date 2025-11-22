@@ -311,7 +311,9 @@ mod tests {
     fn test_panic_hook_setup() {
         // Test that the panic hook code compiles and the closure is valid
         // Note: Actual panic hook testing is challenging due to global state
-        let _closure = |_panic_info: &panic::PanicHookInfo| {
+        #[allow(unused_variables)]
+        #[allow(clippy::no_effect_underscore_binding)]
+        let _closure = |panic_info: &panic::PanicHookInfo| {
             let _ = crossterm::terminal::disable_raw_mode();
         };
         // If this compiles, the setup is correct

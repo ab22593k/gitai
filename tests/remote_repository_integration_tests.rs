@@ -28,8 +28,6 @@ async fn test_cli_with_remote_repository() -> Result<()> {
     let common = CommonParams {
         provider: Some("mock".to_string()), // Use mock provider to avoid real API calls
         instructions: None,
-        preset: None,
-        emoji: Some(false),
         detail_level: "minimal".to_string(),
         repository_url: Some(repo_url.to_string()),
     };
@@ -69,9 +67,10 @@ async fn test_cli_with_remote_repository() -> Result<()> {
     let gen_command = GitAI::Message {
         common,
         auto_commit: false,
-        no_emoji: true,
         print: true,
         no_verify: true,
+        amend: false,
+        commit: None,
     };
 
     // Just testing that it doesn't panic

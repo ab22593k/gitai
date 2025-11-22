@@ -79,8 +79,11 @@ mod tests {
         assert!(conventions.contains_key("feat:"));
         assert!(conventions.contains_key("fix:"));
         assert!(conventions.contains_key("imperative"));
-        assert_eq!(*conventions.get("feat:").unwrap(), 2);
-        assert_eq!(*conventions.get("fix:").unwrap(), 1);
+        assert_eq!(
+            *conventions.get("feat:").expect("feat: key should exist"),
+            2
+        );
+        assert_eq!(*conventions.get("fix:").expect("fix: key should exist"), 1);
     }
 
     #[test]
