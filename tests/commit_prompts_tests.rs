@@ -1,4 +1,4 @@
-use gitai::{
+use gait::{
     config::Config,
     core::context::CommitContext,
     features::commit::prompt::{

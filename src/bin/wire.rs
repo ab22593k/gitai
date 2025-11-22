@@ -1,16 +1,16 @@
 use clap::{Parser, Subcommand};
 use colored::Colorize;
-use gitai::remote::check;
-use gitai::remote::common::Parsed;
-use gitai::remote::common::Target;
-use gitai::remote::common::sequence;
-use gitai::remote::sync;
+use gait::{
+    init_logger,
+    remote::{
+        check,
+        common::{Parsed, Target, sequence},
+        sync,
+    },
+};
 use std::process::exit;
 
-pub use gitai::CachedRepository;
-pub use gitai::RepositoryConfiguration;
-pub use gitai::WireOperation;
-use gitai::init_logger;
+pub use gait::{CachedRepository, RepositoryConfiguration, WireOperation};
 
 #[derive(Parser)]
 #[command(version, author, about, long_about = None)]

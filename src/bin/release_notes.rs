@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-use gitai::{app, common::CommonParams};
+use gait::{app, common::CommonParams};
 
 #[derive(Parser)]
 #[command(name = "git-flow-release-notes", about = "Generate release notes")]

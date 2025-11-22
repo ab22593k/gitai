@@ -1,7 +1,9 @@
 use anyhow::Result;
 use clap::Parser;
-use gitai::app::{self, CmsgConfig};
-use gitai::common::CommonParams;
+use gait::{
+    app::{self, CmsgConfig},
+    common::CommonParams,
+};
 
 #[derive(Parser)]
 #[command(name = "git-message", about = "Generate a commit message using AI")]

@@ -1,4 +1,4 @@
-use gitai::core::context::ChangeType;
+use gait::core::context::ChangeType;
 use std::fs;
 use std::path::Path;
 

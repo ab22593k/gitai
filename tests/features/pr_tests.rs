@@ -1,5 +1,5 @@
 use anyhow::Result;
-use gitai::{
+use gait::{
     commit::{
         prompt::{create_pr_system_prompt, create_pr_user_prompt},
         service::CommitService,
@@ -241,8 +241,8 @@ async fn test_git_repo_pr_methods() -> Result<()> {
         assert!(!files.is_empty());
 
         // Test get_git_info_for_commit_range
-        let context = git_repo
-            .get_git_info_for_commit_range(&Config::default(), &from_id, &to_id)?;
+        let context =
+            git_repo.get_git_info_for_commit_range(&Config::default(), &from_id, &to_id)?;
         assert!(context.branch.contains(".."));
         assert!(!context.staged_files.is_empty());
     }

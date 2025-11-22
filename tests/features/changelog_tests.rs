@@ -1,11 +1,11 @@
 use anyhow::Result;
-use git2::Repository;
-use gitai::{
+use gait::{
     changes::models::{
         ChangeEntry, ChangeMetrics, ChangelogResponse, ChangelogType, ReleaseNotesResponse,
     },
     common::DetailLevel,
 };
+use git2::Repository;
 
 use std::fmt::Write as FmtWrite;
 use std::str::FromStr;
@@ -114,7 +114,7 @@ fn test_detail_level_from_str() {
 /// Test that the `version_name` parameter correctly overrides the changelog version
 #[test]
 fn test_update_changelog_file_with_version_name() -> Result<()> {
-    use gitai::{changes::ChangelogGenerator, git::GitRepo};
+    use gait::{changes::ChangelogGenerator, git::GitRepo};
     use std::sync::Arc;
     use tempfile::TempDir;
 

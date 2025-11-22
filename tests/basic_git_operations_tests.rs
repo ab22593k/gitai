@@ -1,6 +1,6 @@
+use gait::core::context::ChangeType;
+use gait::git::GitRepo;
 use git2::Repository;
-use gitai::core::context::ChangeType;
-use gitai::git::GitRepo;
 use std::fs;
 use std::path::Path;
 use tempfile::TempDir;

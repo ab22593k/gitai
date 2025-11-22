@@ -1,4 +1,4 @@
-use gitai::RepositoryConfiguration;
+use gait::RepositoryConfiguration;
 
 #[test]
 fn test_repository_configuration_creation() {

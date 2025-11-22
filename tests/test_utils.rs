@@ -1,5 +1,4 @@
-use git2::Repository;
-use gitai::{
+use gait::{
     config::{Config, ProviderConfig},
     core::context::{ChangeType, CommitContext, RecentCommit, StagedFile},
     features::{
@@ -11,6 +10,7 @@ use gitai::{
     },
     git::GitRepo,
 };
+use git2::Repository;
 
 use anyhow::Result;
 use std::fs;

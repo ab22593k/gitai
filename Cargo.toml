@@ -1,12 +1,12 @@
 [package]
 name = "gait"
 description = "AI-powered toolkit that enhances `Git` workflow"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2024"
 license = "MIT"
 
 [lib]
-name = "gitai"
+name = "gait"
 path = "src/lib.rs"
 
 [[bin]]

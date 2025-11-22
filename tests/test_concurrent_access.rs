@@ -1,4 +1,4 @@
-use gitai::{CachedRepository, RepositoryConfiguration, WireOperation};
+use gait::{CachedRepository, RepositoryConfiguration, WireOperation};
 use std::sync::{
     Arc, Mutex,
     atomic::{AtomicBool, Ordering},

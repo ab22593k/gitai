@@ -1,4 +1,4 @@
-use gitai::{
+use gait::{
     commit::prompt::{create_system_prompt, create_user_prompt},
     context::ChangeType,
 };

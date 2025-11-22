@@ -131,7 +131,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: gitai-${{ matrix.build }}
+          name: gait-${{ matrix.build }}
           path: |
             ./target/${{ matrix.target }}/release/git-changelog${{ matrix.os == 'windows-latest' && '.exe' || '' }}
             ./target/${{ matrix.target }}/release/git-message${{ matrix.os == 'windows-latest' && '.exe' || '' }}
@@ -200,22 +200,22 @@ jobs:
           ls -la ./release-assets
           echo "::endgroup::"
 
-      - name: Generate release notes with gitai
+      - name: Generate release notes with gait
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           echo "::group::Generating release notes"
           if [ -n "$OPENAI_API_KEY" ]; then
-            # Build gitai locally to generate release notes
+            # Build gait locally to generate release notes
             cargo build --release
 
             # Get previous tag
             PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
 
             if [ -n "$PREVIOUS_TAG" ]; then
-              # Generate release notes using gitai
+              # Generate release notes using gait
               ./target/release/git-release-notes --from "$PREVIOUS_TAG" --to "$GITHUB_REF_NAME" --print > RELEASE_NOTES.md
-              echo "✨ Generated release notes with gitai"
+              echo "✨ Generated release notes with gait"
             else
               echo "No previous tag found, using default release notes"
               echo "# Release $GITHUB_REF_NAME" > RELEASE_NOTES.md

@@ -84,16 +84,16 @@ impl Config {
             .and_then(|repo| repo.config().ok());
 
         let default_provider = get_layered_value(
-            "gitai.defaultprovider",
-            Some("GITAI_DEFAULT_PROVIDER"),
+            "gait.defaultprovider",
+            Some("GAIT_DEFAULT_PROVIDER"),
             local_config.as_ref(),
             global_config.as_ref(),
         )
         .unwrap_or_else(|| "openai".to_string()); // fallback to openai if not set
 
         let instructions = get_layered_value(
-            "gitai.instructions",
-            Some("GITAI_INSTRUCTIONS"),
+            "gait.instructions",
+            Some("GAIT_INSTRUCTIONS"),
             local_config.as_ref(),
             global_config.as_ref(),
         )
@@ -109,14 +109,14 @@ impl Config {
             };
 
             if let Some(api_key) = get_layered_value(
-                &format!("gitai.{provider}-apikey"),
+                &format!("gait.{provider}-apikey"),
                 api_key_env,
                 local_config.as_ref(),
                 global_config.as_ref(),
             ) {
                 let default_model = get_default_model_for_provider(&provider).to_string();
                 let model = get_layered_value(
-                    &format!("gitai.{provider}-model"),
+                    &format!("gait.{provider}-model"),
                     None, // no env for model yet
                     local_config.as_ref(),
                     global_config.as_ref(),
@@ -124,7 +124,7 @@ impl Config {
                 .unwrap_or(default_model);
 
                 let token_limit = get_layered_value(
-                    &format!("gitai.{provider}-tokenlimit"),
+                    &format!("gait.{provider}-tokenlimit"),
                     None,
                     local_config.as_ref(),
                     global_config.as_ref(),
@@ -206,7 +206,7 @@ impl Config {
         }
 
         let mut config = GitConfig::open_default()?;
-        self.save_to_config(&mut config, "gitai")?;
+        self.save_to_config(&mut config, "gait")?;
         debug!("Configuration saved to global git config: {self:?}");
         Ok(())
     }
@@ -266,7 +266,7 @@ impl Config {
 
         // Save to local git config
         let mut config = repo.config()?;
-        project_config.save_to_config(&mut config, "gitai")?;
+        project_config.save_to_config(&mut config, "gait")?;
         debug!("Project configuration saved to local git config: {project_config:?}");
         Ok(())
     }

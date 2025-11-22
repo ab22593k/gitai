@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-use gitai::{app, common::CommonParams};
+use gait::{app, common::CommonParams};
 
 #[derive(Parser)]
 #[command(name = "git-flow-changelog", about = "Generate a changelog")]

@@ -1,6 +1,10 @@
-use gitai::Config;
-use gitai::core::context::{ChangeType, CommitContext, RecentCommit, StagedFile};
-use gitai::core::token_optimizer::TokenOptimizer;
+use gait::{
+    Config,
+    core::{
+        context::{ChangeType, CommitContext, RecentCommit, StagedFile},
+        token_optimizer::TokenOptimizer,
+    },
+};
 
 // Use our centralized test infrastructure
 #[path = "test_utils.rs"]

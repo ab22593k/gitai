@@ -1,4 +1,4 @@
-use gitai::{
+use gait::{
     changes::{
         change_analyzer::AnalyzedChange,
         models::ChangeMetrics,

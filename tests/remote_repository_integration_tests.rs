@@ -1,9 +1,7 @@
 #![cfg(feature = "integration")]
 
 use anyhow::Result;
-use gitai::app::GitAI;
-use gitai::common::CommonParams;
-use gitai::git::GitRepo;
+use gait::{app::Gait, common::CommonParams, git::GitRepo};
 use std::env;
 
 // Test the CLI with a remote repository URL
@@ -34,7 +32,7 @@ async fn test_cli_with_remote_repository() -> Result<()> {
         repository_url: Some(repo_url.to_string()),
     };
 
-    let release_notes_command = GitAI::ReleaseNotes {
+    let release_notes_command = Gait::ReleaseNotes {
         common: common.clone(),
         from: "v1.0.0".to_string(), // Use a tag that's likely to exist in the repo
         to: Some("HEAD".to_string()),
@@ -42,14 +40,14 @@ async fn test_cli_with_remote_repository() -> Result<()> {
     };
 
     // Just testing that it doesn't panic, we're not making actual API calls
-    let result = gitai::app::handle_command(release_notes_command, None).await;
+    let result = gait::app::handle_command(release_notes_command, None).await;
     assert!(
         result.is_err(),
         "Command should fail because we're using a mock provider"
     );
 
     // 2. Test Changelog command with repository URL
-    let changelog_command = GitAI::Changelog {
+    let changelog_command = Gait::Changelog {
         common: common.clone(),
         from: "v1.0.0".to_string(),
         to: Some("HEAD".to_string()),
@@ -59,14 +57,14 @@ async fn test_cli_with_remote_repository() -> Result<()> {
     };
 
     // Just testing that it doesn't panic
-    let result = gitai::app::handle_command(changelog_command, None).await;
+    let result = gait::app::handle_command(changelog_command, None).await;
     assert!(
         result.is_err(),
         "Command should fail because we're using a mock provider"
     );
 
     // 3. Test cmsg command with repository URL
-    let gen_command = GitAI::Message {
+    let gen_command = Gait::Message {
         common,
         auto_commit: false,
         print: true,
@@ -76,7 +74,7 @@ async fn test_cli_with_remote_repository() -> Result<()> {
     };
 
     // Just testing that it doesn't panic
-    let result = gitai::app::handle_command(gen_command, None).await;
+    let result = gait::app::handle_command(gen_command, None).await;
     assert!(
         result.is_err(),
         "Command should fail because we're using a mock provider"
