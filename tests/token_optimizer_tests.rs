@@ -297,3 +297,351 @@ fn count_total_tokens(context: &CommitContext, optimizer: &TokenOptimizer) -> us
         .sum();
     commit_tokens + staged_tokens
 }
+
+// Test importance-weighted token distribution with known importance scores
+#[tokio::test]
+async fn test_importance_weighted_token_distribution() {
+    let mut context = CommitContext {
+        branch: "main".to_string(),
+        recent_commits: vec![
+            RecentCommit {
+                hash: "abc123".to_string(),
+                message: "Small commit message".to_string(), // ~4 tokens
+                author: "Test Author".to_string(),
+                timestamp: "2023-01-01 00:00:00".to_string(),
+            },
+            RecentCommit {
+                hash: "def456".to_string(),
+                message: "Medium commit message with more details".to_string(), // ~7 tokens
+                author: "Test Author".to_string(),
+                timestamp: "2023-01-02 00:00:00".to_string(),
+            },
+        ],
+        staged_files: vec![
+            StagedFile {
+                path: "small_file.rs".to_string(),
+                change_type: ChangeType::Modified,
+                diff: "- old\n+ new".to_string(), // ~4 tokens
+                content_excluded: false,
+                content: Some("short content".to_string()), // ~3 tokens
+            },
+            StagedFile {
+                path: "large_file.rs".to_string(),
+                change_type: ChangeType::Added,
+                diff: "+ large diff content\n".repeat(10), // ~30 tokens
+                content_excluded: false,
+                content: Some("large file content\n".repeat(10)), // ~30 tokens
+            },
+        ],
+        user_name: "Test User".to_string(),
+        user_email: "test@example.com".to_string(),
+        author_history: vec![],
+    };
+
+    let config = create_test_config();
+    let optimizer = TokenOptimizer::new(50, config).expect("Failed to initialize token optimizer");
+
+    let original_tokens = count_total_tokens(&context, &optimizer);
+    assert!(
+        original_tokens > 50,
+        "Test setup should have more than 50 tokens"
+    );
+
+    let _ = optimizer.optimize_context(&mut context).await;
+
+    let final_tokens = count_total_tokens(&context, &optimizer);
+    assert!(
+        final_tokens <= 50,
+        "Final token count should not exceed limit of 50"
+    );
+
+    // The large file should get more tokens allocated due to higher importance (larger diff)
+    let small_file_tokens = optimizer.count_tokens(&context.staged_files[0].diff)
+        + context.staged_files[0]
+            .content
+            .as_ref()
+            .map_or(0, |c| optimizer.count_tokens(c));
+    let large_file_tokens = optimizer.count_tokens(&context.staged_files[1].diff)
+        + context.staged_files[1]
+            .content
+            .as_ref()
+            .map_or(0, |c| optimizer.count_tokens(c));
+
+    // Large file should have more tokens allocated due to higher importance
+    assert!(
+        large_file_tokens >= small_file_tokens,
+        "Large file should get more tokens due to higher importance"
+    );
+}
+
+// Test that items are processed in importance order
+#[tokio::test]
+async fn test_importance_order_processing() {
+    let mut context = CommitContext {
+        branch: "main".to_string(),
+        recent_commits: vec![
+            RecentCommit {
+                hash: "abc123".to_string(),
+                message: "First commit - most important".to_string(),
+                author: "Test Author".to_string(),
+                timestamp: "2023-01-01 00:00:00".to_string(),
+            },
+            RecentCommit {
+                hash: "def456".to_string(),
+                message: "Second commit - less important".to_string(),
+                author: "Test Author".to_string(),
+                timestamp: "2023-01-02 00:00:00".to_string(),
+            },
+        ],
+        staged_files: vec![
+            StagedFile {
+                path: "important_file.rs".to_string(),
+                change_type: ChangeType::Modified,
+                diff: "- old\n+ new\n".repeat(5), // 15 tokens - high importance
+                content_excluded: false,
+                content: Some("important content".to_string()),
+            },
+            StagedFile {
+                path: "less_important_file.rs".to_string(),
+                change_type: ChangeType::Modified,
+                diff: "- old\n+ new".to_string(), // 4 tokens - low importance
+                content_excluded: false,
+                content: Some("less important content".to_string()),
+            },
+        ],
+        user_name: "Test User".to_string(),
+        user_email: "test@example.com".to_string(),
+        author_history: vec![],
+    };
+
+    let config = create_test_config();
+    let optimizer = TokenOptimizer::new(30, config).expect("Failed to initialize token optimizer");
+
+    let _ = optimizer.optimize_context(&mut context).await;
+
+    let final_tokens = count_total_tokens(&context, &optimizer);
+    assert!(final_tokens <= 30, "Should not exceed token limit");
+
+    // The more important file (larger diff) should retain more content
+    let important_file_tokens = optimizer.count_tokens(&context.staged_files[0].diff)
+        + context.staged_files[0]
+            .content
+            .as_ref()
+            .map_or(0, |c| optimizer.count_tokens(c));
+    let less_important_file_tokens = optimizer.count_tokens(&context.staged_files[1].diff)
+        + context.staged_files[1]
+            .content
+            .as_ref()
+            .map_or(0, |c| optimizer.count_tokens(c));
+
+    // Important file should have more tokens allocated
+    assert!(
+        important_file_tokens >= less_important_file_tokens,
+        "More important file should retain more tokens"
+    );
+}
+
+// Test edge case with empty context
+#[tokio::test]
+async fn test_importance_weighted_empty_context() {
+    let mut context = CommitContext {
+        branch: "main".to_string(),
+        recent_commits: vec![],
+        staged_files: vec![],
+        user_name: "Test User".to_string(),
+        user_email: "test@example.com".to_string(),
+        author_history: vec![],
+    };
+
+    let config = create_test_config();
+    let optimizer = TokenOptimizer::new(100, config).expect("Failed to initialize token optimizer");
+
+    let result = optimizer.optimize_context(&mut context).await;
+    assert!(result.is_ok(), "Should handle empty context without error");
+
+    let final_tokens = count_total_tokens(&context, &optimizer);
+    assert_eq!(final_tokens, 0, "Empty context should have zero tokens");
+}
+
+// Test importance scoring for commits (position factor)
+#[tokio::test]
+async fn test_commit_importance_position_factor() {
+    let mut context = CommitContext {
+        branch: "main".to_string(),
+        recent_commits: vec![
+            RecentCommit {
+                hash: "first".to_string(),
+                message: "First commit".to_string(), // Should have highest importance (position 0)
+                author: "Test Author".to_string(),
+                timestamp: "2023-01-01 00:00:00".to_string(),
+            },
+            RecentCommit {
+                hash: "second".to_string(),
+                message: "Second commit".to_string(), // Should have lower importance (position 1)
+                author: "Test Author".to_string(),
+                timestamp: "2023-01-02 00:00:00".to_string(),
+            },
+            RecentCommit {
+                hash: "third".to_string(),
+                message: "Third commit".to_string(), // Should have lowest importance (position 2)
+                author: "Test Author".to_string(),
+                timestamp: "2023-01-03 00:00:00".to_string(),
+            },
+        ],
+        staged_files: vec![],
+        user_name: "Test User".to_string(),
+        user_email: "test@example.com".to_string(),
+        author_history: vec![],
+    };
+
+    let config = create_test_config();
+    let optimizer = TokenOptimizer::new(10, config).expect("Failed to initialize token optimizer");
+
+    let _ = optimizer.optimize_context(&mut context).await;
+
+    // With limited tokens, later commits should be truncated more
+    // First commit should be fully preserved, later ones truncated
+    let first_commit_tokens = optimizer.count_tokens(&context.recent_commits[0].message);
+    let second_commit_tokens = optimizer.count_tokens(&context.recent_commits[1].message);
+    let third_commit_tokens = optimizer.count_tokens(&context.recent_commits[2].message);
+
+    assert!(
+        first_commit_tokens >= second_commit_tokens,
+        "First commit should have more tokens than second"
+    );
+    assert!(
+        second_commit_tokens >= third_commit_tokens,
+        "Second commit should have more tokens than third"
+    );
+}
+
+// Test content relevance factor for staged files
+#[tokio::test]
+async fn test_content_relevance_factor() {
+    let mut context = CommitContext {
+        branch: "main".to_string(),
+        recent_commits: vec![],
+        staged_files: vec![
+            StagedFile {
+                path: "staged_file.rs".to_string(),
+                change_type: ChangeType::Modified,
+                diff: "- old\n+ new".to_string(),
+                content_excluded: false,
+                content: Some("This is staged file content".to_string()),
+            },
+            StagedFile {
+                path: "unstaged_file.rs".to_string(),
+                change_type: ChangeType::Modified,
+                diff: "- old\n+ new".to_string(),
+                content_excluded: false,
+                content: Some("This is unstaged file content".to_string()),
+            },
+        ],
+        user_name: "Test User".to_string(),
+        user_email: "test@example.com".to_string(),
+        author_history: vec![],
+    };
+
+    let config = create_test_config();
+    let optimizer = TokenOptimizer::new(15, config).expect("Failed to initialize token optimizer");
+
+    let _ = optimizer.optimize_context(&mut context).await;
+
+    // Both files should have their diffs preserved, but content might be truncated
+    // Since both are in staged_files, they should have equal relevance (relevance_factor = 1.0)
+    let staged_content_preserved = context.staged_files[0].content.is_some();
+    let unstaged_content_preserved = context.staged_files[1].content.is_some();
+
+    // With token limit, some content might be cleared, but both should be treated equally
+    // since they're both in the staged_files vector
+    assert_eq!(
+        staged_content_preserved, unstaged_content_preserved,
+        "Both staged files should have same content preservation treatment"
+    );
+}
+
+// Test sentence boundary truncation to avoid mid-sentence cuts
+#[tokio::test]
+async fn test_sentence_boundary_truncation() {
+    let config = create_test_config();
+    let optimizer =
+        TokenOptimizer::new(1000, config).expect("Failed to initialize token optimizer");
+
+    // Test text with clear sentence boundaries
+    let test_text = "This is the first sentence. This is the second sentence! This is the third sentence? This is the fourth sentence.";
+
+    // Truncate to a small number of tokens that would cut mid-sentence without boundary detection
+    let result = optimizer
+        .truncate_string(test_text, 15)
+        .expect("Truncation should succeed");
+
+    // Should end with a complete sentence, not cut mid-sentence
+    assert!(result.ends_with("…"), "Should end with ellipsis");
+
+    // Should not cut in the middle of a sentence
+    let text_without_ellipsis = result.trim_end_matches('…');
+    assert!(
+        text_without_ellipsis.ends_with('.')
+            || text_without_ellipsis.ends_with('!')
+            || text_without_ellipsis.ends_with('?')
+            || text_without_ellipsis.is_empty(),
+        "Should end at sentence boundary, got: {text_without_ellipsis}"
+    );
+
+    // Test with text that has no good sentence boundaries
+    let no_sentences =
+        "This is a long continuous text without proper sentence endings it just keeps going";
+    let result2 = optimizer
+        .truncate_string(no_sentences, 10)
+        .expect("Truncation should succeed");
+    assert!(
+        result2.ends_with("…"),
+        "Should still add ellipsis even without sentence boundaries"
+    );
+}
+
+// Test proportional allocation with extreme importance differences
+#[tokio::test]
+async fn test_extreme_importance_differences() {
+    let mut context = CommitContext {
+        branch: "main".to_string(),
+        recent_commits: vec![RecentCommit {
+            hash: "important".to_string(),
+            message: "Very important commit with lots of details that should be preserved"
+                .to_string(),
+            author: "Test Author".to_string(),
+            timestamp: "2023-01-01 00:00:00".to_string(),
+        }],
+        staged_files: vec![StagedFile {
+            path: "critical_diff.rs".to_string(),
+            change_type: ChangeType::Modified,
+            diff: "+ critical change\n".repeat(20), // 40 tokens - very important
+            content_excluded: false,
+            content: Some("small content".to_string()), // 3 tokens - less important
+        }],
+        user_name: "Test User".to_string(),
+        user_email: "test@example.com".to_string(),
+        author_history: vec![],
+    };
+
+    let config = create_test_config();
+    let optimizer = TokenOptimizer::new(25, config).expect("Failed to initialize token optimizer");
+
+    let _ = optimizer.optimize_context(&mut context).await;
+
+    let final_tokens = count_total_tokens(&context, &optimizer);
+    assert!(final_tokens <= 25, "Should not exceed token limit");
+
+    // The large diff should be significantly truncated, while smaller items might be preserved
+    let diff_tokens = optimizer.count_tokens(&context.staged_files[0].diff);
+    let _content_tokens = context.staged_files[0]
+        .content
+        .as_ref()
+        .map_or(0, |c| optimizer.count_tokens(c));
+    let commit_tokens = optimizer.count_tokens(&context.recent_commits[0].message);
+
+    // Diff should be truncated the most due to its size
+    assert!(diff_tokens < 40, "Large diff should be truncated");
+    // Smaller items should be relatively preserved
+    assert!(commit_tokens > 0, "Commit should retain some tokens");
+}
