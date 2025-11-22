@@ -118,6 +118,7 @@ fn test_project_config_security() {
         instructions: Some("Test instructions".to_string()),
         detail_level: "standard".to_string(),
         repository_url: None,
+        ..Default::default()
     };
 
     // Create a config using our MockDataBuilder and apply common parameters
