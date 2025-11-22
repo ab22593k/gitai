@@ -31,7 +31,7 @@ impl SpinnerState {
             current_frame: 0,
             message: ColoredMessage {
                 text: message.to_string(),
-                color: Color::Cyan, // Default color for custom messages
+                color: ratatui::style::Color::Cyan, // Default color for custom messages
             },
         }
     }

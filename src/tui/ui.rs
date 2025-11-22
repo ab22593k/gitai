@@ -1,5 +1,12 @@
 #![allow(clippy::as_conversions)]
 
+//! TUI Design System
+//!
+//! This module implements a design token-based UI system with:
+//! - Color palette for consistent theming
+//! - Spacing tokens for standardized layout
+//! - Typography tokens for text styling
+
 use super::state::{Mode, TuiState};
 use ratatui::{
     Frame,
@@ -10,20 +17,44 @@ use ratatui::{
 };
 use unicode_width::UnicodeWidthStr;
 
-// Modern Color Palette
+// Design Token Color Palette
 
-const TEXT_COLOR: Color = Color::White;
-const SUBTLE_COLOR: Color = Color::DarkGray;
+// Brand colors
+const COLOR_BRAND_PRIMARY: Color = Color::Blue; // Main accent color for interactive elements
 
-const ACCENT_COLOR: Color = Color::Blue; // A calmer blue
-const ACCENT_COLOR_ACTIVE: Color = Color::Cyan; // Brighter for active elements
+// Text colors
+const COLOR_TEXT_DEFAULT: Color = Color::White; // Standard text color
+const COLOR_TEXT_DIMMED: Color = Color::DarkGray; // Muted text for secondary information
 
-const BORDER_COLOR: Color = Color::DarkGray;
-const BORDER_COLOR_ACTIVE: Color = Color::Cyan;
+// Background colors
+const COLOR_BACKGROUND_DEFAULT: Color = Color::Black; // Main background
+const COLOR_BACKGROUND_ELEVATED: Color = Color::DarkGray; // For modals/cards
 
-const SUCCESS_COLOR: Color = Color::Green;
-const WARNING_COLOR: Color = Color::Yellow;
-const ERROR_COLOR: Color = Color::Red;
+// State colors
+const COLOR_STATE_SUCCESS: Color = Color::Green; // Success messages
+const COLOR_STATE_ERROR: Color = Color::Red; // Error/warning messages
+const COLOR_STATE_INFO: Color = Color::Blue; // Informational messages
+
+// Derived colors for UI states
+const ACCENT_COLOR: Color = COLOR_BRAND_PRIMARY;
+const ACCENT_COLOR_ACTIVE: Color = Color::Cyan; // Brighter version for active elements
+const TEXT_COLOR: Color = COLOR_TEXT_DEFAULT;
+const SUBTLE_COLOR: Color = COLOR_TEXT_DIMMED;
+const BORDER_COLOR: Color = COLOR_BACKGROUND_ELEVATED;
+const BORDER_COLOR_ACTIVE: Color = ACCENT_COLOR_ACTIVE;
+const SUCCESS_COLOR: Color = COLOR_STATE_SUCCESS;
+const WARNING_COLOR: Color = Color::Yellow; // Warning (not in design tokens, keeping existing)
+const ERROR_COLOR: Color = COLOR_STATE_ERROR;
+
+// Spacing Tokens (in character units)
+const SPACING_XS: u16 = 1; // Smallest spacing
+const SPACING_SM: u16 = 2; // Small spacing
+const SPACING_MD: u16 = 4; // Medium, default spacing
+const SPACING_LG: u16 = 8; // Large spacing
+
+// Typography Tokens (using ratatui modifiers)
+const FONT_WEIGHT_REGULAR: Modifier = Modifier::empty();
+const FONT_WEIGHT_BOLD: Modifier = Modifier::BOLD;
 
 /// Main UI rendering entry point
 pub fn draw_ui(f: &mut Frame, state: &mut TuiState) {
@@ -36,37 +67,37 @@ fn create_layout(f: &Frame, state: &TuiState) -> Vec<Rect> {
     let mut constraints = vec![];
 
     // Top padding
-    constraints.push(Constraint::Length(1));
+    constraints.push(Constraint::Length(SPACING_XS));
 
     if state.nav_bar_visible {
-        constraints.push(Constraint::Length(3)); // Nav bar with some breathing room
+        constraints.push(Constraint::Length(SPACING_MD + SPACING_XS)); // Nav bar with some breathing room
     }
 
     constraints.push(Constraint::Min(10)); // Main content area
 
     if state.instructions_visible {
-        constraints.push(Constraint::Length(6)); // Instructions area
+        constraints.push(Constraint::Length(SPACING_LG + SPACING_SM)); // Instructions area
     }
 
-    constraints.push(Constraint::Length(1)); // Status bar
+    constraints.push(Constraint::Length(SPACING_XS)); // Status bar
 
     // Bottom padding
-    constraints.push(Constraint::Length(1));
+    constraints.push(Constraint::Length(SPACING_XS));
 
     let vertical_layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints(constraints)
         .split(f.area());
 
-    // Add horizontal padding
+    // Add horizontal padding using spacing tokens
     let mut final_chunks = vec![];
     for chunk in vertical_layout.iter() {
         let horizontal_layout = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([
-                Constraint::Percentage(5),
-                Constraint::Percentage(90),
-                Constraint::Percentage(5),
+                Constraint::Length(SPACING_MD),
+                Constraint::Min(1), // Take remaining space
+                Constraint::Length(SPACING_MD),
             ])
             .split(*chunk);
         final_chunks.push(horizontal_layout[1]);
@@ -135,7 +166,7 @@ fn draw_nav_bar(f: &mut Frame, state: &TuiState, area: Rect) {
                     Style::default()
                         .fg(Color::Black)
                         .bg(ACCENT_COLOR_ACTIVE)
-                        .add_modifier(Modifier::BOLD),
+                        .add_modifier(FONT_WEIGHT_BOLD),
                 ),
                 Span::styled(format!(" {desc} "), Style::default().fg(TEXT_COLOR)),
             ];
@@ -183,7 +214,7 @@ fn draw_commit_message(f: &mut Frame, state: &mut TuiState, area: Rect) {
                         } else {
                             ACCENT_COLOR
                         })
-                        .add_modifier(Modifier::BOLD),
+                        .add_modifier(FONT_WEIGHT_BOLD),
                 ))
                 .title_alignment(ratatui::layout::Alignment::Center)
                 .borders(Borders::ALL)
@@ -338,8 +369,8 @@ fn draw_help(f: &mut Frame, _state: &mut TuiState, area: Rect) {
         Line::from(vec![Span::styled(
             "Navigation",
             Style::default()
-                .fg(ACCENT_COLOR)
-                .add_modifier(Modifier::BOLD),
+                .fg(COLOR_BRAND_PRIMARY)
+                .add_modifier(FONT_WEIGHT_BOLD),
         )]),
         Line::from(vec![Span::raw("  ←/→        Next/Prev Message")]),
         Line::from(vec![Span::raw("  ↑/↓        Scroll Content")]),
@@ -347,8 +378,8 @@ fn draw_help(f: &mut Frame, _state: &mut TuiState, area: Rect) {
         Line::from(vec![Span::styled(
             "Actions",
             Style::default()
-                .fg(ACCENT_COLOR)
-                .add_modifier(Modifier::BOLD),
+                .fg(COLOR_BRAND_PRIMARY)
+                .add_modifier(FONT_WEIGHT_BOLD),
         )]),
         Line::from(vec![Span::raw("  Enter      Commit")]),
         Line::from(vec![Span::raw("  E          Edit Message")]),
@@ -362,7 +393,7 @@ fn draw_help(f: &mut Frame, _state: &mut TuiState, area: Rect) {
         .title_alignment(ratatui::layout::Alignment::Center)
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
-        .border_style(Style::default().fg(ACCENT_COLOR));
+        .border_style(Style::default().fg(COLOR_BRAND_PRIMARY));
 
     let area = centered_rect(area, 60, 50);
 
