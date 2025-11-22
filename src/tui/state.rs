@@ -167,15 +167,15 @@ impl TuiState {
 
     /// Move selection up
     pub fn move_selection_up(&mut self) {
-        if let Some(ctx) = &self.context {
-            if self.context_selection_index > 0 {
-                self.context_selection_index -= 1;
-                // Check if we need to switch categories
-                if self.context_selection_category == ContextSelectionCategory::Commits
-                    && self.context_selection_index < ctx.staged_files.len()
-                {
-                    self.context_selection_category = ContextSelectionCategory::Files;
-                }
+        if let Some(ctx) = &self.context
+            && self.context_selection_index > 0
+        {
+            self.context_selection_index -= 1;
+            // Check if we need to switch categories
+            if self.context_selection_category == ContextSelectionCategory::Commits
+                && self.context_selection_index < ctx.staged_files.len()
+            {
+                self.context_selection_category = ContextSelectionCategory::Files;
             }
         }
         self.dirty = true;

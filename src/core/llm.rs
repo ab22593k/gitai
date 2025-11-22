@@ -192,7 +192,7 @@ pub async fn get_message_with_provider<T>(
     user_prompt: &str,
     provider_type: &str,
     #[cfg(debug_assertions)] debug_llm: bool,
-    system_prompt: &str,
+    #[allow(clippy::used_underscore_binding)] _system_prompt: &str,
 ) -> Result<T>
 where
     T: DeserializeOwned + JsonSchema,
@@ -226,7 +226,7 @@ where
                 // Debug logging if enabled
                 #[cfg(debug_assertions)]
                 if debug_llm {
-                    dump_llm_interaction_jsonl(system_prompt, &enhanced_prompt, provider_type, &response_text);
+                    dump_llm_interaction_jsonl(_system_prompt, &enhanced_prompt, provider_type, &response_text);
                 }
 
                 debug!("Received response from provider");

@@ -202,18 +202,18 @@ impl TokenOptimizer {
                         }
                     }
                     ContextItemType::Content { file_index } => {
-                        if let Some(file) = context.staged_files.get_mut(*file_index) {
-                            if let Some(content) = &mut file.content {
-                                debug!(
-                                    "Truncating content for {path} from {original} to {allocated} tokens",
-                                    path = file.path,
-                                    original = item.token_count,
-                                    allocated = allocated_tokens
-                                );
-                                let _ = self
-                                    .truncate_string(content, allocated_tokens)
-                                    .map(|truncated| *content = truncated);
-                            }
+                        if let Some(file) = context.staged_files.get_mut(*file_index)
+                            && let Some(content) = &mut file.content
+                        {
+                            debug!(
+                                "Truncating content for {path} from {original} to {allocated} tokens",
+                                path = file.path,
+                                original = item.token_count,
+                                allocated = allocated_tokens
+                            );
+                            let _ = self
+                                .truncate_string(content, allocated_tokens)
+                                .map(|truncated| *content = truncated);
                         }
                     }
                 }
@@ -234,11 +234,11 @@ impl TokenOptimizer {
                     ContextItemType::Content { .. } => false,
                 })
             {
-                if let ContextItemType::Content { file_index } = &item.item_type {
-                    if let Some(file) = context.staged_files.get_mut(*file_index) {
-                        file.content = None;
-                        file.content_excluded = true;
-                    }
+                if let ContextItemType::Content { file_index } = &item.item_type
+                    && let Some(file) = context.staged_files.get_mut(*file_index)
+                {
+                    file.content = None;
+                    file.content_excluded = true;
                 }
             }
         }

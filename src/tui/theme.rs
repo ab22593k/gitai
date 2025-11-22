@@ -73,10 +73,10 @@ impl Theme {
     /// Detect terminal color capabilities
     fn detect_color_capability() -> ColorCapability {
         // Check environment variables for color support
-        if let Ok(colorterm) = env::var("COLORTERM") {
-            if colorterm.contains("truecolor") || colorterm.contains("24bit") {
-                return ColorCapability::TrueColor;
-            }
+        if let Ok(colorterm) = env::var("COLORTERM")
+            && (colorterm.contains("truecolor") || colorterm.contains("24bit"))
+        {
+            return ColorCapability::TrueColor;
         }
 
         // Check TERM for color capabilities
@@ -90,10 +90,10 @@ impl Theme {
         }
 
         // Check for explicit color support
-        if let Ok(clicolor_force) = env::var("CLICOLOR_FORCE") {
-            if clicolor_force == "1" {
-                return ColorCapability::Color256;
-            }
+        if let Ok(clicolor_force) = env::var("CLICOLOR_FORCE")
+            && clicolor_force == "1"
+        {
+            return ColorCapability::Color256;
         }
 
         // Default to basic 16 colors for safety
