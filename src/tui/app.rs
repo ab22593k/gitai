@@ -58,6 +58,7 @@ impl TuiCommit {
         custom_instructions: String,
         service: Arc<CommitService>,
         completion_service: Arc<CompletionService>,
+        theme_mode: crate::common::ThemeMode,
     ) -> Result<()> {
         let mut app = Self::new(
             initial_messages,
@@ -69,12 +70,12 @@ impl TuiCommit {
         // Initialize context for selection (ignore errors, regeneration will fall back to default)
         let _ = app.initialize_context().await;
 
-        app.run_app().await.map_err(Error::from)
+        app.run_app(theme_mode).await.map_err(Error::from)
     }
 
-    pub async fn run_app(&mut self) -> io::Result<()> {
+    pub async fn run_app(&mut self, theme_mode: crate::common::ThemeMode) -> io::Result<()> {
         // Initialize adaptive theme
-        init_theme();
+        init_theme(theme_mode);
 
         // Setup
         let default_hook = panic::take_hook();
@@ -330,12 +331,14 @@ pub async fn run_tui_commit(
     custom_instructions: String,
     service: Arc<CommitService>,
     completion_service: Arc<CompletionService>,
+    theme_mode: crate::common::ThemeMode,
 ) -> Result<()> {
     TuiCommit::run(
         initial_messages,
         custom_instructions,
         service,
         completion_service,
+        theme_mode,
     )
     .await
 }

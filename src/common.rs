@@ -1,7 +1,8 @@
 use crate::config::Config;
 use crate::core::llm::get_available_provider_names;
 use anyhow::Result;
-use clap::Args;
+use clap::{Args, ValueEnum};
+use std::env;
 use std::fmt::Write;
 use std::str::FromStr;
 
@@ -32,6 +33,52 @@ impl DetailLevel {
             Self::Standard => "standard",
             Self::Detailed => "detailed",
         }
+    }
+}
+
+/// Theme mode (Dark, Light, System)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, ValueEnum)]
+pub enum ThemeMode {
+    Light,
+    #[default]
+    Dark,
+    System,
+}
+
+impl ThemeMode {
+    #[must_use]
+    pub fn resolve(&self) -> Self {
+        match self {
+            Self::System => Self::detect(),
+            _ => *self,
+        }
+    }
+
+    fn detect() -> Self {
+        // Heuristic using COLORFGBG (common in xterm-based terminals)
+        if let Ok(val) = env::var("COLORFGBG") {
+            let parts: Vec<&str> = val.split(';').collect();
+            // Format is usually "fg;bg" or just "bg" depending on implementation
+            // Standard ANSI colors: 0-7 (dark/normal), 8-15 (bright)
+            // 0=Black, 7=White, 15=Bright White.
+            if parts.len() == 2 {
+                if let Ok(bg) = parts[1].parse::<u8>() {
+                    // If background is white-ish (7 or 15) or high index, assume light
+                    if bg == 7 || bg == 15 || bg > 10 {
+                        return Self::Light;
+                    }
+                }
+            }
+        }
+
+        // Check standard ENVIRONMENT variables that might indicate light mode
+        if let Ok(mode) = env::var("GTK_THEME") {
+            if mode.to_lowercase().contains("light") {
+                return Self::Light;
+            }
+        }
+
+        Self::Dark
     }
 }
 
@@ -74,6 +121,14 @@ pub struct CommonParams {
         help = "Repository URL to use instead of local repository"
     )]
     pub repository_url: Option<String>,
+
+    /// Theme mode (dark, light, system)
+    #[arg(
+        long = "theme",
+        help = "Theme mode (dark, light, system)",
+        default_value = "dark"
+    )]
+    pub theme: ThemeMode,
 }
 
 impl Default for CommonParams {
@@ -86,6 +141,7 @@ impl Default for CommonParams {
             instructions: None,
             detail_level: "standard".to_string(),
             repository_url: None,
+            theme: ThemeMode::Dark,
         }
     }
 }
@@ -140,7 +196,7 @@ impl CommonParams {
 
             if let Some(provider_config) = config.providers.get_mut(&provider_name) {
                 if provider_config.model_name != *model {
-                    provider_config.model_name = model.clone();
+                    provider_config.model_name.clone_from(model);
                     changes_made = true;
                 }
             }

@@ -3,7 +3,7 @@ use clap::Parser;
 use gait::{app, common::CommonParams};
 
 #[derive(Parser)]
-#[command(name = "git-flow-changelog", about = "Generate a changelog")]
+#[command(name = "git-changelog", about = "Generate a changelog")]
 struct ChangelogArgs {
     #[command(flatten)]
     common: CommonParams,

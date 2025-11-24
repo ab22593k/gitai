@@ -27,9 +27,11 @@ async fn test_cli_with_remote_repository() -> Result<()> {
         #[cfg(debug_assertions)]
         debug_llm: false,
         provider: Some("mock".to_string()), // Use mock provider to avoid real API calls
+        model: None,
         instructions: None,
         detail_level: "minimal".to_string(),
         repository_url: Some(repo_url.to_string()),
+        theme: gait::common::ThemeMode::Dark,
     };
 
     let release_notes_command = Gait::ReleaseNotes {

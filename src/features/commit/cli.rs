@@ -194,6 +194,7 @@ pub async fn handle_message_command(
         effective_instructions,
         service,
         completion_service,
+        common.theme,
     )
     .await?;
 
