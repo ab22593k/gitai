@@ -119,13 +119,13 @@ impl Theme {
                 // Brand colors
                 brand_primary: Color::Rgb(37, 99, 235), // Blue-600
 
-                // Text colors
-                text_default: Color::Rgb(17, 24, 39), // Gray-900
-                text_dimmed: Color::Rgb(107, 114, 128), // Gray-500
+                // Text colors (increased contrast against white background)
+                text_default: Color::Rgb(12, 16, 20), // Deeper near-black for better contrast
+                text_dimmed: Color::Rgb(82, 90, 102), // Dimmed but legible
 
                 // Background colors
                 background_default: Color::Rgb(255, 255, 255), // White
-                background_elevated: Color::Rgb(243, 244, 246), // Gray-100
+                background_elevated: Color::Rgb(243, 244, 246), // Slightly off-white for elevation
 
                 // State colors
                 state_success: Color::Rgb(22, 163, 74), // Green-600
@@ -133,10 +133,10 @@ impl Theme {
                 state_warning: Color::Rgb(217, 119, 6), // Amber-600
                 state_info: Color::Rgb(37, 99, 235),    // Blue-600
 
-                // UI element colors
+                // UI element colors (bolder borders/accents to improve separation)
                 accent: Color::Rgb(37, 99, 235),         // Blue-600
                 accent_active: Color::Rgb(59, 130, 246), // Blue-500
-                border: Color::Rgb(209, 213, 219),       // Gray-300
+                border: Color::Rgb(148, 163, 184),       // Gray-400 (darker for contrast)
                 border_active: Color::Rgb(59, 130, 246), // Blue-500
 
                 // Typography
@@ -150,13 +150,13 @@ impl Theme {
                 // Brand colors
                 brand_primary: Color::Rgb(59, 130, 246), // Blue-500
 
-                // Text colors
-                text_default: Color::Rgb(255, 255, 255), // White
-                text_dimmed: Color::Rgb(107, 114, 128),  // Gray-500
+                // Text colors (adjusted for better contrast on dark backgrounds)
+                text_default: Color::Rgb(235, 235, 245), // Slightly off-white to reduce glare
+                text_dimmed: Color::Rgb(148, 163, 184),  // Lighter dimmed to remain readable
 
                 // Background colors
-                background_default: Color::Rgb(0, 0, 0), // Black
-                background_elevated: Color::Rgb(31, 41, 55), // Gray-800
+                background_default: Color::Rgb(10, 12, 15), // Very dark gray (less harsh than pure black)
+                background_elevated: Color::Rgb(24, 28, 35), // Slightly lighter for elevated surfaces
 
                 // State colors
                 state_success: Color::Rgb(34, 197, 94), // Green-500
@@ -164,10 +164,10 @@ impl Theme {
                 state_warning: Color::Rgb(245, 158, 11), // Amber-500
                 state_info: Color::Rgb(59, 130, 246),   // Blue-500
 
-                // UI element colors
+                // UI element colors (ensure borders are visible against dark background)
                 accent: Color::Rgb(59, 130, 246),        // Blue-500
                 accent_active: Color::Rgb(96, 165, 250), // Blue-400
-                border: Color::Rgb(55, 65, 81),          // Gray-700
+                border: Color::Rgb(99, 115, 129),        // Gray-500 (improved separation)
                 border_active: Color::Rgb(96, 165, 250), // Blue-400
 
                 // Typography
@@ -189,7 +189,11 @@ impl Theme {
 
             // Text colors
             text_default: if is_light { Color::Black } else { Color::White },
-            text_dimmed: Color::Gray,
+            text_dimmed: if is_light {
+                Color::DarkGray
+            } else {
+                Color::Gray
+            },
 
             // Background colors
             background_default: if is_light { Color::White } else { Color::Black },
@@ -208,11 +212,7 @@ impl Theme {
             // UI element colors
             accent: Color::Blue,
             accent_active: Color::Cyan,
-            border: if is_light {
-                Color::Gray
-            } else {
-                Color::DarkGray
-            },
+            border: Color::DarkGray,
             border_active: Color::Cyan,
 
             // Typography
@@ -303,7 +303,7 @@ mod tests {
     fn test_light_theme() {
         let theme = Theme::modern_theme(ColorCapability::TrueColor, ThemeMode::Light);
         assert_eq!(theme.background_default, Color::Rgb(255, 255, 255));
-        assert_eq!(theme.text_default, Color::Rgb(17, 24, 39));
+        assert_eq!(theme.text_default, Color::Rgb(12, 16, 20));
     }
 
     #[test]
