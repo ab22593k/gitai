@@ -260,96 +260,66 @@ impl TokenOptimizer {
             return Ok(String::from("…"));
         }
 
+        // Encode ellipsis to know its size (usually 1 token)
+        let ellipsis_tokens = self.encoder.encode_ordinary("…");
+        let ellipsis_len = ellipsis_tokens.len().max(1);
+
+        // Calculate how many tokens we can keep
+        let effective_max = max_tokens.saturating_sub(ellipsis_len);
+
+        if effective_max == 0 {
+            return Ok(String::from("…"));
+        }
+
+        // Get the tokens to keep
+        let kept_tokens = &tokens[..effective_max];
+
+        // Decode back to string to find sentence boundaries
+        let candidate = self
+            .encoder
+            .decode(kept_tokens.to_vec())
+            .map_err(|e| TokenError::DecodingFailed(e.to_string()))?;
+
         // Try to find a good truncation point that avoids mid-sentence cuts
-        let truncation_point = self.find_sentence_boundary(s, max_tokens);
-
-        if truncation_point == 0 {
-            // No good sentence boundary found, fall back to token-based truncation
-            let truncation_limit = max_tokens.saturating_sub(1);
-            let ellipsis_token = self
-                .encoder
-                .encode_ordinary("…")
-                .first()
-                .copied()
-                .ok_or_else(|| {
-                    TokenError::EncodingFailed("Failed to encode ellipsis".to_string())
-                })?;
-
-            let mut truncated_tokens = Vec::with_capacity(truncation_limit + 1);
-            truncated_tokens.extend_from_slice(&tokens[..truncation_limit]);
-            truncated_tokens.push(ellipsis_token);
-
-            return self
-                .encoder
-                .decode(truncated_tokens)
-                .map_err(|e| TokenError::DecodingFailed(e.to_string()));
-        }
-
-        // Truncate at the sentence boundary
-        let truncated_text = &s[..truncation_point];
-        let truncated_with_ellipsis = format!("{}…", truncated_text.trim_end());
-
-        // Check if this fits within token limit
-        let final_tokens = self.encoder.encode_ordinary(&truncated_with_ellipsis);
-        if final_tokens.len() <= max_tokens {
-            Ok(truncated_with_ellipsis)
-        } else {
-            // If it doesn't fit, fall back to token-based truncation
-            let truncation_limit = max_tokens.saturating_sub(1);
-            let ellipsis_token = self
-                .encoder
-                .encode_ordinary("…")
-                .first()
-                .copied()
-                .ok_or_else(|| {
-                    TokenError::EncodingFailed("Failed to encode ellipsis".to_string())
-                })?;
-
-            let mut truncated_tokens = Vec::with_capacity(truncation_limit + 1);
-            truncated_tokens.extend_from_slice(&tokens[..truncation_limit]);
-            truncated_tokens.push(ellipsis_token);
-
-            self.encoder
-                .decode(truncated_tokens)
-                .map_err(|e| TokenError::DecodingFailed(e.to_string()))
-        }
-    }
-
-    /// Find a good sentence boundary within the token limit
-    #[allow(clippy::unnecessary_wraps)]
-    fn find_sentence_boundary(&self, s: &str, max_tokens: usize) -> usize {
         // Look for sentence endings: ., !, ?
         let sentence_endings = ['.', '!', '?'];
 
-        // Start from a position that would give us roughly the right number of tokens
-        let chars: Vec<char> = s.chars().collect();
-        let mut best_boundary = 0;
+        // Heuristic: Don't discard more than 25% of the candidate to find a boundary
+        // This prevents reducing "Hello world." to "Hello." if "world." is just barely cut off.
+        let min_len = candidate.len().saturating_sub(candidate.len() / 4);
 
-        // Try to find sentence boundaries working backwards from the token limit
-        for (i, &ch) in chars.iter().enumerate().rev() {
+        let mut truncation_point = None;
+
+        // Search backwards for a sentence boundary
+        for (i, ch) in candidate.char_indices().rev() {
+            if i < min_len {
+                break;
+            }
+
             if sentence_endings.contains(&ch) {
-                // Check if this position would fit within our token limit
-                let candidate_text = &s[..=i];
-                let candidate_tokens = self.encoder.encode_ordinary(candidate_text);
+                // Check if this is followed by whitespace or end of string
+                let next_idx = i + ch.len_utf8();
+                if next_idx == candidate.len() {
+                    truncation_point = Some(next_idx);
+                    break;
+                }
 
-                if candidate_tokens.len() <= max_tokens.saturating_sub(1) {
-                    // Reserve space for ellipsis
-                    // Check if this is followed by whitespace or end of string
-                    let next_char = chars.get(i + 1);
-                    if next_char.is_none() || next_char.is_some_and(|c| c.is_whitespace()) {
-                        best_boundary = i + 1; // Include the sentence ending
+                if let Some(next_char) = candidate[next_idx..].chars().next() {
+                    if next_char.is_whitespace() {
+                        truncation_point = Some(next_idx);
                         break;
                     }
                 }
             }
-
-            // If we've gone too far back, stop
-            if i < s.len() / 4 {
-                break;
-            }
         }
 
-        best_boundary
+        let final_string = if let Some(idx) = truncation_point {
+            format!("{}…", &candidate[..idx].trim_end())
+        } else {
+            format!("{candidate}…")
+        };
+
+        Ok(final_string)
     }
 
     #[inline]
