@@ -16,6 +16,11 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap},
 };
+use std::sync::LazyLock;
+use syntect::easy::HighlightLines;
+use syntect::highlighting::{Style as SynStyle, ThemeSet};
+use syntect::parsing::SyntaxSet;
+use syntect::util::LinesWithEndings;
 use unicode_width::UnicodeWidthStr;
 
 // Spacing Tokens (in character units)
@@ -23,6 +28,9 @@ const SPACING_XS: u16 = 1; // Smallest spacing
 const SPACING_SM: u16 = 2; // Small spacing
 const SPACING_MD: u16 = 4; // Medium, default spacing
 const SPACING_LG: u16 = 8; // Large spacing
+
+static SYNTAX_SET: LazyLock<SyntaxSet> = LazyLock::new(SyntaxSet::load_defaults_newlines);
+static THEME_SET: LazyLock<ThemeSet> = LazyLock::new(ThemeSet::load_defaults);
 
 // Helper functions to get theme colors
 fn accent_color() -> Color {
@@ -471,8 +479,18 @@ fn draw_completion(f: &mut Frame, state: &mut TuiState, area: Rect) {
     f.render_widget(completion_paragraph, area);
 }
 
-#[allow(clippy::too_many_lines)]
 fn draw_context_selection(f: &mut Frame, state: &mut TuiState, area: Rect) {
+    let chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .split(area);
+
+    draw_selection_list(f, state, chunks[0]);
+    draw_preview(f, state, chunks[1]);
+}
+
+#[allow(clippy::too_many_lines)]
+fn draw_selection_list(f: &mut Frame, state: &mut TuiState, area: Rect) {
     let title = " Context Selection ";
 
     let context_block = Block::default()
@@ -491,11 +509,11 @@ fn draw_context_selection(f: &mut Frame, state: &mut TuiState, area: Rect) {
 
     // Instructions
     context_lines.push(Line::from(vec![Span::styled(
-        "Select context to include in commit message generation:",
+        "Select context to include:",
         Style::default().fg(subtle_color()),
     )]));
     context_lines.push(Line::from(vec![Span::styled(
-        "Arrow keys: navigate | Space: toggle | Tab: switch category | Enter: confirm | Esc: cancel",
+        "Space: toggle | Tab: category | Enter: confirm",
         Style::default().fg(subtle_color()),
     )]));
     context_lines.push(Line::from(""));
@@ -585,8 +603,8 @@ fn draw_context_selection(f: &mut Frame, state: &mut TuiState, area: Rect) {
             };
 
             // Truncate commit message for display
-            let short_message = if commit.message.len() > 60 {
-                format!("{}...", &commit.message[..57])
+            let short_message = if commit.message.len() > 40 {
+                format!("{}...", &commit.message[..37])
             } else {
                 commit.message.clone()
             };
@@ -609,9 +627,108 @@ fn draw_context_selection(f: &mut Frame, state: &mut TuiState, area: Rect) {
     let context_paragraph = Paragraph::new(context_lines)
         .block(context_block)
         .style(Style::default())
-        .wrap(Wrap { trim: true });
+        .wrap(Wrap { trim: false });
 
     f.render_widget(context_paragraph, area);
+}
+
+fn draw_preview(f: &mut Frame, state: &mut TuiState, area: Rect) {
+    let block = Block::default()
+        .title(" Preview ")
+        .title_alignment(ratatui::layout::Alignment::Center)
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(Style::default().fg(border_color()));
+
+    if let Some(context) = &state.context {
+        if state.context_selection_category == super::state::ContextSelectionCategory::Files {
+            if let Some(file) = context.staged_files.get(state.context_selection_index) {
+                let diff = &file.diff;
+                let syntax = SYNTAX_SET
+                    .find_syntax_by_extension("diff")
+                    .unwrap_or_else(|| SYNTAX_SET.find_syntax_plain_text());
+                let theme = &THEME_SET.themes["base16-ocean.dark"]; // Use a default dark theme for now
+
+                let mut highlighter = HighlightLines::new(syntax, theme);
+                let mut lines = Vec::new();
+
+                for line in LinesWithEndings::from(diff) {
+                    // Apply custom color logic for diff markers
+                    if line.starts_with('+') {
+                        lines.push(Line::from(vec![Span::styled(
+                            line.trim_end_matches(['\n', '\r']),
+                            Style::default().fg(success_color()),
+                        )]));
+                    } else if line.starts_with('-') {
+                        lines.push(Line::from(vec![Span::styled(
+                            line.trim_end_matches(['\n', '\r']),
+                            Style::default().fg(error_color()),
+                        )]));
+                    } else {
+                        // Use syntect for other lines (e.g. metadata, or just highlight as plain/diff)
+                        let ranges: Vec<(SynStyle, &str)> = highlighter
+                            .highlight_line(line, &SYNTAX_SET)
+                            .unwrap_or_default();
+                        let spans: Vec<Span> = ranges
+                            .into_iter()
+                            .map(|(style, text)| {
+                                let fg = Color::Rgb(
+                                    style.foreground.r,
+                                    style.foreground.g,
+                                    style.foreground.b,
+                                );
+                                Span::styled(
+                                    text.trim_end_matches(['\n', '\r']),
+                                    Style::default().fg(fg),
+                                )
+                            })
+                            .collect();
+                        lines.push(Line::from(spans));
+                    }
+                }
+
+                let p = Paragraph::new(lines)
+                    .block(block)
+                    .wrap(Wrap { trim: false });
+                f.render_widget(p, area);
+                return;
+            }
+        } else if state.context_selection_category
+            == super::state::ContextSelectionCategory::Commits
+        {
+            let commit_index = state
+                .context_selection_index
+                .saturating_sub(context.staged_files.len());
+            if let Some(commit) = context.recent_commits.get(commit_index) {
+                let lines = vec![
+                    Line::from(vec![
+                        Span::styled("Commit: ", Style::default().fg(subtle_color())),
+                        Span::raw(&commit.hash),
+                    ]),
+                    Line::from(vec![
+                        Span::styled("Author: ", Style::default().fg(subtle_color())),
+                        Span::raw(&commit.author),
+                    ]),
+                    Line::from(vec![
+                        Span::styled("Date:   ", Style::default().fg(subtle_color())),
+                        Span::raw(&commit.timestamp),
+                    ]),
+                    Line::from(""),
+                    Line::from(Span::styled(
+                        &commit.message,
+                        Style::default().fg(text_color()),
+                    )),
+                ];
+
+                let p = Paragraph::new(lines).block(block).wrap(Wrap { trim: true });
+                f.render_widget(p, area);
+                return;
+            }
+        }
+    }
+
+    // Fallback if nothing selected or context missing
+    f.render_widget(Paragraph::new("No selection").block(block), area);
 }
 
 /// Helper to center a rect

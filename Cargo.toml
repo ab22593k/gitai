@@ -77,6 +77,7 @@ folder_compare = "0.4.0"
 crossbeam = "0.8"
 uuid = { version = "1.0", features = ["v4", "serde"] }
 env_logger = "0.11.8"
+syntect = "5.3.0"
 
 [dev-dependencies]
 dotenvy = "0.15.1"
