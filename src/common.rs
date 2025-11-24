@@ -51,6 +51,10 @@ pub struct CommonParams {
     #[arg(long, help = "Override default LLM provider", value_parser = available_providers_parser)]
     pub provider: Option<String>,
 
+    /// Override default LLM model
+    #[arg(long, help = "Override default LLM model")]
+    pub model: Option<String>,
+
     /// Custom instructions for this operation
     #[arg(short, long, help = "Custom instructions for this operation")]
     pub instructions: Option<String>,
@@ -78,6 +82,7 @@ impl Default for CommonParams {
             #[cfg(debug_assertions)]
             debug_llm: false,
             provider: None,
+            model: None,
             instructions: None,
             detail_level: "standard".to_string(),
             repository_url: None,
@@ -119,6 +124,25 @@ impl CommonParams {
 
                 config.default_provider.clone_from(&provider_name);
                 changes_made = true;
+            }
+        }
+
+        if let Some(model) = &self.model {
+            let provider_name = config.default_provider.clone();
+            // Ensure the provider exists in the providers HashMap
+            if !config.providers.contains_key(&provider_name) {
+                use crate::config::ProviderConfig;
+                config.providers.insert(
+                    provider_name.clone(),
+                    ProviderConfig::default_for(&provider_name),
+                );
+            }
+
+            if let Some(provider_config) = config.providers.get_mut(&provider_name) {
+                if provider_config.model_name != *model {
+                    provider_config.model_name = model.clone();
+                    changes_made = true;
+                }
             }
         }
 
