@@ -33,3 +33,6 @@ pub use features::commit::types::{
 pub use remote::{
     CacheManager, CachedRepository, RepositoryConfiguration, WireOperation, init_logger,
 };
+
+// Re-export tracing initialization
+pub use core::llm::init_tracing_to_file;

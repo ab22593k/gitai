@@ -1,30 +1,21 @@
 use crate::config::Config;
 use anyhow::{Result, anyhow};
-#[cfg(debug_assertions)]
-use chrono::Utc;
 use llm::{
     LLMProvider,
     builder::{LLMBackend, LLMBuilder},
     chat::ChatMessage,
 };
 use log::debug;
-#[cfg(debug_assertions)]
-use log::warn;
 use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
-#[cfg(debug_assertions)]
-use serde_json::{json, to_string};
 use std::collections::HashMap;
-#[cfg(debug_assertions)]
-use std::fs::OpenOptions;
-#[cfg(debug_assertions)]
-use std::io::Write;
-#[cfg(debug_assertions)]
-use std::path::Path;
 use std::str::FromStr;
 use std::time::Duration;
 use tokio_retry::Retry;
 use tokio_retry::strategy::ExponentialBackoff;
+use tracing::Level;
+use tracing_appender::rolling::{RollingFileAppender, Rotation};
+use tracing_subscriber::fmt::format::FmtSpan;
 
 #[derive(Debug)]
 struct ProviderDefault {
@@ -94,6 +85,17 @@ static PROVIDER_DEFAULTS: std::sync::LazyLock<
     ); // assuming
     m
 });
+
+/// Initialize tracing to a rolling file in target/debug
+pub fn init_tracing_to_file() {
+    let file_appender = RollingFileAppender::new(Rotation::DAILY, "target/debug", "llm-debug.log");
+    tracing_subscriber::fmt()
+        .with_writer(file_appender)
+        .with_max_level(Level::INFO)
+        .with_span_events(FmtSpan::CLOSE)
+        .json()
+        .init();
+}
 
 /// Generates a message using the given configuration
 pub async fn get_message<T>(
@@ -175,15 +177,7 @@ where
         .map_err(|e| anyhow!("Failed to build provider: {e}"))?;
 
     // Generate the message
-    get_message_with_provider(
-        provider,
-        user_prompt,
-        provider_name,
-        #[cfg(debug_assertions)]
-        config.debug_llm,
-        system_prompt,
-    )
-    .await
+    get_message_with_provider(provider, user_prompt, provider_name, system_prompt).await
 }
 
 /// Generates a message using the given provider (mainly for testing purposes)
@@ -191,7 +185,6 @@ pub async fn get_message_with_provider<T>(
     provider: Box<dyn LLMProvider + Send + Sync>,
     user_prompt: &str,
     provider_type: &str,
-    #[cfg(debug_assertions)] debug_llm: bool,
     #[allow(clippy::used_underscore_binding)] _system_prompt: &str,
 ) -> Result<T>
 where
@@ -223,11 +216,8 @@ where
             Ok(Ok(response)) => {
                 let response_text = response.text().unwrap_or_default();
 
-                // Debug logging if enabled
-                #[cfg(debug_assertions)]
-                if debug_llm {
-                    dump_llm_interaction_jsonl(_system_prompt, &enhanced_prompt, provider_type, &response_text);
-                }
+
+
 
                 debug!("Received response from provider");
 
@@ -456,49 +446,4 @@ fn clean_json_from_llm(json_str: &str) -> String {
         .map_or(without_codeblock.len(), |i| i + 1);
 
     without_codeblock[start..end].trim().to_string()
-}
-
-#[cfg(debug_assertions)]
-fn dump_llm_interaction_jsonl(
-    system_prompt: &str,
-    enhanced_user_prompt: &str,
-    provider: &str,
-    raw_response: &str,
-) {
-    let timestamp = Utc::now().to_rfc3339();
-    let entry = json!({
-        "timestamp": timestamp,
-        "provider": provider,
-        "system_prompt": system_prompt,
-        "enhanced_user_prompt": enhanced_user_prompt,
-        "raw_response": raw_response,
-    });
-
-    let log_line = match to_string(&entry) {
-        Ok(line) => line,
-        Err(e) => {
-            warn!("Failed to serialize LLM debug entry: {e}");
-            return;
-        }
-    };
-
-    // Ensure target/debug directory exists
-    let log_dir = Path::new("./target/debug");
-    if let Err(e) = std::fs::create_dir_all(log_dir) {
-        warn!(
-            "Failed to create debug directory {}: {}",
-            log_dir.display(),
-            e
-        );
-        return;
-    }
-
-    let log_path = log_dir.join("llm-debug.jsonl");
-    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&log_path) {
-        if let Err(e) = writeln!(file, "{log_line}") {
-            warn!("Failed to write LLM debug log: {e}");
-        }
-    } else {
-        warn!("Failed to open LLM debug log file {}", log_path.display());
-    }
 }

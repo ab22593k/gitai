@@ -330,6 +330,9 @@ pub async fn handle_release_notes(
 
 /// Handle the command based on parsed arguments
 pub async fn handle_command(command: Gait, repository_url: Option<String>) -> anyhow::Result<()> {
+    // Initialize tracing to file
+    crate::core::llm::init_tracing_to_file();
+
     match command {
         Gait::Message {
             common,

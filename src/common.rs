@@ -84,16 +84,6 @@ impl ThemeMode {
 
 #[derive(Args, Clone, Debug)]
 pub struct CommonParams {
-    /// Dump exact raw LLM prompts sent and raw responses received to ./target/debug/gait-llm-debug.jsonl for debugging (debug builds only)
-    #[cfg_attr(
-        debug_assertions,
-        arg(
-            long = "debug-llm",
-            help = "Dump exact raw LLM prompt sent and raw JSON response received to ./target/debug/gait-llm-debug.jsonl (debug builds only)"
-        )
-    )]
-    #[cfg(debug_assertions)]
-    pub debug_llm: bool,
     /// Override default LLM provider
     #[arg(long, help = "Override default LLM provider", value_parser = available_providers_parser)]
     pub provider: Option<String>,
@@ -134,8 +124,6 @@ pub struct CommonParams {
 impl Default for CommonParams {
     fn default() -> Self {
         Self {
-            #[cfg(debug_assertions)]
-            debug_llm: false,
             provider: None,
             model: None,
             instructions: None,
@@ -148,10 +136,6 @@ impl Default for CommonParams {
 
 impl CommonParams {
     pub fn apply_to_config(&self, config: &mut Config) -> Result<bool> {
-        #[cfg(debug_assertions)]
-        {
-            config.debug_llm = self.debug_llm;
-        }
         let mut changes_made = false;
 
         if let Some(provider) = &self.provider {
