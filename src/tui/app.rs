@@ -132,15 +132,15 @@ impl TuiCommit {
 
         loop {
             // Redraw only if dirty
-            if self.state.dirty {
+            if self.state.is_dirty() {
                 terminal.draw(|f| draw_ui(f, &mut self.state))?;
-                self.state.dirty = false; // Reset dirty flag after redraw
+                self.state.set_dirty(false); // Reset dirty flag after redraw
             }
 
             // Spawn the task only once when entering the Generating mode
-            if self.state.mode == Mode::Generating && !task_spawned {
+            if self.state.mode() == Mode::Generating && !task_spawned {
                 let service = self.service.clone();
-                let instructions = self.state.custom_instructions.clone();
+                let instructions = self.state.custom_instructions().to_string();
                 let filtered_context = self.state.get_filtered_context();
                 let tx = tx.clone();
 
@@ -160,7 +160,7 @@ impl TuiCommit {
             }
 
             // Spawn completion task if there's a pending completion request
-            if let Some(prefix) = &self.state.pending_completion_prefix.clone()
+            if let Some(prefix) = self.state.pending_completion_prefix().cloned()
                 && !completion_task_spawned
             {
                 let completion_service = self.completion_service.clone();
@@ -191,7 +191,7 @@ impl TuiCommit {
                 });
 
                 completion_task_spawned = true;
-                self.state.pending_completion_prefix = None; // Clear the pending request
+                self.state.set_pending_completion_prefix(None); // Clear the pending request
             }
 
             // Check if a message has been received from the generation task
@@ -199,22 +199,20 @@ impl TuiCommit {
                 Ok(result) => match result {
                     Ok(new_message) => {
                         // Add the new message to the list and switch to it
-                        self.state.messages.push(new_message);
-                        self.state.current_index = self.state.messages.len() - 1;
+                        self.state.add_message(new_message);
 
-                        self.state.update_message_textarea();
-                        self.state.mode = Mode::Normal; // Exit Generating mode
-                        self.state.spinner = None; // Stop the spinner
+                        self.state.set_mode(Mode::Normal); // Exit Generating mode
+                        self.state.set_spinner(None); // Stop the spinner
                         self.state.set_status(format!(
                             "New message generated! Viewing {}/{}",
-                            self.state.current_index + 1,
-                            self.state.messages.len()
+                            self.state.current_index() + 1,
+                            self.state.messages().len()
                         ));
                         task_spawned = false; // Reset for future regenerations
                     }
                     Err(e) => {
-                        self.state.mode = Mode::Normal; // Exit Generating mode
-                        self.state.spinner = None; // Stop the spinner
+                        self.state.set_mode(Mode::Normal); // Exit Generating mode
+                        self.state.set_spinner(None); // Stop the spinner
                         self.state.set_status(format!(
                             "Generation failed: {e}. Press 'R' to retry or 'Esc' to exit."
                         ));
@@ -234,15 +232,14 @@ impl TuiCommit {
             match completion_rx.try_recv() {
                 Ok(result) => match result {
                     Ok(suggestions) => {
-                        self.state.completion_suggestions = suggestions;
-                        self.state.completion_index = 0;
+                        self.state.set_completion_suggestions(suggestions);
                         completion_task_spawned = false;
                     }
                     Err(e) => {
                         self.state.set_status(format!(
                             "Completion failed: {e}. Press Tab to retry or continue editing."
                         ));
-                        self.state.mode = Mode::EditingMessage;
+                        self.state.set_mode(Mode::EditingMessage);
                         completion_task_spawned = false;
                     }
                 },
@@ -284,22 +281,23 @@ impl TuiCommit {
                             self.state.set_status(format!(
                                 "Commit failed: {e}. Check your staged changes and try again."
                             ));
-                            self.state.dirty = true;
+                            self.state.set_dirty(true);
                         }
                     },
-                    InputResult::Continue => self.state.dirty = true,
+                    InputResult::Continue => self.state.set_dirty(true),
                 }
             }
 
             // Update the spinner state and redraw if in generating mode
-            if self.state.mode == Mode::Generating
-                && self.state.last_spinner_update.elapsed() >= Duration::from_millis(100)
+            if self.state.mode() == Mode::Generating
+                && self.state.last_spinner_update().elapsed() >= Duration::from_millis(100)
             {
-                if let Some(spinner) = &mut self.state.spinner {
+                if let Some(spinner) = self.state.spinner_mut() {
                     spinner.tick();
-                    self.state.dirty = true; // Mark dirty to trigger redraw
+                    self.state.set_dirty(true); // Mark dirty to trigger redraw
                 }
-                self.state.last_spinner_update = std::time::Instant::now(); // Reset the update time
+                self.state
+                    .set_last_spinner_update(std::time::Instant::now()); // Reset the update time
             }
         }
 
@@ -307,11 +305,11 @@ impl TuiCommit {
     }
 
     pub fn handle_regenerate(&mut self) {
-        self.state.mode = Mode::Generating;
-        self.state.spinner = Some(SpinnerState::new());
+        self.state.set_mode(Mode::Generating);
+        self.state.set_spinner(Some(SpinnerState::new()));
         self.state
             .set_status(String::from("Regenerating commit message..."));
-        self.state.dirty = true; // Make sure UI updates
+        self.state.set_dirty(true); // Make sure UI updates
     }
 
     pub fn perform_commit(&self, message: &str) -> Result<ExitStatus, Error> {
@@ -381,9 +379,9 @@ mod tests {
         ];
 
         let mut state = TuiState::new(initial_messages, "test instructions".to_string());
-        assert_eq!(state.messages.len(), 2);
-        assert_eq!(state.current_index, 0);
-        assert_eq!(state.messages[0].title, "Initial commit");
+        assert_eq!(state.messages().len(), 2);
+        assert_eq!(state.current_index(), 0);
+        assert_eq!(state.messages()[0].title, "Initial commit");
 
         // Simulate regeneration result: add new message
         let new_message = GeneratedMessage {
@@ -392,25 +390,28 @@ mod tests {
         };
 
         // This simulates the logic in the main loop when regeneration succeeds
-        state.messages.push(new_message);
-        state.current_index = state.messages.len() - 1;
+        state.add_message(new_message);
 
         // Verify the message was added and we're viewing it
-        assert_eq!(state.messages.len(), 3, "Should add a new message");
+        assert_eq!(state.messages().len(), 3, "Should add a new message");
         assert_eq!(
-            state.current_index, 2,
+            state.current_index(),
+            2,
             "Current index should point to new message"
         );
         assert_eq!(
-            state.messages[2].title, "Regenerated commit",
+            state.messages()[2].title,
+            "Regenerated commit",
             "New message should be added"
         );
         assert_eq!(
-            state.messages[0].title, "Initial commit",
+            state.messages()[0].title,
+            "Initial commit",
             "Original messages should be unchanged"
         );
         assert_eq!(
-            state.messages[1].title, "Second commit",
+            state.messages()[1].title,
+            "Second commit",
             "Other messages should be unchanged"
         );
     }
@@ -422,8 +423,8 @@ mod tests {
         let mut state = TuiState::new(initial_messages, "test instructions".to_string());
 
         // TuiState::new should create a default message when initial_messages is empty
-        assert_eq!(state.messages.len(), 1);
-        assert_eq!(state.current_index, 0);
+        assert_eq!(state.messages().len(), 1);
+        assert_eq!(state.current_index(), 0);
 
         // Simulate regeneration result
         let new_message = GeneratedMessage {
@@ -432,13 +433,12 @@ mod tests {
         };
 
         // This simulates the logic in the main loop
-        state.messages.push(new_message);
-        state.current_index = state.messages.len() - 1;
+        state.add_message(new_message);
 
         // Verify the message was added
-        assert_eq!(state.messages.len(), 2, "Should add new message");
-        assert_eq!(state.current_index, 1, "Should switch to new message");
-        assert_eq!(state.messages[1].title, "New commit");
+        assert_eq!(state.messages().len(), 2, "Should add new message");
+        assert_eq!(state.current_index(), 1, "Should switch to new message");
+        assert_eq!(state.messages()[1].title, "New commit");
     }
 
     #[test]
@@ -450,8 +450,8 @@ mod tests {
         }];
 
         let mut state = TuiState::new(initial_messages, "test instructions".to_string());
-        assert_eq!(state.messages.len(), 1);
-        assert_eq!(state.current_index, 0);
+        assert_eq!(state.messages().len(), 1);
+        assert_eq!(state.current_index(), 0);
 
         let new_message = GeneratedMessage {
             title: "New commit".to_string(),
@@ -459,15 +459,15 @@ mod tests {
         };
 
         // This simulates the logic in the main loop - always add new message
-        state.messages.push(new_message);
-        state.current_index = state.messages.len() - 1;
+        state.add_message(new_message);
 
         // Should add the message
-        assert_eq!(state.messages.len(), 2);
-        assert_eq!(state.current_index, 1);
-        assert_eq!(state.messages[1].title, "New commit");
+        assert_eq!(state.messages().len(), 2);
+        assert_eq!(state.current_index(), 1);
+        assert_eq!(state.messages()[1].title, "New commit");
         assert_eq!(
-            state.messages[0].title, "First commit",
+            state.messages()[0].title,
+            "First commit",
             "Original message should remain"
         );
     }

@@ -4,7 +4,7 @@ use crate::features::commit::types::{GeneratedMessage, format_commit_message};
 
 use tui_textarea::TextArea;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Mode {
     Normal,
     EditingMessage,
@@ -15,34 +15,34 @@ pub enum Mode {
     ContextSelection,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ContextSelectionCategory {
     Files,
     Commits,
 }
 
 pub struct TuiState {
-    pub messages: Vec<GeneratedMessage>,
-    pub current_index: usize,
-    pub custom_instructions: String,
-    pub status: String,
-    pub mode: Mode,
-    pub message_textarea: TextArea<'static>,
-    pub instructions_textarea: TextArea<'static>,
-    pub spinner: Option<SpinnerState>,
-    pub dirty: bool,
-    pub last_spinner_update: std::time::Instant,
-    pub instructions_visible: bool,
-    pub nav_bar_visible: bool,
-    pub completion_suggestions: Vec<String>,
-    pub completion_index: usize,
-    pub pending_completion_prefix: Option<String>,
+    messages: Vec<GeneratedMessage>,
+    current_index: usize,
+    custom_instructions: String,
+    status: String,
+    mode: Mode,
+    message_textarea: TextArea<'static>,
+    instructions_textarea: TextArea<'static>,
+    spinner: Option<SpinnerState>,
+    dirty: bool,
+    last_spinner_update: std::time::Instant,
+    instructions_visible: bool,
+    nav_bar_visible: bool,
+    completion_suggestions: Vec<String>,
+    completion_index: usize,
+    pending_completion_prefix: Option<String>,
     // Context selection fields
-    pub context: Option<CommitContext>,
-    pub selected_files: Vec<bool>,   // Which staged files are selected
-    pub selected_commits: Vec<bool>, // Which recent commits are selected
-    pub context_selection_index: usize, // Current selection index in context selection UI
-    pub context_selection_category: ContextSelectionCategory, // Files or commits
+    context: Option<CommitContext>,
+    selected_files: Vec<bool>,      // Which staged files are selected
+    selected_commits: Vec<bool>,    // Which recent commits are selected
+    context_selection_index: usize, // Current selection index in context selection UI
+    context_selection_category: ContextSelectionCategory, // Files or commits
 }
 
 impl TuiState {
@@ -88,10 +88,167 @@ impl TuiState {
         }
     }
 
-    pub fn set_status(&mut self, new_status: String) {
-        self.status = new_status;
+    // -- Getters --
+
+    pub fn messages(&self) -> &[GeneratedMessage] {
+        &self.messages
+    }
+
+    pub fn messages_mut(&mut self) -> &mut Vec<GeneratedMessage> {
+        &mut self.messages
+    }
+
+    pub fn current_index(&self) -> usize {
+        self.current_index
+    }
+
+    pub fn current_message(&self) -> &GeneratedMessage {
+        &self.messages[self.current_index]
+    }
+
+    pub fn custom_instructions(&self) -> &str {
+        &self.custom_instructions
+    }
+
+    pub fn status(&self) -> &str {
+        &self.status
+    }
+
+    pub fn mode(&self) -> Mode {
+        self.mode
+    }
+
+    pub fn message_textarea(&self) -> &TextArea<'static> {
+        &self.message_textarea
+    }
+
+    pub fn message_textarea_mut(&mut self) -> &mut TextArea<'static> {
+        &mut self.message_textarea
+    }
+
+    pub fn instructions_textarea(&self) -> &TextArea<'static> {
+        &self.instructions_textarea
+    }
+
+    pub fn instructions_textarea_mut(&mut self) -> &mut TextArea<'static> {
+        &mut self.instructions_textarea
+    }
+
+    pub fn spinner(&self) -> Option<&SpinnerState> {
+        self.spinner.as_ref()
+    }
+
+    pub fn spinner_mut(&mut self) -> Option<&mut SpinnerState> {
+        self.spinner.as_mut()
+    }
+
+    pub fn is_dirty(&self) -> bool {
+        self.dirty
+    }
+
+    pub fn last_spinner_update(&self) -> std::time::Instant {
+        self.last_spinner_update
+    }
+
+    pub fn is_instructions_visible(&self) -> bool {
+        self.instructions_visible
+    }
+
+    pub fn is_nav_bar_visible(&self) -> bool {
+        self.nav_bar_visible
+    }
+
+    pub fn completion_suggestions(&self) -> &[String] {
+        &self.completion_suggestions
+    }
+
+    pub fn completion_index(&self) -> usize {
+        self.completion_index
+    }
+
+    pub fn pending_completion_prefix(&self) -> Option<&String> {
+        self.pending_completion_prefix.as_ref()
+    }
+
+    pub fn context(&self) -> Option<&CommitContext> {
+        self.context.as_ref()
+    }
+
+    pub fn selected_files(&self) -> &[bool] {
+        &self.selected_files
+    }
+
+    pub fn selected_commits(&self) -> &[bool] {
+        &self.selected_commits
+    }
+
+    pub fn context_selection_index(&self) -> usize {
+        self.context_selection_index
+    }
+
+    pub fn context_selection_category(&self) -> ContextSelectionCategory {
+        self.context_selection_category
+    }
+
+    // -- Setters and Modifiers --
+
+    pub fn set_mode(&mut self, mode: Mode) {
+        self.mode = mode;
+        self.dirty = true;
+    }
+
+    pub fn set_status<S: Into<String>>(&mut self, status: S) {
+        self.status = status.into();
         self.spinner = None;
         self.dirty = true;
+    }
+
+    pub fn set_custom_instructions(&mut self, instructions: String) {
+        self.custom_instructions = instructions;
+        self.dirty = true;
+    }
+
+    pub fn set_dirty(&mut self, dirty: bool) {
+        self.dirty = dirty;
+    }
+
+    pub fn set_spinner(&mut self, spinner: Option<SpinnerState>) {
+        self.spinner = spinner;
+        self.dirty = true;
+    }
+
+    pub fn set_last_spinner_update(&mut self, time: std::time::Instant) {
+        self.last_spinner_update = time;
+    }
+
+    pub fn set_messages(&mut self, messages: Vec<GeneratedMessage>) {
+        self.messages = messages;
+        self.dirty = true;
+    }
+
+    pub fn set_current_index(&mut self, index: usize) {
+        if index < self.messages.len() {
+            self.current_index = index;
+            self.update_message_textarea();
+            self.dirty = true;
+        }
+    }
+
+    pub fn add_message(&mut self, message: GeneratedMessage) {
+        self.messages.push(message);
+        self.current_index = self.messages.len() - 1;
+        self.update_message_textarea();
+        self.dirty = true;
+    }
+
+    pub fn set_completion_suggestions(&mut self, suggestions: Vec<String>) {
+        self.completion_suggestions = suggestions;
+        self.completion_index = 0;
+        self.dirty = true;
+    }
+
+    pub fn set_pending_completion_prefix(&mut self, prefix: Option<String>) {
+        self.pending_completion_prefix = prefix;
     }
 
     pub fn update_message_textarea(&mut self) {
@@ -105,6 +262,59 @@ impl TuiState {
         let mut new_textarea = TextArea::default();
         new_textarea.insert_str(&message_content);
         self.message_textarea = new_textarea;
+        self.dirty = true;
+    }
+
+    pub fn toggle_instructions_visibility(&mut self) {
+        self.instructions_visible = !self.instructions_visible;
+        self.dirty = true;
+    }
+
+    pub fn next_message(&mut self) {
+        if self.current_index + 1 < self.messages.len() {
+            self.current_index += 1;
+            self.update_message_textarea();
+            self.dirty = true;
+        }
+    }
+
+    pub fn previous_message(&mut self) {
+        if self.current_index > 0 {
+            self.current_index -= 1;
+            self.update_message_textarea();
+            self.dirty = true;
+        }
+    }
+
+    pub fn next_completion(&mut self) {
+        if self.completion_index + 1 < self.completion_suggestions.len() {
+            self.completion_index += 1;
+            self.dirty = true;
+        }
+    }
+
+    pub fn previous_completion(&mut self) {
+        if self.completion_index > 0 {
+            self.completion_index -= 1;
+            self.dirty = true;
+        }
+    }
+
+    pub fn update_current_message_from_textarea(&mut self) {
+        let content = self.message_textarea.lines().join("\n");
+        let parts: Vec<&str> = content.splitn(2, "\n\n").collect();
+        if parts.len() == 2 {
+            self.messages[self.current_index].title = parts[0].trim().to_string();
+            self.messages[self.current_index].message = parts[1].trim().to_string();
+        } else {
+            self.messages[self.current_index].title = content.trim().to_string();
+            self.messages[self.current_index].message = String::new();
+        }
+        self.dirty = true;
+    }
+
+    pub fn update_instructions_from_textarea(&mut self) {
+        self.custom_instructions = self.instructions_textarea.lines().join("\n");
         self.dirty = true;
     }
 

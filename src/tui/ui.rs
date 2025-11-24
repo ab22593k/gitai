@@ -80,13 +80,13 @@ fn create_layout(f: &Frame, state: &TuiState) -> Vec<Rect> {
     // Top padding
     constraints.push(Constraint::Length(SPACING_XS));
 
-    if state.nav_bar_visible {
+    if state.is_nav_bar_visible() {
         constraints.push(Constraint::Length(SPACING_MD + SPACING_XS)); // Nav bar with some breathing room
     }
 
     constraints.push(Constraint::Min(10)); // Main content area
 
-    if state.instructions_visible {
+    if state.is_instructions_visible() {
         constraints.push(Constraint::Length(SPACING_LG + SPACING_SM)); // Instructions area
     }
 
@@ -123,7 +123,7 @@ fn render_sections(f: &mut Frame, state: &mut TuiState, chunks: &[Rect]) {
     // 0: Top padding (skip)
     let mut chunk_index = 1;
 
-    if state.nav_bar_visible {
+    if state.is_nav_bar_visible() {
         draw_nav_bar(f, state, chunks[chunk_index]);
         chunk_index += 1;
     }
@@ -131,7 +131,7 @@ fn render_sections(f: &mut Frame, state: &mut TuiState, chunks: &[Rect]) {
     draw_commit_message(f, state, chunks[chunk_index]);
     chunk_index += 1;
 
-    if state.instructions_visible {
+    if state.is_instructions_visible() {
         draw_instructions(f, state, chunks[chunk_index]);
         chunk_index += 1;
     }
@@ -140,7 +140,7 @@ fn render_sections(f: &mut Frame, state: &mut TuiState, chunks: &[Rect]) {
 }
 
 fn draw_nav_bar(f: &mut Frame, state: &TuiState, area: Rect) {
-    let nav_items: Vec<(&str, &str)> = match state.mode {
+    let nav_items: Vec<(&str, &str)> = match state.mode() {
         Mode::Completing => vec![
             ("Tab/Shift+Tab", "Navigate"),
             ("Enter", "Accept"),
@@ -198,12 +198,12 @@ fn draw_nav_bar(f: &mut Frame, state: &TuiState, area: Rect) {
 }
 
 fn draw_commit_message(f: &mut Frame, state: &mut TuiState, area: Rect) {
-    match state.mode {
+    match state.mode() {
         Mode::Help => draw_help(f, state, area),
         Mode::Completing => draw_completion(f, state, area),
         Mode::ContextSelection => draw_context_selection(f, state, area),
         _ => {
-            let is_editing = state.mode == Mode::EditingMessage;
+            let is_editing = state.mode() == Mode::EditingMessage;
             let border_color = if is_editing {
                 border_color_active()
             } else {
@@ -233,14 +233,14 @@ fn draw_commit_message(f: &mut Frame, state: &mut TuiState, area: Rect) {
                 .border_style(Style::default().fg(border_color));
 
             if is_editing {
-                state.message_textarea.set_block(message_block);
+                state.message_textarea_mut().set_block(message_block);
                 state
-                    .message_textarea
+                    .message_textarea_mut()
                     .set_style(Style::default().fg(text_color()));
                 state
-                    .message_textarea
+                    .message_textarea_mut()
                     .set_cursor_style(Style::default().bg(accent_color_active()).fg(Color::Black));
-                f.render_widget(&state.message_textarea, area);
+                f.render_widget(state.message_textarea(), area);
             } else {
                 render_commit_message_content(f, state, message_block, area);
             }
@@ -249,7 +249,7 @@ fn draw_commit_message(f: &mut Frame, state: &mut TuiState, area: Rect) {
 }
 
 fn render_commit_message_content(f: &mut Frame, state: &TuiState, block: Block, area: Rect) {
-    let current_message = &state.messages[state.current_index];
+    let current_message = state.current_message();
 
     // Title
     let title_text = Line::from(vec![Span::styled(
@@ -287,7 +287,7 @@ fn render_commit_message_content(f: &mut Frame, state: &TuiState, block: Block, 
 }
 
 fn draw_instructions(f: &mut Frame, state: &mut TuiState, area: Rect) {
-    let is_editing = state.mode == Mode::EditingInstructions;
+    let is_editing = state.mode() == Mode::EditingInstructions;
     let border_color = if is_editing {
         border_color_active()
     } else {
@@ -317,16 +317,18 @@ fn draw_instructions(f: &mut Frame, state: &mut TuiState, area: Rect) {
         .border_style(Style::default().fg(border_color));
 
     if is_editing {
-        state.instructions_textarea.set_block(instructions_block);
         state
-            .instructions_textarea
+            .instructions_textarea_mut()
+            .set_block(instructions_block);
+        state
+            .instructions_textarea_mut()
             .set_style(Style::default().fg(text_color()));
         state
-            .instructions_textarea
+            .instructions_textarea_mut()
             .set_cursor_style(Style::default().bg(accent_color_active()).fg(Color::Black));
-        f.render_widget(&state.instructions_textarea, area);
+        f.render_widget(state.instructions_textarea(), area);
     } else {
-        let instructions = Paragraph::new(state.custom_instructions.clone())
+        let instructions = Paragraph::new(state.custom_instructions())
             .block(instructions_block)
             .style(Style::default().fg(subtle_color()))
             .wrap(Wrap { trim: true });
@@ -350,14 +352,14 @@ pub fn draw_status(f: &mut Frame, state: &mut TuiState, area: Rect) {
 }
 
 fn get_status_components(state: &mut TuiState) -> (String, String, Color, usize) {
-    if let Some(spinner) = &mut state.spinner {
+    if let Some(spinner) = state.spinner_mut() {
         spinner.tick()
     } else {
-        let color = if state.status.contains("Error") || state.status.contains("Failed") {
+        let color = if state.status().contains("Error") || state.status().contains("Failed") {
             error_color()
-        } else if state.status.contains("Success") || state.status.contains("Complete") {
+        } else if state.status().contains("Success") || state.status().contains("Complete") {
             success_color()
-        } else if state.status.contains("Warning") {
+        } else if state.status().contains("Warning") {
             warning_color()
         } else {
             subtle_color()
@@ -365,9 +367,9 @@ fn get_status_components(state: &mut TuiState) -> (String, String, Color, usize)
 
         (
             String::new(),
-            state.status.clone(),
+            state.status().to_string(),
             color,
-            state.status.width(),
+            state.status().width(),
         )
     }
 }
@@ -421,8 +423,8 @@ fn draw_help(f: &mut Frame, _state: &mut TuiState, area: Rect) {
 fn draw_completion(f: &mut Frame, state: &mut TuiState, area: Rect) {
     let title = format!(
         " Completion Suggestions ({}/{}) ",
-        state.completion_index + 1,
-        state.completion_suggestions.len()
+        state.completion_index() + 1,
+        state.completion_suggestions().len()
     );
 
     let completion_block = Block::default()
@@ -446,8 +448,8 @@ fn draw_completion(f: &mut Frame, state: &mut TuiState, area: Rect) {
     )]));
     completion_lines.push(Line::from(""));
 
-    for (i, suggestion) in state.completion_suggestions.iter().enumerate() {
-        let (marker, style) = if i == state.completion_index {
+    for (i, suggestion) in state.completion_suggestions().iter().enumerate() {
+        let (marker, style) = if i == state.completion_index() {
             (
                 ">",
                 Style::default()
@@ -518,13 +520,13 @@ fn draw_selection_list(f: &mut Frame, state: &mut TuiState, area: Rect) {
     )]));
     context_lines.push(Line::from(""));
 
-    if let Some(context) = &state.context {
+    if let Some(context) = state.context() {
         // Files section
         context_lines.push(Line::from(vec![Span::styled(
             "Files:",
             Style::default()
                 .fg(
-                    if state.context_selection_category
+                    if state.context_selection_category()
                         == super::state::ContextSelectionCategory::Files
                     {
                         accent_color_active()
@@ -536,10 +538,10 @@ fn draw_selection_list(f: &mut Frame, state: &mut TuiState, area: Rect) {
         )]));
 
         for (i, file) in context.staged_files.iter().enumerate() {
-            let is_selected = state.selected_files.get(i).copied().unwrap_or(true);
-            let is_current = state.context_selection_category
+            let is_selected = state.selected_files().get(i).copied().unwrap_or(true);
+            let is_current = state.context_selection_category()
                 == super::state::ContextSelectionCategory::Files
-                && state.context_selection_index == i;
+                && state.context_selection_index() == i;
 
             let marker = if is_current { ">" } else { " " };
             let checkbox = if is_selected { "[x]" } else { "[ ]" };
@@ -572,7 +574,7 @@ fn draw_selection_list(f: &mut Frame, state: &mut TuiState, area: Rect) {
             "Recent Commits:",
             Style::default()
                 .fg(
-                    if state.context_selection_category
+                    if state.context_selection_category()
                         == super::state::ContextSelectionCategory::Commits
                     {
                         accent_color_active()
@@ -585,10 +587,10 @@ fn draw_selection_list(f: &mut Frame, state: &mut TuiState, area: Rect) {
 
         for (i, commit) in context.recent_commits.iter().enumerate() {
             let file_index = context.staged_files.len() + i;
-            let is_selected = state.selected_commits.get(i).copied().unwrap_or(true);
-            let is_current = state.context_selection_category
+            let is_selected = state.selected_commits().get(i).copied().unwrap_or(true);
+            let is_current = state.context_selection_category()
                 == super::state::ContextSelectionCategory::Commits
-                && state.context_selection_index == file_index;
+                && state.context_selection_index() == file_index;
 
             let marker = if is_current { ">" } else { " " };
             let checkbox = if is_selected { "[x]" } else { "[ ]" };
@@ -603,8 +605,8 @@ fn draw_selection_list(f: &mut Frame, state: &mut TuiState, area: Rect) {
             };
 
             // Truncate commit message for display
-            let short_message = if commit.message.len() > 40 {
-                format!("{}...", &commit.message[..37])
+            let short_message = if commit.message.len() > 60 {
+                format!("{}...", &commit.message[..57])
             } else {
                 commit.message.clone()
             };
@@ -640,9 +642,9 @@ fn draw_preview(f: &mut Frame, state: &mut TuiState, area: Rect) {
         .border_type(BorderType::Rounded)
         .border_style(Style::default().fg(border_color()));
 
-    if let Some(context) = &state.context {
-        if state.context_selection_category == super::state::ContextSelectionCategory::Files {
-            if let Some(file) = context.staged_files.get(state.context_selection_index) {
+    if let Some(context) = state.context() {
+        if state.context_selection_category() == super::state::ContextSelectionCategory::Files {
+            if let Some(file) = context.staged_files.get(state.context_selection_index()) {
                 let diff = &file.diff;
                 let syntax = SYNTAX_SET
                     .find_syntax_by_extension("diff")
@@ -693,11 +695,11 @@ fn draw_preview(f: &mut Frame, state: &mut TuiState, area: Rect) {
                 f.render_widget(p, area);
                 return;
             }
-        } else if state.context_selection_category
+        } else if state.context_selection_category()
             == super::state::ContextSelectionCategory::Commits
         {
             let commit_index = state
-                .context_selection_index
+                .context_selection_index()
                 .saturating_sub(context.staged_files.len());
             if let Some(commit) = context.recent_commits.get(commit_index) {
                 let lines = vec![
