@@ -148,27 +148,27 @@ impl Theme {
                 capability,
                 mode,
                 // Brand colors
-                brand_primary: Color::Rgb(59, 130, 246), // Blue-500
+                brand_primary: Color::Rgb(180, 190, 254), // Lavender (Catppuccin)
 
                 // Text colors (adjusted for better contrast on dark backgrounds)
-                text_default: Color::Rgb(235, 235, 245), // Slightly off-white to reduce glare
-                text_dimmed: Color::Rgb(148, 163, 184),  // Lighter dimmed to remain readable
+                text_default: Color::Rgb(205, 214, 244), // Text (Catppuccin Mocha)
+                text_dimmed: Color::Rgb(166, 173, 200),  // Subtext0 (Catppuccin Mocha)
 
                 // Background colors
-                background_default: Color::Rgb(10, 12, 15), // Very dark gray (less harsh than pure black)
-                background_elevated: Color::Rgb(24, 28, 35), // Slightly lighter for elevated surfaces
+                background_default: Color::Rgb(30, 30, 46), // Base (Catppuccin Mocha)
+                background_elevated: Color::Rgb(49, 51, 56), // Surface0 (Catppuccin Mocha)
 
                 // State colors
-                state_success: Color::Rgb(34, 197, 94), // Green-500
-                state_error: Color::Rgb(239, 68, 68),   // Red-500
-                state_warning: Color::Rgb(245, 158, 11), // Amber-500
-                state_info: Color::Rgb(59, 130, 246),   // Blue-500
+                state_success: Color::Rgb(166, 227, 161), // Green (Catppuccin Mocha)
+                state_error: Color::Rgb(243, 139, 168),   // Red (Catppuccin Mocha)
+                state_warning: Color::Rgb(250, 179, 135), // Peach (Catppuccin Mocha)
+                state_info: Color::Rgb(137, 180, 250),    // Blue (Catppuccin Mocha)
 
                 // UI element colors (ensure borders are visible against dark background)
-                accent: Color::Rgb(59, 130, 246),        // Blue-500
-                accent_active: Color::Rgb(96, 165, 250), // Blue-400
-                border: Color::Rgb(99, 115, 129),        // Gray-500 (improved separation)
-                border_active: Color::Rgb(96, 165, 250), // Blue-400
+                accent: Color::Rgb(203, 166, 247), // Mauve (Catppuccin Mocha)
+                accent_active: Color::Rgb(203, 166, 247), // Mauve active (same for vibrancy)
+                border: Color::Rgb(108, 112, 134), // Overlay0 (Catppuccin Mocha)
+                border_active: Color::Rgb(180, 190, 254), // Lavender (Catppuccin Mocha)
 
                 // Typography
                 font_weight_regular: Modifier::empty(),

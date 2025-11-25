@@ -75,6 +75,8 @@ pub fn draw_ui(f: &mut Frame, state: &mut TuiState) {
 
 /// Creates dynamic layout based on visible sections
 fn create_layout(f: &Frame, state: &TuiState) -> Vec<Rect> {
+    let num_messages = state.messages().len();
+    let has_tabs = num_messages > 1;
     let mut constraints = vec![];
 
     // Top padding
@@ -84,6 +86,9 @@ fn create_layout(f: &Frame, state: &TuiState) -> Vec<Rect> {
         constraints.push(Constraint::Length(SPACING_MD + SPACING_XS)); // Nav bar with some breathing room
     }
 
+    if has_tabs {
+        constraints.push(Constraint::Length(3)); // Tabs bar
+    }
     constraints.push(Constraint::Min(10)); // Main content area
 
     if state.is_instructions_visible() {
@@ -141,28 +146,24 @@ fn render_sections(f: &mut Frame, state: &mut TuiState, chunks: &[Rect]) {
 
 fn draw_nav_bar(f: &mut Frame, state: &TuiState, area: Rect) {
     let nav_items: Vec<(&str, &str)> = match state.mode() {
-        Mode::Completing => vec![
-            ("Tab/Shift+Tab", "Navigate"),
-            ("Enter", "Accept"),
-            ("Esc", "Cancel"),
-        ],
+        Mode::Completing => vec![("⇥/⇤", "Navigate"), ("⏎", "Accept"), ("Esc", "Cancel")],
         Mode::ContextSelection => vec![
-            ("↑/↓", "Navigate"),
-            ("Space", "Toggle"),
-            ("Tab", "Category"),
-            ("Enter", "Confirm"),
+            ("⬆/⬇", "Navigate"),
+            ("␣", "Toggle"),
+            ("⇥", "Category"),
+            ("⏎", "Confirm"),
             ("Esc", "Cancel"),
         ],
         Mode::EditingMessage => vec![("Tab", "Complete"), ("Esc", "Finish")],
         Mode::EditingInstructions => vec![("Esc", "Finish")],
         Mode::Help => vec![("Any Key", "Close")],
         _ => vec![
-            ("←/→", "Navigate"),
-            ("E", "Edit Msg"),
-            ("I", "Edit Instr"),
-            ("C", "Context"),
-            ("R", "Regen"),
-            ("Enter", "Commit"),
+            ("⬅️/➡️", "Navigate msgs"),
+            ("✏️", "Edit msg"),
+            ("📝", "Edit instr"),
+            ("📁", "Context"),
+            ("🔄", "Regenerate"),
+            ("⏎", "Commit"),
             ("Esc", "Cancel"),
         ],
     };
