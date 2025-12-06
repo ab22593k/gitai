@@ -20,7 +20,6 @@ mod tests {
             vec![RecentCommit {
                 hash: "abc123".to_string(),
                 message: "feat: add new feature".to_string(),
-                author: "Test Author".to_string(),
                 timestamp: "2023-01-01 00:00:00".to_string(),
             }],
             vec![StagedFile {
@@ -43,7 +42,6 @@ mod tests {
             vec![RecentCommit {
                 hash: "abc123".to_string(),
                 message: "feat: add new feature".to_string(),
-                author: "test@example.com".to_string(),
                 timestamp: "2023-01-01".to_string(),
             }],
             vec![StagedFile {
@@ -93,7 +91,7 @@ mod tests {
         // Check that it contains all context sections
         assert!(prompt.contains("Branch:"), "Should contain branch section");
         assert!(
-            prompt.contains("Recent Commits:"),
+            prompt.contains("Recent Commits (for changed files):"),
             "Should contain recent commits section"
         );
         assert!(

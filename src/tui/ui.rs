@@ -572,7 +572,7 @@ fn draw_selection_list(f: &mut Frame, state: &mut TuiState, area: Rect) {
 
         // Commits section
         context_lines.push(Line::from(vec![Span::styled(
-            "Recent Commits:",
+            "Recent Commits (for changed files):",
             Style::default()
                 .fg(
                     if state.context_selection_category()
@@ -707,10 +707,6 @@ fn draw_preview(f: &mut Frame, state: &mut TuiState, area: Rect) {
                     Line::from(vec![
                         Span::styled("Commit: ", Style::default().fg(subtle_color())),
                         Span::raw(&commit.hash),
-                    ]),
-                    Line::from(vec![
-                        Span::styled("Author: ", Style::default().fg(subtle_color())),
-                        Span::raw(&commit.author),
                     ]),
                     Line::from(vec![
                         Span::styled("Date:   ", Style::default().fg(subtle_color())),

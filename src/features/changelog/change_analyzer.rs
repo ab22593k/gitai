@@ -25,7 +25,6 @@ static PR_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
 pub struct AnalyzedChange {
     pub commit_hash: String,
     pub commit_message: String,
-    pub author: String,
     pub file_changes: Vec<FileChange>,
     pub metrics: ChangeMetrics,
     pub impact_score: f32,
@@ -101,7 +100,6 @@ impl ChangeAnalyzer {
         Ok(AnalyzedChange {
             commit_hash: commit.hash.clone(),
             commit_message: commit.message.clone(),
-            author: commit.author.clone(),
             file_changes,
             metrics,
             impact_score,

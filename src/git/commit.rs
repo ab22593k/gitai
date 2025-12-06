@@ -402,7 +402,6 @@ where
             let recent_commit = RecentCommit {
                 hash: commit.id().to_string(),
                 message: commit.message().unwrap_or_default().to_string(),
-                author: commit.author().name().unwrap_or_default().to_string(),
                 timestamp: commit.time().seconds().to_string(),
             };
             callback(&recent_commit)
@@ -435,13 +434,11 @@ where
         let oid = oid?;
         let commit = repo.find_commit(oid)?;
         let commit_message = commit.message().unwrap_or("").to_string();
-        let author = commit.author().name().unwrap_or("").to_string();
         let timestamp = commit.time().seconds().to_string();
 
         let recent_commit = RecentCommit {
             hash: oid.to_string(),
             message: commit_message,
-            author,
             timestamp,
         };
 
@@ -495,8 +492,6 @@ pub fn extract_commit_info(repo: &Repository, commit_id: &str, branch: &str) -> 
     let commit = obj.peel_to_commit()?;
 
     // Extract commit information
-    let commit_author = commit.author();
-    let author_name = commit_author.name().unwrap_or_default().to_string();
     let commit_message = commit.message().unwrap_or_default().to_string();
     let commit_time = commit.time().seconds().to_string();
     let commit_hash = commit.id().to_string();
@@ -505,7 +500,6 @@ pub fn extract_commit_info(repo: &Repository, commit_id: &str, branch: &str) -> 
     let recent_commit = RecentCommit {
         hash: commit_hash,
         message: commit_message,
-        author: author_name,
         timestamp: commit_time,
     };
 
@@ -678,11 +672,9 @@ pub fn extract_branch_diff_info(
         .map(|oid| {
             let oid = oid?;
             let commit = repo.find_commit(oid)?;
-            let author = commit.author();
             Ok(RecentCommit {
                 hash: oid.to_string(),
                 message: commit.message().unwrap_or_default().to_string(),
-                author: author.name().unwrap_or_default().to_string(),
                 timestamp: commit.time().seconds().to_string(),
             })
         })

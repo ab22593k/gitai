@@ -447,13 +447,11 @@ mod tests {
                 RecentCommit {
                     hash: "abc123".to_string(),
                     message: "First commit".to_string(),
-                    author: "Test User".to_string(),
                     timestamp: "1234567890".to_string(),
                 },
                 RecentCommit {
                     hash: "def456".to_string(),
                     message: "Second commit".to_string(),
-                    author: "Test User".to_string(),
                     timestamp: "1234567891".to_string(),
                 },
             ],
@@ -549,7 +547,6 @@ mod tests {
             recent_commits: vec![RecentCommit {
                 hash: "abc123".to_string(),
                 message: "First commit".to_string(),
-                author: "Test User".to_string(),
                 timestamp: "1234567890".to_string(),
             }],
             staged_files: vec![],

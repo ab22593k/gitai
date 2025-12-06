@@ -38,12 +38,12 @@ fn test_create_user_prompt_includes_recent_commits() {
     let prompt = create_user_prompt(&context, DetailLevel::Standard);
 
     // The mock context should have recent commits
-    assert!(prompt.contains("Recent Commits:"));
+    assert!(prompt.contains("Recent Commits (for changed files):"));
     // Check that there's content after "Recent Commits:"
     let recent_commits_start = prompt
-        .find("Recent Commits:")
+        .find("Recent Commits (for changed files):")
         .expect("Recent Commits: should be in prompt");
-    let after_start = &prompt[recent_commits_start + "Recent Commits:".len()..];
+    let after_start = &prompt[recent_commits_start + "Recent Commits (for changed files):".len()..];
     assert!(!after_start.trim().is_empty());
 }
 
@@ -105,7 +105,7 @@ fn test_user_prompt_context_elements_are_properly_formatted() {
     assert!(prompt.contains(&format!("**Branch:** {}", context.branch)));
 
     // Test that recent commits are formatted with hash and message
-    assert!(prompt.contains("Recent Commits:"));
+    assert!(prompt.contains("Recent Commits (for changed files):"));
     // Should contain the formatted commits
     for commit in &context.recent_commits {
         let expected_format = format!("{} - {}", &commit.hash[..7], commit.message);
@@ -154,12 +154,12 @@ fn test_combined_prompt_structure_for_llm() {
         "User prompt should have context information section"
     );
     assert!(
-        user_prompt.contains("## Analysis Requirements"),
-        "User prompt should have analysis requirements section"
+        user_prompt.contains("## Requirements"),
+        "User prompt should have requirements section"
     );
     assert!(
-        user_prompt.contains("ANALYZE"),
-        "User prompt should contain ANALYZE instruction"
+        user_prompt.contains("PRIMARY FOCUS"),
+        "User prompt should contain PRIMARY FOCUS instruction"
     );
 
     // Sanity check prompt lengths (will be different due to improved formatting)
@@ -182,14 +182,14 @@ fn test_commit_user_prompt_structure() {
         "Should have context section"
     );
     assert!(
-        prompt.contains("## Analysis Requirements"),
-        "Should have analysis section"
+        prompt.contains("## Requirements"),
+        "Should have requirements section"
     );
 
     // Test bold formatting
     assert!(prompt.contains("**Branch:**"), "Should use bold for branch");
     assert!(
-        prompt.contains("**Recent Commits:**"),
+        prompt.contains("**Recent Commits (for changed files):**"),
         "Should use bold for recent commits"
     );
     assert!(
@@ -203,7 +203,7 @@ fn test_commit_user_prompt_structure() {
         "Should have primary focus instruction"
     );
     assert!(
-        prompt.contains("2. ANALYZE"),
+        prompt.contains("2. Choose the appropriate type"),
         "Should have numbered analysis steps"
     );
 }
@@ -213,15 +213,18 @@ fn test_create_user_prompt_respects_detail_level() {
     let context = create_mock_commit_context();
 
     let minimal = create_user_prompt(&context, DetailLevel::Minimal);
-    assert!(minimal.contains("Make the message EXTREMELY concise"));
-    assert!(minimal.contains("Generate ONLY a single title line"));
+    assert!(minimal.contains("Detail Level: MINIMAL"));
+    assert!(minimal.contains("Generate ONLY the title line"));
+    assert!(minimal.contains("NO body or footers"));
 
     let standard = create_user_prompt(&context, DetailLevel::Standard);
-    assert!(standard.contains("Make the message concise yet descriptive"));
+    assert!(standard.contains("Detail Level: STANDARD"));
+    assert!(standard.contains("Include a brief body"));
 
     let detailed = create_user_prompt(&context, DetailLevel::Detailed);
-    assert!(detailed.contains("Provide a detailed explanation"));
-    assert!(detailed.contains("detailed bullet points explaining the changes"));
+    assert!(detailed.contains("Detail Level: DETAILED"));
+    assert!(detailed.contains("comprehensive body"));
+    assert!(detailed.contains("BREAKING CHANGE"));
 }
 
 #[test]
@@ -232,14 +235,22 @@ fn test_commit_system_prompt_structure() {
     // Test role definition
     assert!(prompt.contains("# ROLE:"), "Should have role header");
     assert!(
-        prompt.contains("Git Commit Message Generator"),
+        prompt.contains("Commit Message Generator"),
         "Should define generator role"
     );
 
     // Test structured sections
     assert!(
-        prompt.contains("## Core Responsibilities"),
-        "Should have responsibilities section"
+        prompt.contains("## Conventional Commits Format"),
+        "Should have format section"
+    );
+    assert!(
+        prompt.contains("## Allowed Types"),
+        "Should have allowed types section"
+    );
+    assert!(
+        prompt.contains("## Rules"),
+        "Should have rules section"
     );
     assert!(
         prompt.contains("## Instructions"),
@@ -250,14 +261,14 @@ fn test_commit_system_prompt_structure() {
         "Should have output requirements"
     );
 
-    // Test numbered responsibilities
+    // Test conventional commits types
     assert!(
-        prompt.contains("1. **Analyze Context:**"),
-        "Should have numbered responsibilities"
+        prompt.contains("**feat**:"),
+        "Should have feat type"
     );
     assert!(
-        prompt.contains("2. **Generate Messages:**"),
-        "Should have numbered responsibilities"
+        prompt.contains("**fix**:"),
+        "Should have fix type"
     );
 
     // Test JSON schema formatting

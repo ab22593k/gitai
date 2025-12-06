@@ -453,14 +453,26 @@ impl GitRepo {
         debug!("Getting git info for repo path: {}", repo.path().display());
 
         let branch = self.get_current_branch()?;
-        let recent_commits = self.get_recent_commits(10)?;
         let staged_files = get_file_statuses(&repo, &self.gitignore_matcher)?;
+
+        // Get commits that touched the staged files (more relevant than generic recent commits)
+        // Fall back to generic recent commits if no staged files or no file-specific commits found
+        let file_paths: Vec<String> = staged_files.iter().map(|f| f.path.clone()).collect();
+        let recent_commits = if file_paths.is_empty() {
+            // No staged files - use generic recent commits
+            self.get_recent_commits(10)?
+        } else {
+            let file_commits = self.get_commits_for_files(&file_paths, 10)?;
+            if file_commits.is_empty() {
+                // No commits found for these files - fall back to generic recent commits
+                self.get_recent_commits(10)?
+            } else {
+                file_commits
+            }
+        };
 
         // Create and return the context
         let mut context = self.create_commit_context(branch, recent_commits, staged_files)?;
-
-        // Filter recent commits to most relevant ones (max 4)
-        context.filter_relevant_recent_commits(4);
 
         // Enhance with cached commit messages
         self.enhance_context_with_cache(&mut context, config)?;
@@ -481,7 +493,7 @@ impl GitRepo {
     #[allow(clippy::unused_async)]
     pub async fn get_git_info_with_unstaged(
         &self,
-        config: &Config,
+        _config: &Config,
         include_unstaged: bool,
     ) -> Result<CommitContext> {
         // Get data that doesn't cross async boundaries
@@ -493,7 +505,6 @@ impl GitRepo {
         );
 
         let branch = self.get_current_branch()?;
-        let recent_commits = self.get_recent_commits(10)?;
         let mut staged_files = get_file_statuses(&repo, &self.gitignore_matcher)?;
 
         // Add unstaged files if requested
@@ -503,14 +514,22 @@ impl GitRepo {
             debug!("Combined {} files (staged + unstaged)", staged_files.len());
         }
 
+        // Get commits that touched the changed files (more relevant than generic recent commits)
+        // Fall back to generic recent commits if no files or no file-specific commits found
+        let file_paths: Vec<String> = staged_files.iter().map(|f| f.path.clone()).collect();
+        let recent_commits = if file_paths.is_empty() {
+            self.get_recent_commits(10)?
+        } else {
+            let file_commits = self.get_commits_for_files(&file_paths, 10)?;
+            if file_commits.is_empty() {
+                self.get_recent_commits(10)?
+            } else {
+                file_commits
+            }
+        };
+
         // Create and return the context
-        let mut context = self.create_commit_context(branch, recent_commits, staged_files)?;
-
-        // Filter recent commits to most relevant ones (max 4)
-        context.filter_relevant_recent_commits(4);
-
-        // Enhance with cached commit messages
-        self.enhance_context_with_cache(&mut context, config)?;
+        let context = self.create_commit_context(branch, recent_commits, staged_files)?;
 
         Ok(context)
     }
@@ -623,11 +642,9 @@ impl GitRepo {
             .map(|oid| {
                 let oid = oid?;
                 let commit = repo.find_commit(oid)?;
-                let author = commit.author();
                 Ok(RecentCommit {
                     hash: oid.to_string(),
                     message: commit.message().unwrap_or_default().to_string(),
-                    author: author.name().unwrap_or_default().to_string(),
                     timestamp: commit.time().seconds().to_string(),
                 })
             })
@@ -635,6 +652,108 @@ impl GitRepo {
 
         debug!("Retrieved {} recent commits", commits.len());
         Ok(commits)
+    }
+
+    /// Retrieves recent commits that touched any of the specified file paths.
+    ///
+    /// This is more relevant than generic recent commits because it returns only
+    /// commits that actually modified the files being changed, similar to
+    /// `git log --follow -- <path>` but for multiple files.
+    ///
+    /// # Arguments
+    ///
+    /// * `file_paths` - The file paths to filter commits by.
+    /// * `max_commits` - Maximum number of commits to return.
+    ///
+    /// # Returns
+    ///
+    /// A Result containing a Vec of `RecentCommit` objects that touched the files.
+    pub fn get_commits_for_files(
+        &self,
+        file_paths: &[String],
+        max_commits: usize,
+    ) -> Result<Vec<RecentCommit>> {
+        let repo = self.open_repo()?;
+        debug!(
+            "Fetching up to {} commits for {} files",
+            max_commits,
+            file_paths.len()
+        );
+
+        if file_paths.is_empty() {
+            debug!("No files specified, returning empty commits");
+            return Ok(Vec::new());
+        }
+
+        let mut revwalk = repo.revwalk()?;
+
+        // For fresh repos with no commits, push_head() will fail
+        if revwalk.push_head().is_err() {
+            debug!("No HEAD found (fresh repository), returning empty commits");
+            return Ok(Vec::new());
+        }
+
+        let mut relevant_commits = Vec::new();
+        let file_set: std::collections::HashSet<&str> =
+            file_paths.iter().map(String::as_str).collect();
+
+        // Process commits until we have enough or run out
+        for oid_result in revwalk {
+            if relevant_commits.len() >= max_commits {
+                break;
+            }
+
+            let oid = oid_result?;
+            let commit = repo.find_commit(oid)?;
+
+            // Get the commit's tree and parent's tree for diff
+            let commit_tree = commit.tree()?;
+            let parent_tree = if commit.parent_count() > 0 {
+                Some(commit.parent(0)?.tree()?)
+            } else {
+                None
+            };
+
+            // Create diff between parent and commit
+            let diff = repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&commit_tree), None)?;
+
+            // Check if any delta path matches our file set
+            let mut touches_file = false;
+            for delta in diff.deltas() {
+                // Check new_file path (for added/modified/renamed-to)
+                if let Some(path) = delta.new_file().path() {
+                    if let Some(path_str) = path.to_str() {
+                        if file_set.contains(path_str) {
+                            touches_file = true;
+                            break;
+                        }
+                    }
+                }
+                // Check old_file path (for deleted/renamed-from)
+                if let Some(path) = delta.old_file().path() {
+                    if let Some(path_str) = path.to_str() {
+                        if file_set.contains(path_str) {
+                            touches_file = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if touches_file {
+                relevant_commits.push(RecentCommit {
+                    hash: oid.to_string(),
+                    message: commit.message().unwrap_or_default().to_string(),
+                    timestamp: commit.time().seconds().to_string(),
+                });
+            }
+        }
+
+        debug!(
+            "Found {} commits that touched the specified files",
+            relevant_commits.len()
+        );
+        Ok(relevant_commits)
     }
 
     /// Retrieves the author's recent commit messages.

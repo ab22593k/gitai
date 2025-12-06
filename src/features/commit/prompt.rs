@@ -13,17 +13,43 @@ pub fn create_system_prompt(config: &Config) -> anyhow::Result<String> {
 
     let combined_instructions = get_combined_instructions(config);
     Ok(format!(
-        "# ROLE: Git Commit Message Generator\n\
+        "# ROLE: Commit Message Generator\n\
          \n\
-         You are an expert Git Commit Message Generator specializing in creating high-quality, \
-         conventional commit messages from code changes.\n\
+         You are an expert at creating high-quality commit messages following the \
+         Conventional Commits 1.0.0 specification.\n\
          \n\
-         ## Core Responsibilities\n\
+         ## Conventional Commits Format\n\
          \n\
-         1. **Analyze Context:** Infer the intent and impact of code changes\n\
-         2. **Generate Messages:** Create well-structured, conventional commit messages\n\
-         3. **Maintain Standards:** Follow conventional commit format and best practices\n\
-         4. **Ensure Quality:** Make messages concise, descriptive, and actionable\n\
+         ```\n\
+         <type>[optional scope]: <description>\n\
+         \n\
+         [optional body]\n\
+         \n\
+         [optional footer(s)]\n\
+         ```\n\
+         \n\
+         ## Allowed Types\n\
+         \n\
+         - **feat**: A new feature (correlates with MINOR in SemVer)\n\
+         - **fix**: A bug fix (correlates with PATCH in SemVer)\n\
+         - **docs**: Documentation only changes\n\
+         - **style**: Changes that do not affect the meaning of the code (formatting, etc.)\n\
+         - **refactor**: A code change that neither fixes a bug nor adds a feature\n\
+         - **perf**: A code change that improves performance\n\
+         - **test**: Adding missing tests or correcting existing tests\n\
+         - **build**: Changes that affect the build system or external dependencies\n\
+         - **ci**: Changes to CI configuration files and scripts\n\
+         - **chore**: Other changes that don't modify src or test files\n\
+         \n\
+         ## Rules\n\
+         \n\
+         1. The title MUST be prefixed with a type, followed by optional scope in parentheses, \
+         then a colon and space: `type(scope): description`\n\
+         2. The description MUST be a short summary in imperative mood (e.g., \"add\" not \"added\")\n\
+         3. The scope SHOULD be a noun describing the section of the codebase (e.g., parser, api, auth)\n\
+         4. Breaking changes MUST be indicated by `!` after type/scope OR in a `BREAKING CHANGE:` footer\n\
+         5. The body SHOULD explain the motivation for the change and contrast with previous behavior\n\
+         6. Footers SHOULD follow git trailer format (e.g., `Refs: #123`, `Reviewed-by: Name`)\n\
          \n\
          ## Instructions\n\
          \n\
@@ -54,13 +80,23 @@ pub fn create_user_prompt(context: &CommitContext, detail_level: DetailLevel) ->
 
     let detail_instructions = match detail_level {
         DetailLevel::Minimal => {
-            "4. Make the message EXTREMELY concise. Generate ONLY a single title line if possible, or a title and one short summary line. No long bullet points."
+            "**Detail Level: MINIMAL**\n\
+             - Generate ONLY the title line: `type(scope): description`\n\
+             - NO body or footers\n\
+             - Maximum 72 characters for the title"
         }
         DetailLevel::Standard => {
-            "4. Make the message concise yet descriptive. Include a title and a brief summary."
+            "**Detail Level: STANDARD**\n\
+             - Generate a title: `type(scope): description`\n\
+             - Include a brief body explaining the changes (1-3 sentences)\n\
+             - Footers are optional"
         }
         DetailLevel::Detailed => {
-            "4. Provide a detailed explanation. Include a title, comprehensive summary, and detailed bullet points explaining the changes."
+            "**Detail Level: DETAILED**\n\
+             - Generate a title: `type(scope): description`\n\
+             - Include a comprehensive body explaining the motivation and impact\n\
+             - Include relevant footers (e.g., `Refs: #issue`, `BREAKING CHANGE:` if applicable)\n\
+             - Use bullet points in the body for multiple changes"
         }
     };
 
@@ -88,7 +124,7 @@ pub fn create_user_prompt(context: &CommitContext, detail_level: DetailLevel) ->
     format!(
         "# TASK: Generate Commit Message\n\
          \n\
-         ANALYZE the provided context and generate a well-structured commit message.\n\
+         Generate a commit message following Conventional Commits 1.0.0 specification.\n\
          \n\
          ## Context Information\n\
          \n\
@@ -97,7 +133,7 @@ pub fn create_user_prompt(context: &CommitContext, detail_level: DetailLevel) ->
          **Detailed Changes (Diffs):**\n\
          {}\n\
          \n\
-         **Recent Commits:**\n\
+         **Recent Commits (for changed files):**\n\
          {}\n\
          \n\
          **Staged Changes List:**\n\
@@ -106,14 +142,15 @@ pub fn create_user_prompt(context: &CommitContext, detail_level: DetailLevel) ->
          **Author's Commit History:**\n\
          {}\n\
          \n\
-         ## Analysis Requirements\n\
+         ## Requirements\n\
          \n\
-         1. **PRIMARY FOCUS:** Analyze the 'Detailed Changes' section. Use the diffs as the source of truth.\n\
-         2. ANALYZE the patterns in the author's commit history\n\
-         3. Ensure the generated message maintains consistent tone, style, and formatting\n\
-         4. Follow conventional commit standards when appropriate\n\
-         {}\n\
-         6. Focus on the intent and impact of the changes, ignoring large boilerplate updates if trivial.\n",
+         1. **PRIMARY FOCUS:** Analyze the diffs to understand the actual code changes\n\
+         2. Choose the appropriate type (feat, fix, refactor, docs, etc.) based on the changes\n\
+         3. Infer a scope from the file paths or module structure if applicable\n\
+         4. Write the description in imperative mood (e.g., \"add\" not \"added\" or \"adds\")\n\
+         5. Match the author's commit style from their history\n\
+         \n\
+         {}\n",
         context.branch,
         detailed_changes,
         recent_commits,
@@ -500,7 +537,7 @@ pub fn create_completion_user_prompt(
          \n\
          **Branch:** {}\n\
          \n\
-         **Recent Commits:**\n\
+         **Recent Commits (for changed files):**\n\
          {}\n\
          \n\
          **Staged Changes:**\n\
@@ -517,8 +554,8 @@ pub fn create_completion_user_prompt(
          1. ANALYZE the author's commit history patterns\n\
          2. Complete the message maintaining the same style and conventions as the prefix\n\
          3. Continue naturally from where the prefix ends\n\
-         4. Ensure the completed message is coherent and well-structured\n\
-         5. Follow conventional commit standards when appropriate\n",
+         4. Ensure the completed message follows Conventional Commits format\n\
+         5. Use imperative mood (e.g., \"add\" not \"added\" or \"adds\")\n",
         prefix,
         context_ratio * 100.0,
         context.branch,

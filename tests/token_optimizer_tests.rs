@@ -25,7 +25,6 @@ fn create_test_context() -> CommitContext {
     context.recent_commits.push(RecentCommit {
         hash: "def456".to_string(),
         message: "Add new feature".to_string(),
-        author: "Test Author".to_string(),
         timestamp: "2023-01-02 00:00:00".to_string(),
     });
 
@@ -242,19 +241,16 @@ fn create_test_context_with_large_data() -> CommitContext {
             RecentCommit {
                 hash: "abc123".to_string(),
                 message: large_commit_message.clone(),
-                author: "Test Author".to_string(),
                 timestamp: "2023-01-01 00:00:00".to_string(),
             },
             RecentCommit {
                 hash: "def456".to_string(),
                 message: large_commit_message.clone(),
-                author: "Test Author".to_string(),
                 timestamp: "2023-01-02 00:00:00".to_string(),
             },
             RecentCommit {
                 hash: "ghi789".to_string(),
                 message: large_commit_message,
-                author: "Test Author".to_string(),
                 timestamp: "2023-01-03 00:00:00".to_string(),
             },
         ],
@@ -311,13 +307,11 @@ async fn test_importance_weighted_token_distribution() {
             RecentCommit {
                 hash: "abc123".to_string(),
                 message: "Small commit message".to_string(), // ~4 tokens
-                author: "Test Author".to_string(),
                 timestamp: "2023-01-01 00:00:00".to_string(),
             },
             RecentCommit {
                 hash: "def456".to_string(),
                 message: "Medium commit message with more details".to_string(), // ~7 tokens
-                author: "Test Author".to_string(),
                 timestamp: "2023-01-02 00:00:00".to_string(),
             },
         ],
@@ -387,13 +381,11 @@ async fn test_importance_order_processing() {
             RecentCommit {
                 hash: "abc123".to_string(),
                 message: "First commit - most important".to_string(),
-                author: "Test Author".to_string(),
                 timestamp: "2023-01-01 00:00:00".to_string(),
             },
             RecentCommit {
                 hash: "def456".to_string(),
                 message: "Second commit - less important".to_string(),
-                author: "Test Author".to_string(),
                 timestamp: "2023-01-02 00:00:00".to_string(),
             },
         ],
@@ -476,19 +468,16 @@ async fn test_commit_importance_position_factor() {
             RecentCommit {
                 hash: "first".to_string(),
                 message: "First commit".to_string(), // Should have highest importance (position 0)
-                author: "Test Author".to_string(),
                 timestamp: "2023-01-01 00:00:00".to_string(),
             },
             RecentCommit {
                 hash: "second".to_string(),
                 message: "Second commit".to_string(), // Should have lower importance (position 1)
-                author: "Test Author".to_string(),
                 timestamp: "2023-01-02 00:00:00".to_string(),
             },
             RecentCommit {
                 hash: "third".to_string(),
                 message: "Third commit".to_string(), // Should have lowest importance (position 2)
-                author: "Test Author".to_string(),
                 timestamp: "2023-01-03 00:00:00".to_string(),
             },
         ],
@@ -613,7 +602,6 @@ async fn test_extreme_importance_differences() {
             hash: "important".to_string(),
             message: "Very important commit with lots of details that should be preserved"
                 .to_string(),
-            author: "Test Author".to_string(),
             timestamp: "2023-01-01 00:00:00".to_string(),
         }],
         staged_files: vec![StagedFile {

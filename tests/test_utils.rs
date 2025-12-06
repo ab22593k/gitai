@@ -310,7 +310,6 @@ impl MockDataBuilder {
             recent_commits: vec![RecentCommit {
                 hash: "abcdef1".to_string(),
                 message: "Initial commit".to_string(),
-                author: "Test User".to_string(),
                 timestamp: "1234567890".to_string(),
             }],
             staged_files: vec![Self::staged_file()],
@@ -328,13 +327,11 @@ impl MockDataBuilder {
                 RecentCommit {
                     hash: "abc1234".to_string(),
                     message: "Add JWT authentication middleware".to_string(),
-                    author: "Test User".to_string(),
                     timestamp: "1234567890".to_string(),
                 },
                 RecentCommit {
                     hash: "def5678".to_string(),
                     message: "Implement user registration endpoint".to_string(),
-                    author: "Test User".to_string(),
                     timestamp: "1234567891".to_string(),
                 },
             ],
@@ -427,7 +424,6 @@ impl MockDataBuilder {
         AnalyzedChange {
             commit_hash: "abcdef123456".to_string(),
             commit_message: "Add new feature".to_string(),
-            author: "Jane Doe".to_string(),
             file_changes: vec![FileChange {
                 old_path: "src/old.rs".to_string(),
                 new_path: "src/new.rs".to_string(),

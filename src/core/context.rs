@@ -20,7 +20,6 @@ pub struct CommitContext {
 pub struct RecentCommit {
     pub hash: String,
     pub message: String,
-    pub author: String,
     pub timestamp: String,
 }
 
