@@ -248,10 +248,7 @@ fn test_commit_system_prompt_structure() {
         prompt.contains("## Allowed Types"),
         "Should have allowed types section"
     );
-    assert!(
-        prompt.contains("## Rules"),
-        "Should have rules section"
-    );
+    assert!(prompt.contains("## Rules"), "Should have rules section");
     assert!(
         prompt.contains("## Instructions"),
         "Should have instructions section"
@@ -262,14 +259,8 @@ fn test_commit_system_prompt_structure() {
     );
 
     // Test conventional commits types
-    assert!(
-        prompt.contains("**feat**:"),
-        "Should have feat type"
-    );
-    assert!(
-        prompt.contains("**fix**:"),
-        "Should have fix type"
-    );
+    assert!(prompt.contains("**feat**:"), "Should have feat type");
+    assert!(prompt.contains("**fix**:"), "Should have fix type");
 
     // Test JSON schema formatting
     assert!(prompt.contains("```json"), "Should have JSON code block");

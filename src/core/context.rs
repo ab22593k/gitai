@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::fmt;
 
 use crate::Config;
-use crate::core::semantic_similarity::SemanticSimilarity;
+
 use crate::core::token_optimizer::TokenOptimizer;
 
 #[derive(Serialize, Debug, Clone)]
@@ -158,80 +158,6 @@ impl CommitContext {
         let _ = optimizer.optimize_context(self).await;
     }
 
-    /// Get semantically similar historical commits based on current changes
-    pub fn get_similar_history(&self, max_similar: usize) -> Vec<String> {
-        if self.author_history.is_empty() {
-            return Vec::new();
-        }
-
-        let similarity_calculator = SemanticSimilarity::new();
-        let change_keywords = similarity_calculator.extract_keywords(&self.staged_files);
-        let similarities =
-            similarity_calculator.calculate_similarities(&change_keywords, &self.author_history);
-
-        similarities
-            .into_iter()
-            .take(max_similar)
-            .map(|(idx, _)| self.author_history[idx].clone())
-            .collect()
-    }
-
-    /// Filter recent commits to the most relevant ones based on semantic similarity
-    pub fn filter_relevant_recent_commits(&mut self, max_commits: usize) {
-        if self.recent_commits.is_empty() || self.staged_files.is_empty() {
-            return;
-        }
-
-        let similarity_calculator = SemanticSimilarity::new();
-        let change_keywords = similarity_calculator.extract_keywords(&self.staged_files);
-
-        // Extract messages from recent commits
-        let commit_messages: Vec<String> = self
-            .recent_commits
-            .iter()
-            .map(|c| c.message.clone())
-            .collect();
-
-        let similarities =
-            similarity_calculator.calculate_similarities(&change_keywords, &commit_messages);
-
-        // Create a list of (index, similarity, timestamp) for sorting
-        let mut commit_scores: Vec<(usize, f32, i64)> = similarities
-            .into_iter()
-            .map(|(idx, sim)| {
-                let timestamp = self.recent_commits[idx]
-                    .timestamp
-                    .parse::<i64>()
-                    .unwrap_or(0);
-                (idx, sim, timestamp)
-            })
-            .collect();
-
-        // Sort by similarity descending, then by timestamp descending (more recent first)
-        commit_scores.sort_by(|a, b| {
-            b.1.partial_cmp(&a.1)
-                .unwrap_or(std::cmp::Ordering::Equal)
-                .then_with(|| b.2.cmp(&a.2)) // Higher timestamp (more recent) first
-        });
-
-        // Take top max_commits
-        let relevant_indices: Vec<usize> = commit_scores
-            .into_iter()
-            .take(max_commits)
-            .map(|(idx, _, _)| idx)
-            .collect();
-
-        // Filter recent_commits to only include relevant ones
-        let mut filtered_commits = Vec::new();
-        for &idx in &relevant_indices {
-            if idx < self.recent_commits.len() {
-                filtered_commits.push(self.recent_commits[idx].clone());
-            }
-        }
-
-        self.recent_commits = filtered_commits;
-    }
-
     /// Detect common commit message conventions from history
     pub fn detect_conventions(&self) -> HashMap<String, usize> {
         let mut conventions = HashMap::new();
@@ -253,23 +179,13 @@ impl CommitContext {
         conventions
     }
 
-    /// Get enhanced author history with semantic filtering
+    /// Get enhanced author history (simplified to just recent history)
     pub fn get_enhanced_history(&self, max_history: usize) -> Vec<String> {
-        let similar_history = self.get_similar_history(max_history / 2);
-        let mut enhanced_history = similar_history;
-
-        // Add some recent history for recency
-        let recent_count = (max_history / 2).min(self.author_history.len());
-        for i in 0..recent_count {
-            if let Some(msg) = self.author_history.get(i)
-                && !enhanced_history.contains(msg)
-            {
-                enhanced_history.push(msg.clone());
-            }
-        }
-
-        enhanced_history.truncate(max_history);
-        enhanced_history
+        self.author_history
+            .iter()
+            .take(max_history)
+            .cloned()
+            .collect()
     }
 }
 
