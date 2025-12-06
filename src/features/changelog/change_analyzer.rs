@@ -180,9 +180,15 @@ impl ChangeAnalyzer {
                 }
 
                 // Add analysis based on change type
-                match change_type {
+                match &change_type {
                     ChangeType::Added => analysis.push("New file added".to_string()),
                     ChangeType::Deleted => analysis.push("File removed".to_string()),
+                    ChangeType::Renamed { from, .. } => {
+                        analysis.push(format!("File renamed from {}", from));
+                    }
+                    ChangeType::Copied { from, .. } => {
+                        analysis.push(format!("File copied from {}", from));
+                    }
                     ChangeType::Modified => {
                         if file_path.contains("test") || file_path.contains("spec") {
                             analysis.push("Test modifications".to_string());

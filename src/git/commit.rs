@@ -7,6 +7,134 @@ use log::debug;
 
 use super::ignore_matcher::GitIgnoreMatcher;
 
+/// Apply rename/copy detection to a diff
+fn detect_renames(diff: &mut git2::Diff<'_>) -> Result<()> {
+    let mut find_options = git2::DiffFindOptions::new();
+    find_options
+        .renames(true) // Detect renames
+        .copies(true) // Detect copies
+        .rename_threshold(50) // 50% similarity threshold
+        .copy_threshold(50) // 50% for copies
+        .rename_limit(200); // Max files to compare
+
+    diff.find_similar(Some(&mut find_options))?;
+    Ok(())
+}
+
+/// Helper to extract files from diff with rename detection
+fn get_files_from_diff(
+    diff: &mut git2::Diff<'_>,
+    gitignore_matcher: &GitIgnoreMatcher,
+) -> Result<Vec<StagedFile>> {
+    detect_renames(diff)?;
+    let mut files = Vec::new();
+
+    let diff_len = diff.deltas().len();
+    for i in 0..diff_len {
+        let mut patch = git2::Patch::from_diff(diff, i)?
+            .ok_or_else(|| anyhow!("Failed to get patch at index {}", i))?;
+        let (file_path, change_type) = {
+            let delta = patch.delta();
+            let to_owned_path =
+                |p: Option<&std::path::Path>| p.and_then(|path| path.to_str()).map(String::from);
+            // Heuristic: If no hunks, it's a pure rename (100% similarity)
+            let similarity = if patch.num_hunks() == 0 { 100 } else { 0 };
+
+            match delta.status() {
+                git2::Delta::Added => (to_owned_path(delta.new_file().path()), ChangeType::Added),
+                git2::Delta::Modified => {
+                    (to_owned_path(delta.new_file().path()), ChangeType::Modified)
+                }
+                git2::Delta::Deleted => {
+                    (to_owned_path(delta.old_file().path()), ChangeType::Deleted)
+                }
+                git2::Delta::Renamed => {
+                    let old_path = to_owned_path(delta.old_file().path()).unwrap_or_default();
+                    (
+                        to_owned_path(delta.new_file().path()),
+                        ChangeType::Renamed {
+                            from: old_path,
+                            similarity,
+                        },
+                    )
+                }
+                git2::Delta::Copied => {
+                    let old_path = to_owned_path(delta.old_file().path()).unwrap_or_default();
+                    (
+                        to_owned_path(delta.new_file().path()),
+                        ChangeType::Copied {
+                            from: old_path,
+                            similarity,
+                        },
+                    )
+                }
+                _ => continue,
+            }
+        };
+
+        if let Some(path_str) = &file_path {
+            let should_exclude = gitignore_matcher.should_exclude(path_str);
+            let diff_content;
+
+            if should_exclude {
+                diff_content = String::from("[Content excluded]");
+            } else {
+                match &change_type {
+                    ChangeType::Deleted => {
+                        diff_content = format!("[DELETED] File '{}' was removed", path_str);
+                    }
+                    ChangeType::Renamed { .. } if patch.num_hunks() == 0 => {
+                        diff_content = format!(
+                            "[RENAMED] '{}' -> '{}' (no content changes)",
+                            match &change_type {
+                                ChangeType::Renamed { from, .. } => from,
+                                _ => "",
+                            },
+                            path_str
+                        );
+                    }
+                    _ => {
+                        let buf = patch
+                            .to_buf()
+                            .map_err(|e| anyhow!("Failed to get patch buffer: {}", e))?;
+                        let patch_str = match std::str::from_utf8(&buf) {
+                            Ok(s) => s.to_string(),
+                            Err(_) => "[Binary data]".to_string(),
+                        };
+
+                        if is_binary_diff(&patch_str) {
+                            diff_content = "[Binary file changed]".to_string();
+                        } else {
+                            match &change_type {
+                                ChangeType::Renamed { from, .. } => {
+                                    diff_content = format!(
+                                        "[RENAMED] '{}' -> '{}'\n{}",
+                                        from, path_str, patch_str
+                                    );
+                                }
+                                ChangeType::Copied { from, .. } => {
+                                    diff_content =
+                                        format!("[COPIED] from '{}'\n{}", from, patch_str);
+                                }
+                                _ => diff_content = patch_str,
+                            }
+                        }
+                    }
+                }
+            }
+
+            files.push(StagedFile {
+                path: path_str.to_string(),
+                change_type,
+                diff: diff_content,
+                content: None,
+                content_excluded: should_exclude,
+            });
+        }
+    }
+    Ok(files)
+}
+
 /// Results from a commit operation
 #[derive(Debug)]
 pub struct CommitResult {
@@ -353,71 +481,8 @@ pub fn get_commit_files(
 
     let parent_tree = parent_commit.map(|c| c.tree()).transpose()?;
 
-    let mut commit_files = Vec::new();
-
-    let diff = repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&commit_tree), None)?;
-
-    // Get statistics for each file and convert to our StagedFile format
-    diff.foreach(
-        &mut |delta, _| {
-            if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
-                let change_type = match delta.status() {
-                    git2::Delta::Added => ChangeType::Added,
-                    git2::Delta::Modified => ChangeType::Modified,
-                    git2::Delta::Deleted => ChangeType::Deleted,
-                    _ => return true, // Skip other types of changes
-                };
-
-                let should_exclude = gitignore_matcher.should_exclude(path);
-
-                commit_files.push(StagedFile {
-                    path: path.to_string(),
-                    change_type,
-                    diff: String::new(), // Will be populated later
-                    content: None,
-                    content_excluded: should_exclude,
-                });
-            }
-            true
-        },
-        None,
-        None,
-        None,
-    )?;
-
-    // Get the diff for each file
-    for file in &mut commit_files {
-        if file.content_excluded {
-            file.diff = String::from("[Content excluded]");
-            continue;
-        }
-
-        let mut diff_options = git2::DiffOptions::new();
-        diff_options.pathspec(&file.path);
-
-        let file_diff = repo.diff_tree_to_tree(
-            parent_tree.as_ref(),
-            Some(&commit_tree),
-            Some(&mut diff_options),
-        )?;
-
-        let mut diff_string = String::new();
-        file_diff.print(git2::DiffFormat::Patch, |_delta, _hunk, line| {
-            let origin = match line.origin() {
-                '+' | '-' | ' ' => line.origin(),
-                _ => ' ',
-            };
-            diff_string.push(origin);
-            diff_string.push_str(&String::from_utf8_lossy(line.content()));
-            true
-        })?;
-
-        if is_binary_diff(&diff_string) {
-            file.diff = "[Binary file changed]".to_string();
-        } else {
-            file.diff = diff_string;
-        }
-    }
+    let mut diff = repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&commit_tree), None)?;
+    let commit_files = get_files_from_diff(&mut diff, gitignore_matcher)?;
 
     debug!("Found {} files in commit", commit_files.len());
     Ok(commit_files)
@@ -557,81 +622,24 @@ pub fn get_branch_diff_files(
     let base_tree = merge_base_commit.tree()?;
     let target_tree = target_commit.tree()?;
 
-    let mut branch_files = Vec::new();
-
     // Create diff between the merge-base tree and target tree
-    // This shows only changes made in the target branch since it diverged
-    let diff = repo.diff_tree_to_tree(Some(&base_tree), Some(&target_tree), None)?;
+    let mut diff = repo.diff_tree_to_tree(Some(&base_tree), Some(&target_tree), None)?;
+    let mut branch_files = get_files_from_diff(&mut diff, gitignore_matcher)?;
 
-    // Get statistics for each file and convert to our StagedFile format
-    diff.foreach(
-        &mut |delta, _| {
-            if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
-                let change_type = match delta.status() {
-                    git2::Delta::Added => ChangeType::Added,
-                    git2::Delta::Modified => ChangeType::Modified,
-                    git2::Delta::Deleted => ChangeType::Deleted,
-                    _ => return true, // Skip other types of changes
-                };
-
-                let should_exclude = gitignore_matcher.should_exclude(path);
-
-                branch_files.push(StagedFile {
-                    path: path.to_string(),
-                    change_type,
-                    diff: String::new(), // Will be populated later
-                    content: None,
-                    content_excluded: should_exclude,
-                });
-            }
-            true
-        },
-        None,
-        None,
-        None,
-    )?;
-
-    // Get the diff for each file
+    // Get file content from target branch if it's a modified or added file
     for file in &mut branch_files {
-        if file.content_excluded {
-            file.diff = String::from("[Content excluded]");
-            continue;
-        }
-
-        let mut diff_options = git2::DiffOptions::new();
-        diff_options.pathspec(&file.path);
-
-        let file_diff = repo.diff_tree_to_tree(
-            Some(&base_tree),
-            Some(&target_tree),
-            Some(&mut diff_options),
-        )?;
-
-        let mut diff_string = String::new();
-        file_diff.print(git2::DiffFormat::Patch, |_delta, _hunk, line| {
-            let origin = match line.origin() {
-                '+' | '-' | ' ' => line.origin(),
-                _ => ' ',
-            };
-            diff_string.push(origin);
-            diff_string.push_str(&String::from_utf8_lossy(line.content()));
-            true
-        })?;
-
-        if is_binary_diff(&diff_string) {
-            file.diff = "[Binary file changed]".to_string();
-        } else {
-            file.diff = diff_string;
-        }
-
-        // Get file content from target branch if it's a modified or added file
-        if matches!(file.change_type, ChangeType::Added | ChangeType::Modified)
-            && let Ok(entry) = target_tree.get_path(std::path::Path::new(&file.path))
-            && let Ok(object) = entry.to_object(repo)
-            && let Some(blob) = object.as_blob()
-            && let Ok(content) = std::str::from_utf8(blob.content())
+        if !file.content_excluded
+            && matches!(file.change_type, ChangeType::Added | ChangeType::Modified)
         {
-            file.content = Some(content.to_string());
+            if let Ok(entry) = target_tree.get_path(std::path::Path::new(&file.path)) {
+                if let Ok(object) = entry.to_object(repo) {
+                    if let Some(blob) = object.as_blob() {
+                        if let Ok(content) = std::str::from_utf8(blob.content()) {
+                            file.content = Some(content.to_string());
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -754,77 +762,24 @@ pub fn get_commit_range_files(
     let from_tree = from_commit.tree()?;
     let to_tree = to_commit.tree()?;
 
-    let mut range_files = Vec::new();
-
     // Create diff between the from and to trees
-    let diff = repo.diff_tree_to_tree(Some(&from_tree), Some(&to_tree), None)?;
+    let mut diff = repo.diff_tree_to_tree(Some(&from_tree), Some(&to_tree), None)?;
+    let mut range_files = get_files_from_diff(&mut diff, gitignore_matcher)?;
 
-    // Get statistics for each file and convert to our StagedFile format
-    diff.foreach(
-        &mut |delta, _| {
-            if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
-                let change_type = match delta.status() {
-                    git2::Delta::Added => ChangeType::Added,
-                    git2::Delta::Modified => ChangeType::Modified,
-                    git2::Delta::Deleted => ChangeType::Deleted,
-                    _ => return true, // Skip other types of changes
-                };
-
-                let should_exclude = gitignore_matcher.should_exclude(path);
-
-                range_files.push(StagedFile {
-                    path: path.to_string(),
-                    change_type,
-                    diff: String::new(), // Will be populated later
-                    content: None,
-                    content_excluded: should_exclude,
-                });
-            }
-            true
-        },
-        None,
-        None,
-        None,
-    )?;
-
-    // Get the diff for each file
+    // Get file content from to commit if it's a modified or added file
     for file in &mut range_files {
-        if file.content_excluded {
-            file.diff = String::from("[Content excluded]");
-            continue;
-        }
-
-        let mut diff_options = git2::DiffOptions::new();
-        diff_options.pathspec(&file.path);
-
-        let file_diff =
-            repo.diff_tree_to_tree(Some(&from_tree), Some(&to_tree), Some(&mut diff_options))?;
-
-        let mut diff_string = String::new();
-        file_diff.print(git2::DiffFormat::Patch, |_delta, _hunk, line| {
-            let origin = match line.origin() {
-                '+' | '-' | ' ' => line.origin(),
-                _ => ' ',
-            };
-            diff_string.push(origin);
-            diff_string.push_str(&String::from_utf8_lossy(line.content()));
-            true
-        })?;
-
-        if is_binary_diff(&diff_string) {
-            file.diff = "[Binary file changed]".to_string();
-        } else {
-            file.diff = diff_string;
-        }
-
-        // Get file content from to commit if it's a modified or added file
-        if matches!(file.change_type, ChangeType::Added | ChangeType::Modified)
-            && let Ok(entry) = to_tree.get_path(std::path::Path::new(&file.path))
-            && let Ok(object) = entry.to_object(repo)
-            && let Some(blob) = object.as_blob()
-            && let Ok(content) = std::str::from_utf8(blob.content())
+        if !file.content_excluded
+            && matches!(file.change_type, ChangeType::Added | ChangeType::Modified)
         {
-            file.content = Some(content.to_string());
+            if let Ok(entry) = to_tree.get_path(std::path::Path::new(&file.path)) {
+                if let Ok(object) = entry.to_object(repo) {
+                    if let Some(blob) = object.as_blob() {
+                        if let Ok(content) = std::str::from_utf8(blob.content()) {
+                            file.content = Some(content.to_string());
+                        }
+                    }
+                }
+            }
         }
     }
 

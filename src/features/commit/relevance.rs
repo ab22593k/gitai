@@ -36,6 +36,14 @@ impl Scorer for ChangeTypeScorer {
                 ChangeType::Added => 0.9,
                 ChangeType::Modified => 1.0,
                 ChangeType::Deleted => 0.7,
+                ChangeType::Renamed { similarity, .. } => {
+                    if similarity == 100 {
+                        0.3
+                    } else {
+                        0.8
+                    }
+                }
+                ChangeType::Copied { .. } => 0.6,
             };
             scores.insert(file.path.clone(), score);
         }

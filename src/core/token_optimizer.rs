@@ -90,7 +90,10 @@ impl TokenOptimizer {
             let change_type_factor = match file.change_type {
                 crate::core::context::ChangeType::Added => 1.2, // New files are important
                 crate::core::context::ChangeType::Modified => 1.0, // Standard modifications
-                crate::core::context::ChangeType::Deleted => 0.8, // Deletions less important
+                crate::core::context::ChangeType::Deleted | crate::core::context::ChangeType::Copied { .. } => 0.8, // Deletions and copies less important
+                crate::core::context::ChangeType::Renamed { similarity, .. } => {
+                    if similarity == 100 { 0.5 } else { 1.0 }
+                } // Pure renames less important
             };
 
             #[allow(clippy::cast_precision_loss, clippy::as_conversions)]

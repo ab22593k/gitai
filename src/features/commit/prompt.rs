@@ -218,6 +218,8 @@ fn format_detailed_changes(
                 let change_indicator = match file.change_type {
                     ChangeType::Added | ChangeType::Deleted => "",
                     ChangeType::Modified => "✏️",
+                    ChangeType::Renamed { .. } => "🚚",
+                    ChangeType::Copied { .. } => "📋",
                 };
 
                 format!(
@@ -242,11 +244,13 @@ fn format_detailed_changes(
     all_sections.join("\n\n====================\n\n")
 }
 
-fn format_change_type(change_type: &ChangeType) -> &'static str {
+fn format_change_type(change_type: &ChangeType) -> String {
     match change_type {
-        ChangeType::Added => "Added",
-        ChangeType::Modified => "Modified",
-        ChangeType::Deleted => "Deleted",
+        ChangeType::Added => "Added".to_string(),
+        ChangeType::Modified => "Modified".to_string(),
+        ChangeType::Deleted => "Deleted".to_string(),
+        ChangeType::Renamed { from, .. } => format!("Renamed from {}", from),
+        ChangeType::Copied { from, .. } => format!("Copied from {}", from),
     }
 }
 

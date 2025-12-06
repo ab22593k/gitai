@@ -38,6 +38,8 @@ pub enum ChangeType {
     Added,
     Modified,
     Deleted,
+    Renamed { from: String, similarity: u32 },
+    Copied { from: String, similarity: u32 },
 }
 
 impl fmt::Display for ChangeType {
@@ -46,6 +48,12 @@ impl fmt::Display for ChangeType {
             Self::Added => write!(f, "Added"),
             Self::Modified => write!(f, "Modified"),
             Self::Deleted => write!(f, "Deleted"),
+            Self::Renamed { from, similarity } => {
+                write!(f, "Renamed from '{from}' ({similarity}% similar)")
+            }
+            Self::Copied { from, similarity } => {
+                write!(f, "Copied from '{from}' ({similarity}% similar)")
+            }
         }
     }
 }
