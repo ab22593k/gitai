@@ -1,5 +1,6 @@
 use super::prompt::{create_system_prompt, create_user_prompt};
 use super::types::GeneratedMessage;
+use crate::common::DetailLevel;
 use crate::config::Config;
 use crate::core::context::CommitContext;
 use crate::core::llm;
@@ -18,6 +19,7 @@ pub struct CommitService {
     repo: Arc<GitRepo>,
     provider_name: String,
     verify: bool,
+    detail_level: DetailLevel,
     cached_context: Arc<RwLock<Option<CommitContext>>>,
 }
 
@@ -40,6 +42,7 @@ impl CommitService {
         _repo_path: &Path,
         provider_name: &str,
         verify: bool,
+        detail_level: DetailLevel,
         git_repo: GitRepo,
     ) -> Result<Self> {
         Ok(Self {
@@ -47,6 +50,7 @@ impl CommitService {
             repo: Arc::new(git_repo),
             provider_name: provider_name.to_string(),
             verify,
+            detail_level,
             cached_context: Arc::new(RwLock::new(None)),
         })
     }
@@ -234,7 +238,9 @@ impl CommitService {
 
         // Use the shared optimization logic
         let (_, final_user_prompt) = self
-            .optimize_prompt(&config_clone, &system_prompt, context, create_user_prompt)
+            .optimize_prompt(&config_clone, &system_prompt, context, |ctx| {
+                create_user_prompt(ctx, self.detail_level)
+            })
             .await;
 
         let generated_message = llm::get_message::<GeneratedMessage>(
@@ -272,7 +278,9 @@ impl CommitService {
 
         // Use the shared optimization logic with provided context
         let (_, final_user_prompt) = self
-            .optimize_prompt(&config_clone, &system_prompt, context, create_user_prompt)
+            .optimize_prompt(&config_clone, &system_prompt, context, |ctx| {
+                create_user_prompt(ctx, self.detail_level)
+            })
             .await;
 
         let generated_message = llm::get_message::<GeneratedMessage>(

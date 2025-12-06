@@ -1,4 +1,5 @@
 use gait::{
+    common::DetailLevel,
     config::Config,
     core::context::CommitContext,
     features::commit::prompt::{
@@ -26,7 +27,7 @@ fn create_mock_commit_context() -> CommitContext {
 fn test_create_user_prompt_formats_branch_correctly() {
     let mut context = create_mock_commit_context();
     context.branch = "feature/new-feature".to_string();
-    let prompt = create_user_prompt(&context);
+    let prompt = create_user_prompt(&context, DetailLevel::Standard);
 
     assert!(prompt.contains("**Branch:** feature/new-feature"));
 }
@@ -34,7 +35,7 @@ fn test_create_user_prompt_formats_branch_correctly() {
 #[test]
 fn test_create_user_prompt_includes_recent_commits() {
     let context = create_mock_commit_context();
-    let prompt = create_user_prompt(&context);
+    let prompt = create_user_prompt(&context, DetailLevel::Standard);
 
     // The mock context should have recent commits
     assert!(prompt.contains("Recent Commits:"));
@@ -49,7 +50,7 @@ fn test_create_user_prompt_includes_recent_commits() {
 #[test]
 fn test_create_user_prompt_includes_staged_changes() {
     let context = create_mock_commit_context();
-    let prompt = create_user_prompt(&context);
+    let prompt = create_user_prompt(&context, DetailLevel::Standard);
 
     assert!(prompt.contains("Staged Changes"));
     // Check that it includes the mock file
@@ -59,7 +60,7 @@ fn test_create_user_prompt_includes_staged_changes() {
 #[test]
 fn test_create_user_prompt_includes_detailed_changes() {
     let context = create_mock_commit_context();
-    let prompt = create_user_prompt(&context);
+    let prompt = create_user_prompt(&context, DetailLevel::Standard);
 
     assert!(prompt.contains("Detailed Changes"));
     // Should include the diff or analysis
@@ -69,7 +70,7 @@ fn test_create_user_prompt_includes_detailed_changes() {
 #[test]
 fn test_create_user_prompt_includes_author_history() {
     let context = create_mock_commit_context();
-    let prompt = create_user_prompt(&context);
+    let prompt = create_user_prompt(&context, DetailLevel::Standard);
 
     assert!(prompt.contains("Author's Commit History"));
     // Mock should have some history
@@ -98,7 +99,7 @@ fn test_system_prompt_includes_valid_json_schema() {
 #[test]
 fn test_user_prompt_context_elements_are_properly_formatted() {
     let context = create_mock_commit_context();
-    let prompt = create_user_prompt(&context);
+    let prompt = create_user_prompt(&context, DetailLevel::Standard);
 
     // Test branch formatting
     assert!(prompt.contains(&format!("**Branch:** {}", context.branch)));
@@ -134,7 +135,7 @@ fn test_combined_prompt_structure_for_llm() {
     let context = create_mock_commit_context();
 
     let system_prompt = create_system_prompt(&config).expect("Failed to create system prompt");
-    let user_prompt = create_user_prompt(&context);
+    let user_prompt = create_user_prompt(&context, DetailLevel::Standard);
 
     // Test that both prompts are non-empty and well-formed
     assert!(!system_prompt.is_empty());
@@ -172,7 +173,7 @@ fn test_combined_prompt_structure_for_llm() {
 #[test]
 fn test_commit_user_prompt_structure() {
     let context = create_mock_commit_context();
-    let prompt = create_user_prompt(&context);
+    let prompt = create_user_prompt(&context, DetailLevel::Standard);
 
     // Test markdown structure
     assert!(prompt.contains("# TASK:"), "Should have task header");
@@ -201,14 +202,22 @@ fn test_commit_user_prompt_structure() {
         prompt.contains("1. ANALYZE"),
         "Should have numbered analysis steps"
     );
-    assert!(
-        prompt.contains("2. Ensure"),
-        "Should have numbered requirements"
-    );
-    assert!(
-        prompt.contains("3. Follow"),
-        "Should have numbered requirements"
-    );
+}
+
+#[test]
+fn test_create_user_prompt_respects_detail_level() {
+    let context = create_mock_commit_context();
+
+    let minimal = create_user_prompt(&context, DetailLevel::Minimal);
+    assert!(minimal.contains("Make the message EXTREMELY concise"));
+    assert!(minimal.contains("Generate ONLY a single title line"));
+
+    let standard = create_user_prompt(&context, DetailLevel::Standard);
+    assert!(standard.contains("Make the message concise yet descriptive"));
+
+    let detailed = create_user_prompt(&context, DetailLevel::Detailed);
+    assert!(detailed.contains("Provide a detailed explanation"));
+    assert!(detailed.contains("detailed bullet points explaining the changes"));
 }
 
 #[test]

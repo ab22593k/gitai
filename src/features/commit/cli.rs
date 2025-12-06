@@ -2,7 +2,7 @@ use super::completion::CompletionService;
 use super::format_commit_result;
 use super::service::CommitService;
 use super::types::{format_commit_message, format_pull_request};
-use crate::common::CommonParams;
+use crate::common::{CommonParams, DetailLevel};
 use crate::config::Config;
 use crate::core::messages;
 use crate::features::commit::types;
@@ -13,6 +13,7 @@ use crate::ui::{self, SpinnerState};
 use anyhow::{Context, Result};
 use std::{
     io::{self, Write},
+    str::FromStr,
     sync::Arc,
     time::Duration,
 };
@@ -639,9 +640,18 @@ fn create_commit_service(
     let repo_path = git_repo.repo_path().clone();
     let provider_name = &config.default_provider;
 
+    let detail_level = DetailLevel::from_str(&common.detail_level).unwrap_or(DetailLevel::Standard);
+
     let service = Arc::new(
-        CommitService::new(config.clone(), &repo_path, provider_name, verify, git_repo)
-            .context("Failed to create CommitService")?,
+        CommitService::new(
+            config.clone(),
+            &repo_path,
+            provider_name,
+            verify,
+            detail_level,
+            git_repo,
+        )
+        .context("Failed to create CommitService")?,
     );
 
     // Check environment prerequisites

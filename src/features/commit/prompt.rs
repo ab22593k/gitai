@@ -1,6 +1,6 @@
 use super::relevance::RelevanceScorer;
 use super::types::GeneratedMessage;
-use crate::common::get_combined_instructions;
+use crate::common::{DetailLevel, get_combined_instructions};
 use crate::config::Config;
 use crate::core::context::{ChangeType, CommitContext, RecentCommit, StagedFile};
 
@@ -43,7 +43,7 @@ pub fn create_system_prompt(config: &Config) -> anyhow::Result<String> {
     ))
 }
 
-pub fn create_user_prompt(context: &CommitContext) -> String {
+pub fn create_user_prompt(context: &CommitContext, detail_level: DetailLevel) -> String {
     let scorer = RelevanceScorer::new();
     let relevance_scores = scorer.score(context);
     let detailed_changes = format_detailed_changes(&context.staged_files, &relevance_scores);
@@ -52,8 +52,20 @@ pub fn create_user_prompt(context: &CommitContext) -> String {
     let staged_changes = format_staged_files(&context.staged_files, &relevance_scores);
     let author_history = format_enhanced_author_history(&context.author_history, context);
 
+    let detail_instructions = match detail_level {
+        DetailLevel::Minimal => {
+            "4. Make the message EXTREMELY concise. Generate ONLY a single title line if possible, or a title and one short summary line. No long bullet points."
+        }
+        DetailLevel::Standard => {
+            "4. Make the message concise yet descriptive. Include a title and a brief summary."
+        }
+        DetailLevel::Detailed => {
+            "4. Provide a detailed explanation. Include a title, comprehensive summary, and detailed bullet points explaining the changes."
+        }
+    };
+
     debug!(
-        "Generated commit prompt for {} files ({} added, {} modified, {} deleted)",
+        "Generated commit prompt for {} files ({} added, {} modified, {} deleted) with detail level: {:?}",
         context.staged_files.len(),
         context
             .staged_files
@@ -69,7 +81,8 @@ pub fn create_user_prompt(context: &CommitContext) -> String {
             .staged_files
             .iter()
             .filter(|f| matches!(f.change_type, ChangeType::Deleted))
-            .count()
+            .count(),
+        detail_level
     );
 
     format!(
@@ -98,9 +111,14 @@ pub fn create_user_prompt(context: &CommitContext) -> String {
          1. ANALYZE the patterns in the author's commit history\n\
          2. Ensure the generated message maintains consistent tone, style, and formatting\n\
          3. Follow conventional commit standards when appropriate\n\
-         4. Make the message concise yet descriptive\n\
+         {}\n\
          5. Focus on the intent and impact of the changes\n",
-        context.branch, recent_commits, staged_changes, detailed_changes, author_history
+        context.branch,
+        recent_commits,
+        staged_changes,
+        detailed_changes,
+        author_history,
+        detail_instructions
     )
 }
 
