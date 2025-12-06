@@ -1,5 +1,4 @@
 use super::completion::CompletionService;
-use super::format_commit_result;
 use super::service::CommitService;
 use super::types::{format_commit_message, format_pull_request};
 use crate::common::{CommonParams, DetailLevel};
@@ -63,61 +62,34 @@ where
 #[allow(clippy::too_many_arguments)]
 pub async fn handle_message_command(
     common: CommonParams,
-    auto_commit: bool,
     print: bool,
-    verify: bool,
     dry_run: bool,
-    amend: bool,
-    commit_ref: Option<String>,
     repository_url: Option<String>,
 ) -> Result<()> {
     let mut config = Config::load()?;
     common.apply_to_config(&mut config)?;
 
     // Create the service using the common function
-    let service =
-        create_commit_service(&common, repository_url.clone(), &config, verify).map_err(|e| {
-            ui::print_error(&format!("Error: {e}"));
-            e
-        })?;
+    let service = create_commit_service(&common, repository_url.clone(), &config).map_err(|e| {
+        ui::print_error(&format!("Error: {e}"));
+        e
+    })?;
 
     // Create the completion service
-    let completion_service = create_completion_service(&common, repository_url, &config, verify)
-        .map_err(|e| {
+    let completion_service =
+        create_completion_service(&common, repository_url, &config).map_err(|e| {
             ui::print_error(&format!("Error: {e}"));
             e
         })?;
-
-    // Validate amend parameters
-    if !amend && commit_ref.is_some() {
-        ui::print_error("--commit can only be used with --amend");
-        return Err(anyhow::anyhow!("--commit requires --amend"));
-    }
-
-    if amend && commit_ref.is_some() && commit_ref.as_deref() != Some("HEAD") {
-        ui::print_error(
-            "Currently, only amending HEAD is supported. For amending other commits, use git directly.",
-        );
-        ui::print_info("Example: git commit --amend");
-        return Err(anyhow::anyhow!(
-            "Only HEAD amendments are currently supported"
-        ));
-    }
 
     let git_info = service.get_git_info().await?;
 
-    if git_info.staged_files.is_empty() && !dry_run && !amend {
+    if git_info.staged_files.is_empty() && !dry_run {
         ui::print_warning(
             "No staged changes. Please stage your changes before generating a commit message.",
         );
         ui::print_info("You can stage changes using 'git add <file>' or 'git add .'");
         return Ok(());
-    }
-
-    // Run pre-commit hook before we do anything else
-    if let Err(e) = service.pre_commit() {
-        ui::print_error(&format!("Pre-commit failed: {e}"));
-        return Err(e);
     }
 
     let effective_instructions = common
@@ -143,41 +115,6 @@ pub async fn handle_message_command(
 
     if print {
         println!("{}", format_commit_message(&initial_message));
-        return Ok(());
-    }
-
-    if auto_commit {
-        // Only allow auto-commit for local repositories
-        if service.is_remote_repository() {
-            ui::print_error(
-                "Cannot automatically commit to a remote repository. Use --print instead.",
-            );
-            return Err(anyhow::anyhow!(
-                "Auto-commit not supported for remote repositories"
-            ));
-        }
-
-        if dry_run {
-            ui::print_info("Dry run mode: would amend commit with message:");
-            println!("{}", format_commit_message(&initial_message));
-            return Ok(());
-        }
-
-        match service.perform_commit(
-            &format_commit_message(&initial_message),
-            amend,
-            commit_ref.as_deref(),
-        ) {
-            Ok(result) => {
-                let output =
-                    format_commit_result(&result, &format_commit_message(&initial_message));
-                println!("{output}");
-            }
-            Err(e) => {
-                eprintln!("Failed to commit: {e}");
-                return Err(e);
-            }
-        }
         return Ok(());
     }
 
@@ -233,10 +170,7 @@ pub async fn handle_completion_command(
     prefix: String,
     context_ratio: Option<f32>,
     print: bool,
-    verify: bool,
     dry_run: bool,
-    amend: bool,
-    commit_ref: Option<String>,
     repository_url: Option<String>,
 ) -> Result<()> {
     let mut config = Config::load()?;
@@ -263,7 +197,6 @@ pub async fn handle_completion_command(
         &common,
         repository_url,
         &config,
-        verify,
     ).map_err(|e| {
         ui::print_error(&format!("Error: {e}"));
         ui::print_info("\nPlease ensure the following:");
@@ -274,36 +207,14 @@ pub async fn handle_completion_command(
         e
     })?;
 
-    // Validate amend parameters
-    if !amend && commit_ref.is_some() {
-        ui::print_error("--commit can only be used with --amend");
-        return Err(anyhow::anyhow!("--commit requires --amend"));
-    }
-
-    if amend && commit_ref.is_some() && commit_ref.as_deref() != Some("HEAD") {
-        ui::print_error(
-            "Currently, only amending HEAD is supported. For amending other commits, use git directly.",
-        );
-        ui::print_info("Example: git commit --amend");
-        return Err(anyhow::anyhow!(
-            "Only HEAD amendments are currently supported"
-        ));
-    }
-
     let git_info = service.get_git_info().await?;
 
-    if git_info.staged_files.is_empty() && !dry_run && !amend {
+    if git_info.staged_files.is_empty() && !dry_run {
         ui::print_warning(
             "No staged changes. Please stage your changes before completing a commit message.",
         );
         ui::print_info("You can stage changes using 'git add <file>' or 'git add .'");
         return Ok(());
-    }
-
-    // Run pre-commit hook before we do anything else
-    if let Err(e) = service.pre_commit() {
-        ui::print_error(&format!("Pre-commit failed: {e}"));
-        return Err(e);
     }
 
     let _effective_instructions = common
@@ -360,12 +271,7 @@ fn setup_pr_service(
     config: &Config,
 ) -> Result<Arc<CommitService>> {
     // Use the common function for service creation
-    create_commit_service(
-        common,
-        repository_url,
-        config,
-        false, // verification not needed for PR descriptions
-    )
+    create_commit_service(common, repository_url, config)
 }
 
 /// Generates a PR description based on the provided parameters
@@ -629,7 +535,6 @@ fn create_commit_service(
     common: &CommonParams,
     repository_url: Option<String>,
     config: &Config,
-    verify: bool,
 ) -> Result<Arc<CommitService>> {
     // Combine repository URL from CLI and CommonParams
     let repo_url = repository_url.or(common.repository_url.clone());
@@ -647,7 +552,6 @@ fn create_commit_service(
             config.clone(),
             &repo_path,
             provider_name,
-            verify,
             detail_level,
             git_repo,
         )
@@ -667,7 +571,6 @@ fn create_completion_service(
     common: &CommonParams,
     repository_url: Option<String>,
     config: &Config,
-    verify: bool,
 ) -> Result<Arc<CompletionService>> {
     // Combine repository URL from CLI and CommonParams
     let repo_url = repository_url.or(common.repository_url.clone());
@@ -679,7 +582,7 @@ fn create_completion_service(
     let provider_name = &config.default_provider;
 
     let service = Arc::new(
-        CompletionService::new(config.clone(), &repo_path, provider_name, verify, git_repo)
+        CompletionService::new(config.clone(), &repo_path, provider_name, git_repo)
             .context("Failed to create CompletionService")?,
     );
 

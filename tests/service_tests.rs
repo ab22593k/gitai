@@ -20,7 +20,6 @@ async fn test_perform_commit() -> Result<()> {
     let config = Config::default();
     let repo_path = PathBuf::from(temp_dir.path());
     let provider_name = "test";
-    let verify = true;
 
     // Create a new GitRepo for the service
     let service_repo = GitRepo::new(temp_dir.path())?;
@@ -29,7 +28,6 @@ async fn test_perform_commit() -> Result<()> {
         config,
         &repo_path,
         provider_name,
-        verify,
         DetailLevel::Standard,
         service_repo,
     )?;
@@ -54,7 +52,6 @@ async fn test_perform_amend_commit() -> Result<()> {
     let config = Config::default();
     let repo_path = PathBuf::from(temp_dir.path());
     let provider_name = "test";
-    let verify = true;
 
     // Create a new GitRepo for the service
     let service_repo = GitRepo::new(temp_dir.path())?;
@@ -63,7 +60,6 @@ async fn test_perform_amend_commit() -> Result<()> {
         config,
         &repo_path,
         provider_name,
-        verify,
         DetailLevel::Standard,
         service_repo,
     )?;

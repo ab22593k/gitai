@@ -72,7 +72,6 @@ pub struct Cli {
 #[command(subcommand_negates_reqs = true)]
 #[command(subcommand_precedence_over_arg = true)]
 pub enum Gait {
-    // Feature commands first
     /// Generate a commit message using AI
     #[command(
         about = "Generate a commit message using AI",
@@ -83,31 +82,39 @@ pub enum Gait {
         #[command(flatten)]
         common: CommonParams,
 
-        /// Automatically commit with the generated message
-        #[arg(short, long, help = "Automatically commit with the generated message")]
-        auto_commit: bool,
-
         /// Print the generated message to stdout and exit
         #[arg(short, long, help = "Print the generated message to stdout and exit")]
         print: bool,
 
-        /// Skip the verification step (pre/post commit hooks)
-        #[arg(long, help = "Skip verification steps (pre/post commit hooks)")]
-        no_verify: bool,
-
-        /// Amend the last commit or a specific commit with a new AI-generated message
+        /// Dry run mode: do not make real HTTP requests, for UI testing
         #[arg(
             long,
-            help = "Amend the last commit or a specific commit with a new AI-generated message"
+            help = "Dry run mode: do not make real HTTP requests, for UI testing"
         )]
-        amend: bool,
+        dry_run: bool,
 
-        /// Specific commit to amend (hash, branch, or reference). Defaults to HEAD when --amend is used
+        /// Complete a commit message instead of generating from scratch
         #[arg(
             long,
-            help = "Specific commit to amend (hash, branch, or reference). Defaults to HEAD when --amend is used"
+            help = "Complete a commit message instead of generating from scratch"
         )]
-        commit: Option<String>,
+        complete: bool,
+
+        /// Prefix text to complete (required when using --complete)
+        #[arg(
+            long,
+            help = "Prefix text to complete (required when using --complete)",
+            requires = "complete"
+        )]
+        prefix: Option<String>,
+
+        /// Context ratio for completion (0.0 to 1.0, default: 0.5)
+        #[arg(
+            long,
+            help = "Context ratio for completion (0.0 to 1.0, default: 0.5). Higher values use more of the original message as context.",
+            requires = "complete"
+        )]
+        context_ratio: Option<f32>,
     },
 
     /// Generate a pull request description
@@ -242,12 +249,8 @@ Available LLM Providers: {providers_list}"
 /// Configuration for the cmsg command
 #[allow(clippy::struct_excessive_bools)]
 pub struct CmsgConfig {
-    pub auto_commit: bool,
     pub print_only: bool,
-    pub verify: bool,
     pub dry_run: bool,
-    pub amend: bool,
-    pub commit_ref: Option<String>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -260,8 +263,8 @@ pub async fn handle_message(
     context_ratio: Option<f32>,
 ) -> anyhow::Result<()> {
     debug!(
-        "Handling 'message' command with common: {common:?}, auto_commit: {}, print: {}, verify: {}, amend: {}, commit_ref: {:?}, complete: {complete}, prefix: {prefix:?}, context_ratio: {context_ratio:?}",
-        config.auto_commit, config.print_only, config.verify, config.amend, config.commit_ref,
+        "Handling 'message' command with common: {common:?}, print: {}, complete: {complete}, prefix: {prefix:?}, context_ratio: {context_ratio:?}",
+        config.print_only,
     );
 
     if complete {
@@ -275,26 +278,14 @@ pub async fn handle_message(
             prefix_text,
             Some(context_ratio_val),
             config.print_only,
-            config.verify,
             config.dry_run,
-            config.amend,
-            config.commit_ref,
             repository_url,
         )
         .await
     } else {
         // Handle generation mode
-        commit::handle_message_command(
-            common,
-            config.auto_commit,
-            config.print_only,
-            config.verify,
-            config.dry_run,
-            config.amend,
-            config.commit_ref,
-            repository_url,
-        )
-        .await
+        commit::handle_message_command(common, config.print_only, config.dry_run, repository_url)
+            .await
     }
 }
 
@@ -336,26 +327,22 @@ pub async fn handle_command(command: Gait, repository_url: Option<String>) -> an
     match command {
         Gait::Message {
             common,
-            auto_commit,
             print,
-            no_verify,
-            amend,
-            commit,
+            dry_run,
+            complete,
+            prefix,
+            context_ratio,
         } => {
             handle_message(
                 common,
                 CmsgConfig {
-                    auto_commit,
                     print_only: print,
-                    verify: !no_verify,
-                    dry_run: false,
-                    amend,
-                    commit_ref: commit,
+                    dry_run,
                 },
                 repository_url,
-                false,
-                None,
-                None,
+                complete,
+                prefix,
+                context_ratio,
             )
             .await
         }

@@ -60,11 +60,25 @@ impl Scorer for PathScorer {
                 || path.ends_with("test.ts")
             {
                 score -= 0.2; // Tests are important but secondary to implementation
-            } else if path.starts_with("docs/") || Path::new(&path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("md")) {
+            } else if path.starts_with("docs/")
+                || Path::new(&path)
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
+            {
                 score -= 0.3; // Documentation is supporting context
-            } else if path.contains("lock") || Path::new(&path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("map")) {
+            } else if path.contains("lock")
+                || Path::new(&path)
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("map"))
+            {
                 score -= 0.8; // generated files are low relevance
-            } else if path.contains("config") || Path::new(&path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("toml")) || Path::new(&path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
+            } else if path.contains("config")
+                || Path::new(&path)
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("toml"))
+                || Path::new(&path)
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
             {
                 score += 0.2; // Config changes are often significant
             }
