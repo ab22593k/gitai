@@ -83,14 +83,22 @@ impl TokenOptimizer {
         // Add diffs with importance scores (staged changes are most important)
         for (i, file) in context.staged_files.iter().enumerate() {
             let token_count = self.count_tokens(&file.diff);
-            // Importance = base_multiplier * token_count * change_type_factor
+            // Importance = base_multiplier * log(token_count) * change_type_factor
+            // specific priority logic:
+            // 1. Logarithmic scale for size prevents huge files from dominating
+            // 2. Base multiplier ensures diffs are always prioritized over other types
             let change_type_factor = match file.change_type {
                 crate::core::context::ChangeType::Added => 1.2, // New files are important
                 crate::core::context::ChangeType::Modified => 1.0, // Standard modifications
                 crate::core::context::ChangeType::Deleted => 0.8, // Deletions less important
             };
+
             #[allow(clippy::cast_precision_loss, clippy::as_conversions)]
-            let importance = Self::DIFF_BASE_MULTIPLIER * token_count as f32 * change_type_factor;
+            let size_factor = (token_count as f32).ln().max(1.0);
+
+            #[allow(clippy::cast_precision_loss, clippy::as_conversions)]
+            let importance = Self::DIFF_BASE_MULTIPLIER * size_factor * change_type_factor;
+
             context_items.push(ContextItem {
                 item_type: ContextItemType::Diff { file_index: i },
                 token_count,
@@ -101,13 +109,16 @@ impl TokenOptimizer {
         // Add commits with importance scores (recent commits are important for context)
         for (i, commit) in context.recent_commits.iter().enumerate() {
             let token_count = self.count_tokens(&commit.message);
-            // Importance = base_multiplier * token_count * recency_factor * length_factor
+            // Importance = base_multiplier * log(token_count) * recency_factor
             #[allow(clippy::cast_precision_loss, clippy::as_conversions)]
             let recency_factor = 1.0 / (i + 1) as f32; // Earlier commits more important
-            let length_factor = if token_count > 50 { 1.2 } else { 1.0 }; // Longer messages may be more informative
+
             #[allow(clippy::cast_precision_loss, clippy::as_conversions)]
-            let importance =
-                Self::COMMIT_BASE_MULTIPLIER * token_count as f32 * recency_factor * length_factor;
+            let size_factor = (token_count as f32).ln().max(1.0);
+
+            #[allow(clippy::cast_precision_loss, clippy::as_conversions)]
+            let importance = Self::COMMIT_BASE_MULTIPLIER * size_factor * recency_factor;
+
             context_items.push(ContextItem {
                 item_type: ContextItemType::Commit { commit_index: i },
                 token_count,
@@ -119,14 +130,15 @@ impl TokenOptimizer {
         for (i, file) in context.staged_files.iter().enumerate() {
             if let Some(content) = &file.content {
                 let token_count = self.count_tokens(content);
-                // Importance = base_multiplier * token_count * relevance_factor * size_factor
-                let relevance_factor = 1.0; // All staged files are equally relevant
-                let size_factor = if token_count > 100 { 0.8 } else { 1.0 }; // Very large files get slightly lower priority
+                // Importance = base_multiplier * log(token_count) * relevance_factor
+                let relevance_factor = 1.0;
+
                 #[allow(clippy::cast_precision_loss, clippy::as_conversions)]
-                let importance = Self::CONTENT_BASE_MULTIPLIER
-                    * token_count as f32
-                    * relevance_factor
-                    * size_factor;
+                let size_factor = (token_count as f32).ln().max(1.0);
+
+                #[allow(clippy::cast_precision_loss, clippy::as_conversions)]
+                let importance = Self::CONTENT_BASE_MULTIPLIER * size_factor * relevance_factor;
+
                 context_items.push(ContextItem {
                     item_type: ContextItemType::Content { file_index: i },
                     token_count,

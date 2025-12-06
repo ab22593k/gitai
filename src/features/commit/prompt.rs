@@ -94,13 +94,13 @@ pub fn create_user_prompt(context: &CommitContext, detail_level: DetailLevel) ->
          \n\
          **Branch:** {}\n\
          \n\
+         **Detailed Changes (Diffs):**\n\
+         {}\n\
+         \n\
          **Recent Commits:**\n\
          {}\n\
          \n\
-         **Staged Changes:**\n\
-         {}\n\
-         \n\
-         **Detailed Changes:**\n\
+         **Staged Changes List:**\n\
          {}\n\
          \n\
          **Author's Commit History:**\n\
@@ -108,15 +108,16 @@ pub fn create_user_prompt(context: &CommitContext, detail_level: DetailLevel) ->
          \n\
          ## Analysis Requirements\n\
          \n\
-         1. ANALYZE the patterns in the author's commit history\n\
-         2. Ensure the generated message maintains consistent tone, style, and formatting\n\
-         3. Follow conventional commit standards when appropriate\n\
+         1. **PRIMARY FOCUS:** Analyze the 'Detailed Changes' section. Use the diffs as the source of truth.\n\
+         2. ANALYZE the patterns in the author's commit history\n\
+         3. Ensure the generated message maintains consistent tone, style, and formatting\n\
+         4. Follow conventional commit standards when appropriate\n\
          {}\n\
-         5. Focus on the intent and impact of the changes\n",
+         6. Focus on the intent and impact of the changes, ignoring large boilerplate updates if trivial.\n",
         context.branch,
+        detailed_changes,
         recent_commits,
         staged_changes,
-        detailed_changes,
         author_history,
         detail_instructions
     )
@@ -204,10 +205,10 @@ fn format_detailed_changes(
         diff_section
     ));
 
-    // Second section: Full file contents (only for added/modified files)
+    // Second section: Full file contents (only for added files)
     let content_files: Vec<_> = files
         .iter()
-        .filter(|file| file.change_type != ChangeType::Deleted && file.content.is_some())
+        .filter(|file| file.change_type == ChangeType::Added && file.content.is_some())
         .collect();
 
     if !content_files.is_empty() {

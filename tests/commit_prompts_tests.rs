@@ -52,7 +52,7 @@ fn test_create_user_prompt_includes_staged_changes() {
     let context = create_mock_commit_context();
     let prompt = create_user_prompt(&context, DetailLevel::Standard);
 
-    assert!(prompt.contains("Staged Changes"));
+    assert!(prompt.contains("Staged Changes List"));
     // Check that it includes the mock file
     assert!(prompt.contains("file1.rs"));
 }
@@ -62,7 +62,7 @@ fn test_create_user_prompt_includes_detailed_changes() {
     let context = create_mock_commit_context();
     let prompt = create_user_prompt(&context, DetailLevel::Standard);
 
-    assert!(prompt.contains("Detailed Changes"));
+    assert!(prompt.contains("Detailed Changes (Diffs)"));
     // Should include the diff or analysis
     assert!(prompt.contains("CHANGE SUMMARY"));
 }
@@ -113,7 +113,7 @@ fn test_user_prompt_context_elements_are_properly_formatted() {
     }
 
     // Test staged changes formatting
-    assert!(prompt.contains("Staged Changes:"));
+    assert!(prompt.contains("Staged Changes List:"));
     for file in &context.staged_files {
         assert!(prompt.contains(&file.path));
         // Should contain relevance score
@@ -121,7 +121,7 @@ fn test_user_prompt_context_elements_are_properly_formatted() {
     }
 
     // Test detailed changes formatting
-    assert!(prompt.contains("Detailed Changes:"));
+    assert!(prompt.contains("Detailed Changes (Diffs):"));
     assert!(prompt.contains("CHANGE SUMMARY"));
     assert!(prompt.contains("file(s) added"));
     assert!(prompt.contains("file(s) modified"));
@@ -193,13 +193,17 @@ fn test_commit_user_prompt_structure() {
         "Should use bold for recent commits"
     );
     assert!(
-        prompt.contains("**Staged Changes:**"),
+        prompt.contains("**Staged Changes List:**"),
         "Should use bold for staged changes"
     );
 
     // Test numbered requirements
     assert!(
-        prompt.contains("1. ANALYZE"),
+        prompt.contains("1. **PRIMARY FOCUS:**"),
+        "Should have primary focus instruction"
+    );
+    assert!(
+        prompt.contains("2. ANALYZE"),
         "Should have numbered analysis steps"
     );
 }
