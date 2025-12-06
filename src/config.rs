@@ -5,6 +5,7 @@ use crate::git::GitRepo;
 
 use anyhow::{Context, Result, anyhow};
 use git2::Config as GitConfig;
+use keyring::Entry;
 use log::debug;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -40,6 +41,39 @@ fn get_layered_value(
     None
 }
 
+/// Get the environment variable name for a provider's API key
+fn get_api_key_env_var(provider: &str) -> Option<&'static str> {
+    match provider {
+        "openai" => Some("OPENAI_API_KEY"),
+        "anthropic" => Some("ANTHROPIC_API_KEY"),
+        "google" => Some("GOOGLE_API_KEY"),
+        "groq" => Some("GROQ_API_KEY"),
+        "xai" => Some("XAI_API_KEY"),
+        "deepseek" => Some("DEEPSEEK_API_KEY"),
+        "openrouter" => Some("OPENROUTER_API_KEY"),
+        _ => None,
+    }
+}
+
+/// Get API key for a provider: env var > keyring
+fn get_api_key_for_provider(provider: &str) -> Option<String> {
+    // 1. Check environment variable
+    if let Some(env_var) = get_api_key_env_var(provider) {
+        if let Ok(val) = std::env::var(env_var) {
+            return Some(val);
+        }
+    }
+
+    // 2. Check keyring
+    if let Ok(entry) = Entry::new("gait", provider) {
+        if let Ok(val) = entry.get_password() {
+            return Some(val);
+        }
+    }
+
+    None
+}
+
 /// Configuration structure
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Config {
@@ -61,6 +95,7 @@ pub struct Config {
 #[derive(Deserialize, Serialize, Clone, Debug, Default)]
 pub struct ProviderConfig {
     /// API key for the provider
+    #[serde(skip)]
     pub api_key: String,
     /// Model to be used with the provider
     pub model_name: String,
@@ -98,19 +133,9 @@ impl Config {
 
         let mut providers = HashMap::new();
         for provider in get_available_provider_names() {
-            let api_key_env = match provider.as_str() {
-                "openai" => Some("OPENAI_API_KEY"),
-                "anthropic" => Some("ANTHROPIC_API_KEY"),
-                "google" => Some("GOOGLE_API_KEY"),
-                _ => None,
-            };
+            let api_key = get_api_key_for_provider(&provider);
 
-            if let Some(api_key) = get_layered_value(
-                &format!("gait.{provider}-apikey"),
-                api_key_env,
-                local_config.as_ref(),
-                global_config.as_ref(),
-            ) {
+            if let Some(api_key) = api_key {
                 let default_model = get_default_model_for_provider(&provider).to_string();
                 let model = get_layered_value(
                     &format!("gait.{provider}-model"),
@@ -215,14 +240,6 @@ impl Config {
         config.set_str(&format!("{prefix}.instructions"), &self.instructions)?;
 
         for (provider, provider_config) in &self.providers {
-            // Set api key only if not empty
-            if !provider_config.api_key.is_empty() {
-                config.set_str(
-                    &format!("{prefix}.{provider}-apikey"),
-                    &provider_config.api_key,
-                )?;
-            }
-
             // Set model
             config.set_str(
                 &format!("{prefix}.{provider}-model"),
@@ -352,23 +369,10 @@ impl Config {
             provider
         };
 
-        // First try direct lookup
-        self.providers.get(provider_to_lookup).or_else(|| {
-            // If not found, try lowercased version
-            let lowercase_provider = provider_to_lookup.to_lowercase();
-
-            self.providers.get(&lowercase_provider).or_else(|| {
-                // If the provider is not in the config, check if it's a valid provider
-                if get_available_provider_names().contains(&lowercase_provider) {
-                    // Return None for valid providers not in the config
-                    // This allows the code to use default values for providers like Ollama
-                    None
-                } else {
-                    // Return None for invalid providers
-                    None
-                }
-            })
-        })
+        // Try direct lookup first, then lowercase
+        self.providers
+            .get(provider_to_lookup)
+            .or_else(|| self.providers.get(&provider_to_lookup.to_lowercase()))
     }
 
     /// Set whether this config is a project config

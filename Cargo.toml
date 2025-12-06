@@ -29,6 +29,10 @@ path = "src/bin/release_notes.rs"
 name = "git-wire"
 path = "src/bin/wire.rs"
 
+[[bin]]
+name = "git-keys"
+path = "src/bin/keys.rs"
+
 [features]
 integration = []
 
@@ -81,6 +85,8 @@ syntect = "5.3.0"
 tracing = "0.1.41"
 tracing-appender = "0.2.3"
 tracing-subscriber = { version = "0.3.20", features = ["json"] }
+keyring = { version = "3.6.3", features = ["linux-native"] }
+rpassword = "7.4.0"
 
 [dev-dependencies]
 dotenvy = "0.15.1"
