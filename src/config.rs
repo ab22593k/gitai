@@ -51,6 +51,7 @@ fn get_api_key_env_var(provider: &str) -> Option<&'static str> {
         "xai" => Some("XAI_API_KEY"),
         "deepseek" => Some("DEEPSEEK_API_KEY"),
         "openrouter" => Some("OPENROUTER_API_KEY"),
+        "cerebras" => Some("CEREBRAS_API_KEY"),
         _ => None,
     }
 }

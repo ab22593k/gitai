@@ -82,7 +82,14 @@ static PROVIDER_DEFAULTS: std::sync::LazyLock<
             model: "gpt-4.1",
             token_limit: 128_000,
         },
-    ); // assuming
+    );
+    m.insert(
+        "cerebras",
+        ProviderDefault {
+            model: "llama-3.3-70b",
+            token_limit: 128_000,
+        },
+    );
     m
 });
 
@@ -111,11 +118,14 @@ where
     debug!("System prompt: {system_prompt}");
     debug!("User prompt: {user_prompt}");
 
-    // Parse the provider type
-    let backend = if provider_name.to_lowercase() == "openrouter" {
-        LLMBackend::OpenRouter
-    } else {
-        LLMBackend::from_str(provider_name).map_err(|e| anyhow!("Invalid provider: {e}"))?
+    // Parse the provider type - Cerebras uses OpenAI-compatible API
+    let (backend, custom_base_url) = match provider_name.to_lowercase().as_str() {
+        "openrouter" => (LLMBackend::OpenRouter, None),
+        "cerebras" => (LLMBackend::OpenAI, Some("https://api.cerebras.ai/v1/")),
+        _ => (
+            LLMBackend::from_str(provider_name).map_err(|e| anyhow!("Invalid provider: {e}"))?,
+            None,
+        ),
     };
 
     // Get provider configuration
@@ -137,6 +147,11 @@ where
     // Set API key if needed
     if requires_api_key(&backend) && !provider_config.api_key.is_empty() {
         builder = builder.api_key(provider_config.api_key.clone());
+    }
+
+    // Set custom base URL if specified (e.g., for Cerebras)
+    if let Some(base_url) = custom_base_url {
+        builder = builder.base_url(base_url);
     }
 
     // Set temperature if specified in additional params
@@ -314,7 +329,6 @@ fn extract_and_parse_json<T: DeserializeOwned>(text: &str) -> Result<T> {
     serde_json::from_str(&cleaned_json).map_err(|e| anyhow!("JSON parse error: {e}"))
 }
 
-/// Returns a list of available LLM providers as strings
 pub fn get_available_provider_names() -> Vec<String> {
     vec![
         "openai".to_string(),
@@ -326,6 +340,7 @@ pub fn get_available_provider_names() -> Vec<String> {
         "deepseek".to_string(),
         "phind".to_string(),
         "openrouter".to_string(),
+        "cerebras".to_string(),
     ]
 }
 
