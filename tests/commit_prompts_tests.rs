@@ -248,7 +248,10 @@ fn test_commit_system_prompt_structure() {
         prompt.contains("## Allowed Types"),
         "Should have allowed types section"
     );
-    assert!(prompt.contains("## Rules"), "Should have rules section");
+    assert!(
+        prompt.contains("## Specification (RFC 2119)"),
+        "Should have specification section"
+    );
     assert!(
         prompt.contains("## Instructions"),
         "Should have instructions section"

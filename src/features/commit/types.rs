@@ -149,7 +149,7 @@ mod tests {
     fn test_format_commit_message_handles_empty_body() {
         let message = GeneratedMessage {
             title: "chore: update dependencies".to_string(),
-            message: "".to_string(),
+            message: String::new(),
         };
 
         let formatted = format_commit_message(&message);
