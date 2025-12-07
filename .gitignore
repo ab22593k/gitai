@@ -2,6 +2,7 @@
 /target
 
 # Agents
+.agent/
 .genkit/
 .crush/
 .specify/
