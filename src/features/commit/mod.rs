@@ -2,6 +2,7 @@
 mod cli;
 #[allow(clippy::uninlined_format_args)]
 pub mod completion;
+mod git_service_core;
 mod prompt_optimizer;
 mod relevance;
 pub mod types;

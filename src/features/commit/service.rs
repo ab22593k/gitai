@@ -1,3 +1,4 @@
+use super::git_service_core::GitServiceCore;
 use super::prompt::{create_system_prompt, create_user_prompt};
 use super::types::GeneratedMessage;
 use crate::common::DetailLevel;
@@ -9,16 +10,12 @@ use crate::git::{CommitResult, GitRepo};
 use anyhow::Result;
 use log::debug;
 use std::path::Path;
-use std::sync::Arc;
-use tokio::sync::{RwLock, mpsc};
+use tokio::sync::mpsc;
 
 /// Service for handling Git commit operations with AI assistance
 pub struct CommitService {
-    config: Config,
-    repo: Arc<GitRepo>,
-    provider_name: String,
+    core: GitServiceCore,
     detail_level: DetailLevel,
-    cached_context: Arc<RwLock<Option<CommitContext>>>,
 }
 
 impl CommitService {
@@ -43,84 +40,46 @@ impl CommitService {
         git_repo: GitRepo,
     ) -> Result<Self> {
         Ok(Self {
-            config,
-            repo: Arc::new(git_repo),
-            provider_name: provider_name.to_string(),
+            core: GitServiceCore::new(config, provider_name, git_repo),
             detail_level,
-            cached_context: Arc::new(RwLock::new(None)),
         })
     }
 
     /// Check if the repository is remote
+    #[inline]
     pub fn is_remote_repository(&self) -> bool {
-        self.repo.is_remote()
+        self.core.is_remote_repository()
     }
 
     /// Check the environment for necessary prerequisites
+    #[inline]
     pub fn check_environment(&self) -> Result<()> {
-        self.config.check_environment()
+        self.core.check_environment()
     }
 
     /// Get Git information for the current repository
+    #[inline]
     pub async fn get_git_info(&self) -> Result<CommitContext> {
-        {
-            let cached_context = self.cached_context.read().await;
-            if let Some(context) = &*cached_context {
-                return Ok(context.clone());
-            }
-        }
-
-        let context = self.repo.get_git_info(&self.config).await?;
-
-        {
-            let mut cached_context = self.cached_context.write().await;
-            *cached_context = Some(context.clone());
-        }
-        Ok(context)
+        self.core.get_git_info().await
     }
 
     /// Get Git information including unstaged changes
+    #[inline]
     pub async fn get_git_info_with_unstaged(
         &self,
         include_unstaged: bool,
     ) -> Result<CommitContext> {
-        if !include_unstaged {
-            return self.get_git_info().await;
-        }
-
-        {
-            // Only use cached context if we're not including unstaged changes
-            // because unstaged changes might have changed since we last checked
-            let cached_context = self.cached_context.read().await;
-            if let Some(context) = &*cached_context
-                && !include_unstaged
-            {
-                return Ok(context.clone());
-            }
-        }
-
-        let context = self
-            .repo
-            .get_git_info_with_unstaged(&self.config, include_unstaged)
-            .await?;
-
-        // Don't cache the context with unstaged changes since they can be constantly changing
-        if !include_unstaged {
-            let mut cached_context = self.cached_context.write().await;
-            *cached_context = Some(context.clone());
-        }
-
-        Ok(context)
+        self.core.get_git_info_with_unstaged(include_unstaged).await
     }
 
     /// Get Git information for a specific commit
     #[allow(clippy::unused_async)]
     pub async fn get_git_info_for_commit(&self, commit_id: &str) -> Result<CommitContext> {
-        debug!("Getting git info for commit: {}", commit_id);
-
-        let context = self.repo.get_git_info_for_commit(&self.config, commit_id)?;
-
-        // We don't cache commit-specific contexts
+        debug!("Getting git info for commit: {commit_id}");
+        let context = self
+            .core
+            .repo()
+            .get_git_info_for_commit(self.core.config(), commit_id)?;
         Ok(context)
     }
 
@@ -128,18 +87,16 @@ impl CommitService {
     ///
     /// # Arguments
     ///
-    /// * `preset` - The instruction preset to use
     /// * `instructions` - Custom instructions for the AI
     ///
     /// # Returns
     ///
     /// A Result containing the generated commit message or an error
     pub async fn generate_message(&self, instructions: &str) -> anyhow::Result<GeneratedMessage> {
-        let mut config_clone = self.config.clone();
-
+        let mut config_clone = self.core.config_clone();
         config_clone.instructions = instructions.to_string();
 
-        let context = self.get_git_info().await?;
+        let context = self.core.get_git_info().await?;
 
         // Create system prompt
         let system_prompt = create_system_prompt(&config_clone)?;
@@ -147,7 +104,7 @@ impl CommitService {
         // Use the shared optimization logic
         let (_, final_user_prompt) = super::prompt_optimizer::optimize_prompt(
             &config_clone,
-            &self.provider_name,
+            self.core.provider_name(),
             &system_prompt,
             context,
             |ctx| create_user_prompt(ctx, self.detail_level),
@@ -156,7 +113,7 @@ impl CommitService {
 
         let generated_message = llm::get_message::<GeneratedMessage>(
             &config_clone,
-            &self.provider_name,
+            self.core.provider_name(),
             &system_prompt,
             &final_user_prompt,
         )
@@ -180,8 +137,7 @@ impl CommitService {
         instructions: &str,
         context: CommitContext,
     ) -> anyhow::Result<GeneratedMessage> {
-        let mut config_clone = self.config.clone();
-
+        let mut config_clone = self.core.config_clone();
         config_clone.instructions = instructions.to_string();
 
         // Create system prompt
@@ -190,7 +146,7 @@ impl CommitService {
         // Use the shared optimization logic with provided context
         let (_, final_user_prompt) = super::prompt_optimizer::optimize_prompt(
             &config_clone,
-            &self.provider_name,
+            self.core.provider_name(),
             &system_prompt,
             context,
             |ctx| create_user_prompt(ctx, self.detail_level),
@@ -199,7 +155,7 @@ impl CommitService {
 
         let generated_message = llm::get_message::<GeneratedMessage>(
             &config_clone,
-            &self.provider_name,
+            self.core.provider_name(),
             &system_prompt,
             &final_user_prompt,
         )
@@ -212,7 +168,6 @@ impl CommitService {
     ///
     /// # Arguments
     ///
-    /// * `preset` - The instruction preset to use
     /// * `instructions` - Custom instructions for the AI
     /// * `from` - The starting Git reference (exclusive)
     /// * `to` - The ending Git reference (inclusive)
@@ -226,17 +181,17 @@ impl CommitService {
         from: &str,
         to: &str,
     ) -> anyhow::Result<super::types::GeneratedPullRequest> {
-        let mut config_clone = self.config.clone();
-
+        let mut config_clone = self.core.config_clone();
         config_clone.instructions = instructions.to_string();
 
         // Get context for the commit range
-        let context = self
-            .repo
-            .get_git_info_for_commit_range(&self.config, from, to)?;
+        let context =
+            self.core
+                .repo()
+                .get_git_info_for_commit_range(self.core.config(), from, to)?;
 
         // Get commit messages for the PR
-        let commit_messages = self.repo.get_commits_for_pr(from, to)?;
+        let commit_messages = self.core.repo().get_commits_for_pr(from, to)?;
 
         // Create system prompt
         let system_prompt = super::prompt::create_pr_system_prompt(&config_clone)?;
@@ -244,7 +199,7 @@ impl CommitService {
         // Use the shared optimization logic
         let (_, final_user_prompt) = super::prompt_optimizer::optimize_prompt(
             &config_clone,
-            &self.provider_name,
+            self.core.provider_name(),
             &system_prompt,
             context,
             |ctx| super::prompt::create_pr_user_prompt(ctx, &commit_messages),
@@ -253,7 +208,7 @@ impl CommitService {
 
         let generated_pr = llm::get_message::<super::types::GeneratedPullRequest>(
             &config_clone,
-            &self.provider_name,
+            self.core.provider_name(),
             &system_prompt,
             &final_user_prompt,
         )
@@ -266,7 +221,6 @@ impl CommitService {
     ///
     /// # Arguments
     ///
-    /// * `preset` - The instruction preset to use
     /// * `instructions` - Custom instructions for the AI
     /// * `base_branch` - The base branch (e.g., "main")
     /// * `target_branch` - The target branch (e.g., "feature-branch")
@@ -280,17 +234,21 @@ impl CommitService {
         base_branch: &str,
         target_branch: &str,
     ) -> anyhow::Result<super::types::GeneratedPullRequest> {
-        let mut config_clone = self.config.clone();
-
+        let mut config_clone = self.core.config_clone();
         config_clone.instructions = instructions.to_string();
 
         // Get context for the branch comparison
-        let context =
-            self.repo
-                .get_git_info_for_branch_diff(&self.config, base_branch, target_branch)?;
+        let context = self.core.repo().get_git_info_for_branch_diff(
+            self.core.config(),
+            base_branch,
+            target_branch,
+        )?;
 
         // Get commit messages for the PR (commits in target_branch not in base_branch)
-        let commit_messages = self.repo.get_commits_for_pr(base_branch, target_branch)?;
+        let commit_messages = self
+            .core
+            .repo()
+            .get_commits_for_pr(base_branch, target_branch)?;
 
         // Create system prompt
         let system_prompt = super::prompt::create_pr_system_prompt(&config_clone)?;
@@ -298,7 +256,7 @@ impl CommitService {
         // Use the shared optimization logic
         let (_, final_user_prompt) = super::prompt_optimizer::optimize_prompt(
             &config_clone,
-            &self.provider_name,
+            self.core.provider_name(),
             &system_prompt,
             context,
             |ctx| super::prompt::create_pr_user_prompt(ctx, &commit_messages),
@@ -307,7 +265,7 @@ impl CommitService {
 
         let generated_pr = llm::get_message::<super::types::GeneratedPullRequest>(
             &config_clone,
-            &self.provider_name,
+            self.core.provider_name(),
             &system_prompt,
             &final_user_prompt,
         )
@@ -321,58 +279,20 @@ impl CommitService {
     /// # Arguments
     ///
     /// * `message` - The commit message.
+    /// * `amend` - Whether to amend the previous commit.
+    /// * `commit_ref` - Optional commit reference for amending.
     ///
     /// # Returns
     ///
     /// A Result containing the `CommitResult` or an error.
+    #[inline]
     pub fn perform_commit(
         &self,
         message: &str,
         amend: bool,
         commit_ref: Option<&str>,
     ) -> Result<CommitResult> {
-        // Check if this is a remote repository
-        if self.is_remote_repository() {
-            return Err(anyhow::anyhow!("Cannot commit to a remote repository"));
-        }
-
-        debug!(
-            "Performing commit with message: {}, amend: {}, commit_ref: {:?}",
-            message, amend, commit_ref
-        );
-
-        // Execute pre-commit hook
-        debug!("Executing pre-commit hook");
-        if let Err(e) = self.repo.execute_hook("pre-commit") {
-            debug!("Pre-commit hook failed: {}", e);
-            return Err(e);
-        }
-        debug!("Pre-commit hook executed successfully");
-
-        // Perform the commit
-        let commit_result = if amend {
-            self.repo
-                .amend_commit(message, commit_ref.unwrap_or("HEAD"))
-        } else {
-            self.repo.commit(message)
-        };
-
-        match commit_result {
-            Ok(result) => {
-                // Execute post-commit hook
-                debug!("Executing post-commit hook");
-                if let Err(e) = self.repo.execute_hook("post-commit") {
-                    debug!("Post-commit hook failed: {}", e);
-                    // We don't fail the commit if post-commit hook fails
-                }
-                debug!("Commit performed successfully");
-                Ok(result)
-            }
-            Err(e) => {
-                debug!("Commit failed: {}", e);
-                Err(e)
-            }
-        }
+        self.core.perform_commit(message, amend, commit_ref)
     }
 
     /// Create a channel for message generation

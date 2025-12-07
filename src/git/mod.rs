@@ -4,6 +4,8 @@
 mod commit;
 #[allow(clippy::uninlined_format_args)]
 mod files;
+mod history;
+mod hooks;
 #[allow(clippy::uninlined_format_args)]
 mod ignore_matcher;
 mod repository;
