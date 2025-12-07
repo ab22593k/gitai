@@ -227,7 +227,7 @@ pub fn get_combined_instructions(config: &Config) -> String {
         write!(
             &mut prompt,
             "\n\nAdditional instructions for the request:\n{}\n\n",
-            config.instructions
+            config.get_effective_instructions()
         )
         .expect("write to string should not fail");
     }

@@ -83,18 +83,20 @@ pub fn create_user_prompt(context: &CommitContext, detail_level: DetailLevel) ->
             "**Detail Level: MINIMAL**\n\
              - Generate ONLY the title line: `type(scope): description`\n\
              - NO body or footers\n\
-             - Maximum 72 characters for the title"
+             - Title MUST be 50-72 characters maximum (aim for 50)"
         }
         DetailLevel::Standard => {
             "**Detail Level: STANDARD**\n\
-             - Generate a title: `type(scope): description`\n\
+             - Generate a title: `type(scope): description` (50-72 characters, aim for 50)\n\
              - Include a brief body explaining the changes (1-3 sentences)\n\
+             - Body lines MUST be wrapped at 72 characters\n\
              - Footers are optional"
         }
         DetailLevel::Detailed => {
             "**Detail Level: DETAILED**\n\
-             - Generate a title: `type(scope): description`\n\
+             - Generate a title: `type(scope): description` (50-72 characters, aim for 50)\n\
              - Include a comprehensive body explaining the motivation and impact\n\
+             - Body lines MUST be wrapped at 72 characters\n\
              - Include relevant footers (e.g., `Refs: #issue`, `BREAKING CHANGE:` if applicable)\n\
              - Use bullet points in the body for multiple changes"
         }
@@ -555,7 +557,9 @@ pub fn create_completion_user_prompt(
          2. Complete the message maintaining the same style and conventions as the prefix\n\
          3. Continue naturally from where the prefix ends\n\
          4. Ensure the completed message follows Conventional Commits format\n\
-         5. Use imperative mood (e.g., \"add\" not \"added\" or \"adds\")\n",
+         5. Use imperative mood (e.g., \"add\" not \"added\" or \"adds\")\n\
+         6. Title MUST be 50-72 characters maximum (aim for 50)\n\
+         7. Body lines MUST be wrapped at 72 characters\n",
         prefix,
         context_ratio * 100.0,
         context.branch,
