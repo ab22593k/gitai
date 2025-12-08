@@ -10,7 +10,6 @@ use gait::{app, common::CommonParams};
 struct PrArgs {
     #[command(flatten)]
     common: CommonParams,
-
     /// Print the generated PR description to stdout and exit
     #[arg(
         short,
@@ -18,14 +17,12 @@ struct PrArgs {
         help = "Print the generated PR description to stdout and exit"
     )]
     print: bool,
-
     /// Starting branch, commit, or commitish for comparison
     #[arg(
         long,
         help = "Starting branch, commit, or commitish for comparison. For single commit analysis, specify just this parameter with a commit hash (e.g., --from abc1234). For reviewing multiple commits, use commitish syntax (e.g., --from HEAD~3 to review last 3 commits)"
     )]
     from: Option<String>,
-
     /// Target branch, commit, or commitish for comparison
     #[arg(
         long,

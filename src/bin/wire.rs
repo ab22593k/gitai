@@ -17,17 +17,13 @@ pub use gait::{CachedRepository, RepositoryConfiguration, WireOperation};
 struct Cli {
     #[command(subcommand)]
     command: Command,
-
     /// Narrow down the scope of commands targets by its name
     #[arg(global = true, short, long)]
     name: Option<String>,
-
     /// Narrow down the scope of commands targets by its name (same as `-n` and `--name`)
     #[arg(global = true, short, long)]
     target: Option<String>,
-
-    /// Execute the command with single thread
-    /// (slow, easy-to-read output, low resource consumption)
+    /// Execute the command with single thread (slow, easy-to-read output, low resource consumption)
     #[arg(global = true, short, long)]
     singlethread: bool,
 }

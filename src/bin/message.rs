@@ -11,25 +11,21 @@ use gait::{
 struct MessageArgs {
     #[command(flatten)]
     common: CommonParams,
-
     /// Print the generated message to stdout and exit
     #[arg(short, long, help = "Print message to stdout and exit")]
     print: bool,
-
     /// Dry run mode: do not make real HTTP requests, for UI testing
     #[arg(
         long,
         help = "Dry run mode: do not make real HTTP requests, for UI testing"
     )]
     dry_run: bool,
-
     /// Complete a commit message instead of generating from scratch
     #[arg(
         long,
         help = "Complete a commit message instead of generating from scratch"
     )]
     complete: bool,
-
     /// Prefix text to complete (required when using --complete)
     #[arg(
         long,
@@ -37,7 +33,6 @@ struct MessageArgs {
         requires = "complete"
     )]
     prefix: Option<String>,
-
     /// Context ratio for completion (0.0 to 1.0, default: 0.5)
     #[arg(
         long,

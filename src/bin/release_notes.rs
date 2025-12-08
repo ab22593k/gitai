@@ -7,15 +7,12 @@ use gait::{app, common::CommonParams};
 struct ReleaseNotesArgs {
     #[command(flatten)]
     common: CommonParams,
-
     /// Starting Git reference (commit hash, tag, or branch name)
     #[arg(long, required = true)]
     from: String,
-
     /// Ending Git reference (commit hash, tag, or branch name). Defaults to HEAD if not specified.
     #[arg(long)]
     to: Option<String>,
-
     /// Explicit version name to use in the release notes instead of getting it from Git
     #[arg(long, help = "Explicit version name to use in the release notes")]
     version_name: Option<String>,
