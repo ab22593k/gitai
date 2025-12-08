@@ -1,11 +1,9 @@
-use super::relevance::RelevanceScorer;
 use super::types::GeneratedMessage;
 use crate::common::{DetailLevel, get_combined_instructions};
 use crate::config::Config;
 use crate::core::context::{ChangeType, CommitContext, RecentCommit, StagedFile};
 
 use log::debug;
-use std::collections::HashMap;
 
 pub fn create_system_prompt(config: &Config) -> anyhow::Result<String> {
     let commit_schema = schemars::schema_for!(GeneratedMessage);
@@ -13,77 +11,17 @@ pub fn create_system_prompt(config: &Config) -> anyhow::Result<String> {
 
     let combined_instructions = get_combined_instructions(config);
     Ok(format!(
-        "# ROLE: Commit Message Generator\n\
+        "# ROLE: Software Engineer\n\
          \n\
-         You are an expert at creating high-quality commit messages following the \
-         Conventional Commits 1.0.0 specification.\n\
+         You are an expert Quality Assurance (QA) Engineer specializing in creating high-quality, \
+         conventional commit messages from code changes.\n\
          \n\
-         ## Conventional Commits Format\n\
+         ## Core Responsibilities\n\
          \n\
-         ```\n\
-         <type>[optional scope][optional !]: <description>\n\
-         \n\
-         [optional body]\n\
-         \n\
-         [optional footer(s)]\n\
-         ```\n\
-         \n\
-         ## Specification (RFC 2119)\n\
-         \n\
-         1. Commits MUST be prefixed with a type (noun: feat, fix, etc.), followed by \
-         OPTIONAL scope, OPTIONAL `!`, and REQUIRED terminal colon and space.\n\
-         2. Type `feat` MUST be used when adding a new feature (correlates with MINOR in SemVer).\n\
-         3. Type `fix` MUST be used for bug fixes (correlates with PATCH in SemVer).\n\
-         4. A scope MAY be provided after type. Scope MUST be a noun describing a section of \
-         the codebase surrounded by parenthesis, e.g., `fix(parser):`.\n\
-         5. A description MUST immediately follow the colon and space. It is a short summary \
-         of the code changes in imperative mood.\n\
-         6. A longer body MAY be provided after the description, beginning one blank line after.\n\
-         7. The body is free-form and MAY consist of any number of newline-separated paragraphs.\n\
-         8. Footers MAY be provided one blank line after the body. Each footer MUST consist of \
-         a word token, followed by `:<space>` or `<space>#` separator, followed by a value.\n\
-         9. Footer tokens MUST use `-` in place of whitespace (e.g., `Acked-by`), except \
-         `BREAKING CHANGE` which MAY be used as a token.\n\
-         10. Footer values MAY contain spaces and newlines.\n\
-         11. Breaking changes MUST be indicated in type/scope prefix OR as a footer entry.\n\
-         12. Footer breaking change MUST be uppercase `BREAKING CHANGE:` followed by description.\n\
-         13. Prefix breaking change MUST use `!` immediately before `:`. If `!` is used, \
-         `BREAKING CHANGE:` footer MAY be omitted.\n\
-         14. Types other than `feat` and `fix` MAY be used (e.g., docs, style, refactor, perf, \
-         test, build, ci, chore).\n\
-         15. Units of Conventional Commits MUST NOT be case-sensitive, except `BREAKING CHANGE` \
-         which MUST be uppercase.\n\
-         16. `BREAKING-CHANGE` MUST be synonymous with `BREAKING CHANGE` as a footer token.\n\
-         \n\
-         ## Allowed Types\n\
-         \n\
-         - **feat**: A new feature (correlates with MINOR in SemVer)\n\
-         - **fix**: A bug fix (correlates with PATCH in SemVer)\n\
-         - **docs**: Documentation only changes\n\
-         - **style**: Changes that do not affect the meaning of code (formatting, whitespace)\n\
-         - **refactor**: A code change that neither fixes a bug nor adds a feature\n\
-         - **perf**: A code change that improves performance\n\
-         - **test**: Adding missing tests or correcting existing tests\n\
-         - **build**: Changes affecting build system or external dependencies\n\
-         - **ci**: Changes to CI configuration files and scripts\n\
-         - **chore**: Other changes that don't modify src or test files\n\
-         \n\
-         ## Examples\n\
-         \n\
-         - `feat: allow provided config object to extend other configs`\n\
-         - `feat(lang): add Polish language`\n\
-         - `feat!: send an email to the customer when a product is shipped`\n\
-         - `feat(api)!: send an email to the customer when a product is shipped`\n\
-         - `fix: prevent racing of requests`\n\
-         - `docs: correct spelling of CHANGELOG`\n\
-         - Footer example: `BREAKING CHANGE: environment variables now take precedence over config files`\n\
-         - Footer example: `Refs: #123`\n\
-         - Footer example: `Reviewed-by: Z`\n\
-         \n\
-         ## Line Width Convention\n\
-         \n\
-         - Title/subject line: 50-72 characters maximum (aim for 50)\n\
-         - Body lines: MUST be wrapped at 72 characters\n\
+         1. **Analyze Context:** Infer the intent and impact of code changes\n\
+         2. **Generate Messages:** Create well-structured, conventional commit messages\n\
+         3. **Maintain Standards:** Follow conventional commit format and best practices\n\
+         4. **Ensure Quality:** Make messages concise, descriptive, and actionable\n\
          \n\
          ## Instructions\n\
          \n\
@@ -104,35 +42,21 @@ pub fn create_system_prompt(config: &Config) -> anyhow::Result<String> {
 }
 
 pub fn create_user_prompt(context: &CommitContext, detail_level: DetailLevel) -> String {
-    let scorer = RelevanceScorer::new();
-    let relevance_scores = scorer.score(context);
-    let detailed_changes = format_detailed_changes(&context.staged_files, &relevance_scores);
+    let detailed_changes = format_detailed_changes(&context.staged_files);
 
     let recent_commits = format_recent_commits(&context.recent_commits);
-    let staged_changes = format_staged_files(&context.staged_files, &relevance_scores);
+    let staged_changes = format_staged_files(&context.staged_files);
     let author_history = format_enhanced_author_history(&context.author_history, context);
 
     let detail_instructions = match detail_level {
         DetailLevel::Minimal => {
-            "**Detail Level: MINIMAL**\n\
-             - Generate ONLY the title line: `type(scope): description`\n\
-             - NO body or footers\n\
-             - Title MUST be 50-72 characters maximum (aim for 50)"
+            "4. Message should be EXTREMELY concise. Generate ONLY a single title line if possible, or a title and one short summary line. No long bullet points."
         }
         DetailLevel::Standard => {
-            "**Detail Level: STANDARD**\n\
-             - Generate a title: `type(scope): description` (50-72 characters, aim for 50)\n\
-             - Include a brief body explaining the changes (1-3 sentences)\n\
-             - Body lines MUST be wrapped at 72 characters\n\
-             - Footers are optional"
+            "4. Message should be concise yet descriptive. Include a title and a brief summary."
         }
         DetailLevel::Detailed => {
-            "**Detail Level: DETAILED**\n\
-             - Generate a title: `type(scope): description` (50-72 characters, aim for 50)\n\
-             - Include a comprehensive body explaining the motivation and impact\n\
-             - Body lines MUST be wrapped at 72 characters\n\
-             - Include relevant footers (e.g., `Refs: #issue`, `BREAKING CHANGE:` if applicable)\n\
-             - Use bullet points in the body for multiple changes"
+            "4. Provide a detailed explanation. Include a title, comprehensive summary, and detailed bullet points explaining the changes."
         }
     };
 
@@ -160,7 +84,7 @@ pub fn create_user_prompt(context: &CommitContext, detail_level: DetailLevel) ->
     format!(
         "# TASK: Generate Commit Message\n\
          \n\
-         Generate a commit message following Conventional Commits 1.0.0 specification.\n\
+         ANALYZE the provided context and generate a well-structured commit message.\n\
          \n\
          ## Context Information\n\
          \n\
@@ -178,15 +102,17 @@ pub fn create_user_prompt(context: &CommitContext, detail_level: DetailLevel) ->
          **Author's Commit History:**\n\
          {}\n\
          \n\
-         ## Requirements\n\
+         ## Analysis Requirements\n\
          \n\
-         1. **PRIMARY FOCUS:** Analyze the diffs to understand the actual code changes\n\
-         2. Choose the appropriate type (feat, fix, refactor, docs, etc.) based on the changes\n\
-         3. Infer a scope from the file paths or module structure if applicable\n\
-         4. Write the description in imperative mood (e.g., \"add\" not \"added\" or \"adds\")\n\
-         5. Match the author's commit style from their history\n\
-         \n\
-         {}\n",
+         1. **PRIMARY FOCUS:** Analyze the 'Detailed Changes' section. Use the diffs as the source of truth.\n\
+          Use the following format:\n\
+        - First line: A concise summary using conventional commits format (type: description) where appropriate\n\
+        - Leave a blank line after the first line\n\
+        - Then add 2-3 bullet points explaining the key changes\n\
+        - Focus on WHAT changed and WHY, not HOW.\n\
+        - Return ONLY the commit message without any additional text.
+         {}\n\
+         6. Focus on the intent and impact of the changes, ignoring large boilerplate updates if trivial.\n",
         context.branch,
         detailed_changes,
         recent_commits,
@@ -210,26 +136,15 @@ fn format_recent_commits(commits: &[RecentCommit]) -> String {
         .join("\n")
 }
 
-fn format_staged_files(files: &[StagedFile], relevance_scores: &HashMap<String, f32>) -> String {
+fn format_staged_files(files: &[StagedFile]) -> String {
     files
         .iter()
-        .map(|file| {
-            let relevance = relevance_scores.get(&file.path).unwrap_or(&0.0);
-            format!(
-                "{} ({:.2}) - {}",
-                file.path,
-                relevance,
-                format_change_type(&file.change_type)
-            )
-        })
+        .map(|file| format!("{} - {}", file.path, format_change_type(&file.change_type)))
         .collect::<Vec<_>>()
         .join("\n")
 }
 
-fn format_detailed_changes(
-    files: &[StagedFile],
-    relevance_scores: &HashMap<String, f32>,
-) -> String {
+fn format_detailed_changes(files: &[StagedFile]) -> String {
     let mut all_sections = Vec::new();
 
     // Add a statistical summary at the top
@@ -259,12 +174,9 @@ fn format_detailed_changes(
     let diff_section = files
         .iter()
         .map(|file| {
-            let relevance = relevance_scores.get(&file.path).unwrap_or(&0.0);
-
             format!(
-                "File: {} (Relevance: {:.2})\nChange Type: {}\n\nDiff:\n{}",
+                "File: {}\nChange Type: {}\n\nDiff:\n{}",
                 file.path,
-                relevance,
                 format_change_type(&file.change_type),
                 file.diff
             )
@@ -527,12 +439,10 @@ pub fn create_completion_user_prompt(
     prefix: &str,
     context_ratio: f32,
 ) -> String {
-    let scorer = RelevanceScorer::new();
-    let relevance_scores = scorer.score(context);
-    let detailed_changes = format_detailed_changes(&context.staged_files, &relevance_scores);
+    let detailed_changes = format_detailed_changes(&context.staged_files);
 
     let recent_commits = format_recent_commits(&context.recent_commits);
-    let staged_changes = format_staged_files(&context.staged_files, &relevance_scores);
+    let staged_changes = format_staged_files(&context.staged_files);
     let author_history = format_enhanced_author_history(&context.author_history, context);
 
     // Detect conventions from history (already included in enhanced author history)
@@ -590,10 +500,8 @@ pub fn create_completion_user_prompt(
          1. ANALYZE the author's commit history patterns\n\
          2. Complete the message maintaining the same style and conventions as the prefix\n\
          3. Continue naturally from where the prefix ends\n\
-         4. Ensure the completed message follows Conventional Commits format\n\
-         5. Use imperative mood (e.g., \"add\" not \"added\" or \"adds\")\n\
-         6. Title MUST be 50-72 characters maximum (aim for 50)\n\
-         7. Body lines MUST be wrapped at 72 characters\n",
+         4. Ensure the completed message is coherent and well-structured\n\
+         5. Follow conventional commit standards when appropriate\n",
         prefix,
         context_ratio * 100.0,
         context.branch,
@@ -606,9 +514,7 @@ pub fn create_completion_user_prompt(
 
 /// Creates a user prompt for PR description generation
 pub fn create_pr_user_prompt(context: &CommitContext, commit_messages: &[String]) -> String {
-    let scorer = RelevanceScorer::new();
-    let relevance_scores = scorer.score(context);
-    let detailed_changes = format_detailed_changes(&context.staged_files, &relevance_scores);
+    let detailed_changes = format_detailed_changes(&context.staged_files);
 
     let commits_section = if commit_messages.is_empty() {
         "No commits available".to_string()
@@ -626,7 +532,7 @@ pub fn create_pr_user_prompt(context: &CommitContext, commit_messages: &[String]
         context.branch,
         commits_section,
         format_recent_commits(&context.recent_commits),
-        format_staged_files(&context.staged_files, &relevance_scores),
+        format_staged_files(&context.staged_files),
         detailed_changes
     );
 

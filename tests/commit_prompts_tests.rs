@@ -116,8 +116,6 @@ fn test_user_prompt_context_elements_are_properly_formatted() {
     assert!(prompt.contains("Staged Changes List:"));
     for file in &context.staged_files {
         assert!(prompt.contains(&file.path));
-        // Should contain relevance score
-        assert!(prompt.contains("(2.00)")); // Relevance score
     }
 
     // Test detailed changes formatting
@@ -154,8 +152,8 @@ fn test_combined_prompt_structure_for_llm() {
         "User prompt should have context information section"
     );
     assert!(
-        user_prompt.contains("## Requirements"),
-        "User prompt should have requirements section"
+        user_prompt.contains("## Analysis Requirements"),
+        "User prompt should have analysis requirements section"
     );
     assert!(
         user_prompt.contains("PRIMARY FOCUS"),
@@ -182,8 +180,8 @@ fn test_commit_user_prompt_structure() {
         "Should have context section"
     );
     assert!(
-        prompt.contains("## Requirements"),
-        "Should have requirements section"
+        prompt.contains("## Analysis Requirements"),
+        "Should have analysis requirements section"
     );
 
     // Test bold formatting
@@ -197,14 +195,10 @@ fn test_commit_user_prompt_structure() {
         "Should use bold for staged changes"
     );
 
-    // Test numbered requirements
+    // Test primary focus instruction
     assert!(
         prompt.contains("1. **PRIMARY FOCUS:**"),
         "Should have primary focus instruction"
-    );
-    assert!(
-        prompt.contains("2. Choose the appropriate type"),
-        "Should have numbered analysis steps"
     );
 }
 
@@ -213,18 +207,17 @@ fn test_create_user_prompt_respects_detail_level() {
     let context = create_mock_commit_context();
 
     let minimal = create_user_prompt(&context, DetailLevel::Minimal);
-    assert!(minimal.contains("Detail Level: MINIMAL"));
-    assert!(minimal.contains("Generate ONLY the title line"));
-    assert!(minimal.contains("NO body or footers"));
+    assert!(minimal.contains("EXTREMELY concise"));
+    assert!(minimal.contains("single title line"));
 
     let standard = create_user_prompt(&context, DetailLevel::Standard);
-    assert!(standard.contains("Detail Level: STANDARD"));
-    assert!(standard.contains("Include a brief body"));
+    assert!(standard.contains("concise yet descriptive"));
+    assert!(standard.contains("brief summary"));
 
     let detailed = create_user_prompt(&context, DetailLevel::Detailed);
-    assert!(detailed.contains("Detail Level: DETAILED"));
-    assert!(detailed.contains("comprehensive body"));
-    assert!(detailed.contains("BREAKING CHANGE"));
+    assert!(detailed.contains("detailed explanation"));
+    assert!(detailed.contains("comprehensive summary"));
+    assert!(detailed.contains("bullet points"));
 }
 
 #[test]
@@ -235,22 +228,14 @@ fn test_commit_system_prompt_structure() {
     // Test role definition
     assert!(prompt.contains("# ROLE:"), "Should have role header");
     assert!(
-        prompt.contains("Commit Message Generator"),
-        "Should define generator role"
+        prompt.contains("Software Engineer"),
+        "Should define software engineer role"
     );
 
     // Test structured sections
     assert!(
-        prompt.contains("## Conventional Commits Format"),
-        "Should have format section"
-    );
-    assert!(
-        prompt.contains("## Allowed Types"),
-        "Should have allowed types section"
-    );
-    assert!(
-        prompt.contains("## Specification (RFC 2119)"),
-        "Should have specification section"
+        prompt.contains("## Core Responsibilities"),
+        "Should have core responsibilities section"
     );
     assert!(
         prompt.contains("## Instructions"),
@@ -260,10 +245,6 @@ fn test_commit_system_prompt_structure() {
         prompt.contains("## Output Requirements"),
         "Should have output requirements"
     );
-
-    // Test conventional commits types
-    assert!(prompt.contains("**feat**:"), "Should have feat type");
-    assert!(prompt.contains("**fix**:"), "Should have fix type");
 
     // Test JSON schema formatting
     assert!(prompt.contains("```json"), "Should have JSON code block");

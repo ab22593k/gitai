@@ -101,15 +101,8 @@ impl CommitService {
         // Create system prompt
         let system_prompt = create_system_prompt(&config_clone)?;
 
-        // Use the shared optimization logic
-        let (_, final_user_prompt) = super::prompt_optimizer::optimize_prompt(
-            &config_clone,
-            self.core.provider_name(),
-            &system_prompt,
-            context,
-            |ctx| create_user_prompt(ctx, self.detail_level),
-        )
-        .await;
+        // Generate user prompt directly
+        let final_user_prompt = create_user_prompt(&context, self.detail_level);
 
         let generated_message = llm::get_message::<GeneratedMessage>(
             &config_clone,
@@ -143,15 +136,8 @@ impl CommitService {
         // Create system prompt
         let system_prompt = create_system_prompt(&config_clone)?;
 
-        // Use the shared optimization logic with provided context
-        let (_, final_user_prompt) = super::prompt_optimizer::optimize_prompt(
-            &config_clone,
-            self.core.provider_name(),
-            &system_prompt,
-            context,
-            |ctx| create_user_prompt(ctx, self.detail_level),
-        )
-        .await;
+        // Generate user prompt directly
+        let final_user_prompt = create_user_prompt(&context, self.detail_level);
 
         let generated_message = llm::get_message::<GeneratedMessage>(
             &config_clone,
@@ -196,15 +182,8 @@ impl CommitService {
         // Create system prompt
         let system_prompt = super::prompt::create_pr_system_prompt(&config_clone)?;
 
-        // Use the shared optimization logic
-        let (_, final_user_prompt) = super::prompt_optimizer::optimize_prompt(
-            &config_clone,
-            self.core.provider_name(),
-            &system_prompt,
-            context,
-            |ctx| super::prompt::create_pr_user_prompt(ctx, &commit_messages),
-        )
-        .await;
+        // Generate user prompt directly
+        let final_user_prompt = super::prompt::create_pr_user_prompt(&context, &commit_messages);
 
         let generated_pr = llm::get_message::<super::types::GeneratedPullRequest>(
             &config_clone,
@@ -253,15 +232,8 @@ impl CommitService {
         // Create system prompt
         let system_prompt = super::prompt::create_pr_system_prompt(&config_clone)?;
 
-        // Use the shared optimization logic
-        let (_, final_user_prompt) = super::prompt_optimizer::optimize_prompt(
-            &config_clone,
-            self.core.provider_name(),
-            &system_prompt,
-            context,
-            |ctx| super::prompt::create_pr_user_prompt(ctx, &commit_messages),
-        )
-        .await;
+        // Generate user prompt directly
+        let final_user_prompt = super::prompt::create_pr_user_prompt(&context, &commit_messages);
 
         let generated_pr = llm::get_message::<super::types::GeneratedPullRequest>(
             &config_clone,

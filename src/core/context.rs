@@ -2,10 +2,6 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::fmt;
 
-use crate::Config;
-
-use crate::core::token_optimizer::TokenOptimizer;
-
 #[derive(Serialize, Debug, Clone)]
 pub struct CommitContext {
     pub branch: String,
@@ -148,14 +144,6 @@ impl CommitContext {
             user_email,
             author_history,
         }
-    }
-
-    pub async fn optimize(&mut self, max_tokens: usize, config: &Config) {
-        let optimizer = TokenOptimizer::new(max_tokens, config.clone()).expect(
-            "Failed to initialize token optimizer. Ensure the tokenizer data is available.",
-        );
-
-        let _ = optimizer.optimize_context(self).await;
     }
 
     /// Detect common commit message conventions from history

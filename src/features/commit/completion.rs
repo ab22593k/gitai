@@ -92,15 +92,8 @@ impl CompletionService {
         // Create system prompt for completion
         let system_prompt = create_completion_system_prompt(&config_clone)?;
 
-        // Use the shared optimization logic
-        let (_, final_user_prompt) = super::prompt_optimizer::optimize_prompt(
-            &config_clone,
-            self.core.provider_name(),
-            &system_prompt,
-            context,
-            |ctx| create_completion_user_prompt(ctx, prefix, context_ratio),
-        )
-        .await;
+        // Generate user prompt directly
+        let final_user_prompt = create_completion_user_prompt(&context, prefix, context_ratio);
 
         let generated_message = llm::get_message::<GeneratedMessage>(
             &config_clone,
