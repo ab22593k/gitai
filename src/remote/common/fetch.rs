@@ -117,6 +117,19 @@ fn git_checkout_shallow_core(
     };
 
     if use_sparse {
+        // Initialize sparse-checkout in non-cone mode (pattern-based)
+        let _ = Command::new("git")
+                .args([
+                    "-C",
+                    path.to_str().expect(
+                        "Failed to convert path to string for sparse checkout init; path contains invalid Unicode characters",
+                    ),
+                    "sparse-checkout",
+                    "init",
+                    "--no-cone",
+                ])
+                .output();
+
         // Make a kind of absolute path from repository root for sparse checkout.
         // Handle multiple source paths
         for src_path in &parsed.src {
@@ -133,7 +146,6 @@ fn git_checkout_shallow_core(
                         .expect("Failed to convert path to string for sparse checkout; path contains invalid Unicode characters"),
                     "sparse-checkout",
                     "add",
-                    "--no-cone",
                     &sparse_path,
                 ])
                 .output();
