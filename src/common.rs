@@ -61,21 +61,21 @@ impl ThemeMode {
             // Format is usually "fg;bg" or just "bg" depending on implementation
             // Standard ANSI colors: 0-7 (dark/normal), 8-15 (bright)
             // 0=Black, 7=White, 15=Bright White.
-            if parts.len() == 2 {
-                if let Ok(bg) = parts[1].parse::<u8>() {
-                    // If background is white-ish (7 or 15) or high index, assume light
-                    if bg == 7 || bg == 15 || bg > 10 {
-                        return Self::Light;
-                    }
+            if parts.len() == 2
+                && let Ok(bg) = parts[1].parse::<u8>()
+            {
+                // If background is white-ish (7 or 15) or high index, assume light
+                if bg == 7 || bg == 15 || bg > 10 {
+                    return Self::Light;
                 }
             }
         }
 
         // Check standard ENVIRONMENT variables that might indicate light mode
-        if let Ok(mode) = env::var("GTK_THEME") {
-            if mode.to_lowercase().contains("light") {
-                return Self::Light;
-            }
+        if let Ok(mode) = env::var("GTK_THEME")
+            && mode.to_lowercase().contains("light")
+        {
+            return Self::Light;
         }
 
         Self::Dark
@@ -178,11 +178,11 @@ impl CommonParams {
                 );
             }
 
-            if let Some(provider_config) = config.providers.get_mut(&provider_name) {
-                if provider_config.model_name != *model {
-                    provider_config.model_name.clone_from(model);
-                    changes_made = true;
-                }
+            if let Some(provider_config) = config.providers.get_mut(&provider_name)
+                && provider_config.model_name != *model
+            {
+                provider_config.model_name.clone_from(model);
+                changes_made = true;
             }
         }
 

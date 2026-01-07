@@ -71,11 +71,11 @@ impl ModelInfoService {
         // Check cache first
         {
             let cache = self.cache.read().await;
-            if let Some(info) = cache.get(&cache_key) {
-                if !info.is_expired() {
-                    debug!("Cache hit for {cache_key}: {} tokens", info.context_length);
-                    return info.context_length;
-                }
+            if let Some(info) = cache.get(&cache_key)
+                && !info.is_expired()
+            {
+                debug!("Cache hit for {cache_key}: {} tokens", info.context_length);
+                return info.context_length;
             }
         }
 

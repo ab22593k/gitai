@@ -124,7 +124,7 @@ fn get_files_from_diff(
             }
 
             files.push(StagedFile {
-                path: path_str.to_string(),
+                path: path_str.clone(),
                 change_type,
                 diff: diff_content,
                 content: None,
@@ -624,16 +624,12 @@ pub fn get_branch_diff_files(
     for file in &mut branch_files {
         if !file.content_excluded
             && matches!(file.change_type, ChangeType::Added | ChangeType::Modified)
+            && let Ok(entry) = target_tree.get_path(std::path::Path::new(&file.path))
+            && let Ok(object) = entry.to_object(repo)
+            && let Some(blob) = object.as_blob()
+            && let Ok(content) = std::str::from_utf8(blob.content())
         {
-            if let Ok(entry) = target_tree.get_path(std::path::Path::new(&file.path)) {
-                if let Ok(object) = entry.to_object(repo) {
-                    if let Some(blob) = object.as_blob() {
-                        if let Ok(content) = std::str::from_utf8(blob.content()) {
-                            file.content = Some(content.to_string());
-                        }
-                    }
-                }
-            }
+            file.content = Some(content.to_string());
         }
     }
 
@@ -762,16 +758,12 @@ pub fn get_commit_range_files(
     for file in &mut range_files {
         if !file.content_excluded
             && matches!(file.change_type, ChangeType::Added | ChangeType::Modified)
+            && let Ok(entry) = to_tree.get_path(std::path::Path::new(&file.path))
+            && let Ok(object) = entry.to_object(repo)
+            && let Some(blob) = object.as_blob()
+            && let Ok(content) = std::str::from_utf8(blob.content())
         {
-            if let Ok(entry) = to_tree.get_path(std::path::Path::new(&file.path)) {
-                if let Ok(object) = entry.to_object(repo) {
-                    if let Some(blob) = object.as_blob() {
-                        if let Ok(content) = std::str::from_utf8(blob.content()) {
-                            file.content = Some(content.to_string());
-                        }
-                    }
-                }
-            }
+            file.content = Some(content.to_string());
         }
     }
 

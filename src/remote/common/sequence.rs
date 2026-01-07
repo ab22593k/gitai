@@ -8,6 +8,7 @@ use super::ErrorType;
 use super::ErrorType::NoItemToOperate;
 use super::Parsed;
 use super::Target;
+use super::TargetConfig;
 
 pub enum Mode {
     Single,
@@ -24,33 +25,134 @@ pub trait Operation {
     ) -> Result<bool, Cause<ErrorType>>;
 }
 
-pub fn sequence(
-    target: Target,
-    operation: &Arc<dyn Operation + Send + Sync>,
-    mode: &Mode,
-) -> Result<bool, Cause<ErrorType>> {
-    let (rootdir, parsed): (String, Vec<_>) = match target {
-        Target::Declared(Some(ref name)) => {
-            let (rootdir, parsed) = super::parse::parse_gitwire()?;
-            let parsed = parsed
-                .into_iter()
-                .filter(|p| match p.name {
-                    Some(ref n) => n == name,
-                    None => false,
-                })
-                .collect();
-            (rootdir, parsed)
+/// Merge CLI-provided Parsed with an existing Parsed from .gitwire.toml
+/// CLI values take precedence (override) when non-empty
+fn merge_parsed(target: &mut Parsed, source: &Parsed) {
+    if !source.url.is_empty() {
+        target.url.clone_from(&source.url);
+    }
+    if !source.rev.is_empty() {
+        target.rev.clone_from(&source.rev);
+    }
+    if !source.src.is_empty() {
+        target.src.clone_from(&source.src);
+    }
+    if !source.dst.is_empty() {
+        target.dst.clone_from(&source.dst);
+    }
+    if source.name.is_some() {
+        target.name.clone_from(&source.name);
+    }
+    if source.dsc.is_some() {
+        target.dsc.clone_from(&source.dsc);
+    }
+    if source.mtd.is_some() {
+        target.mtd.clone_from(&source.mtd);
+    }
+}
+
+/// Get parsed items based on `TargetConfig`
+fn get_parsed_from_config(
+    config: &TargetConfig,
+) -> Result<(String, Vec<Parsed>, Option<Parsed>), Cause<ErrorType>> {
+    // Try to parse .gitwire.toml
+    let gitwire_data = super::parse::parse_gitwire()?;
+
+    match (gitwire_data, &config.cli_override) {
+        // Both .gitwire.toml and CLI args provided
+        (Some((root, mut file_items)), Some(cli_parsed)) => {
+            if let Some(name) = &config.name_filter {
+                // Try to find and override entry by name
+                if let Some(entry) = file_items
+                    .iter_mut()
+                    .find(|p| p.name.as_ref() == Some(name))
+                {
+                    merge_parsed(entry, cli_parsed);
+                    let matched = entry.clone();
+                    file_items.retain(|p| p.name.as_ref() == Some(name));
+                    Ok((root, file_items, Some(matched)))
+                } else {
+                    // Name not found, use CLI args as new entry
+                    Ok((root, vec![cli_parsed.clone()], Some(cli_parsed.clone())))
+                }
+            } else {
+                // No name filter: use CLI args only
+                Ok((root, vec![cli_parsed.clone()], Some(cli_parsed.clone())))
+            }
         }
-        Target::Declared(None) => super::parse::parse_gitwire()?,
-        Target::Direct(parsed) => (
-            std::env::current_dir()
+
+        // Only .gitwire.toml exists
+        (Some((root, mut file_items)), None) => {
+            if let Some(name) = &config.name_filter {
+                file_items.retain(|p| p.name.as_ref() == Some(name));
+                if file_items.is_empty() {
+                    return Err(cause!(
+                        NoItemToOperate,
+                        format!("No entry with name '{name}' found in .gitwire.toml")
+                    ));
+                }
+            }
+            Ok((root, file_items, None))
+        }
+
+        // Only CLI args provided (no .gitwire.toml)
+        (None, Some(cli_parsed)) => {
+            let root = std::env::current_dir()
                 .or(Err(cause!(ErrorType::CurrentDirRetrieve)))?
                 .into_os_string()
                 .into_string()
-                .or(Err(cause!(ErrorType::CurrentDirConvert)))?,
-            vec![parsed],
-        ),
+                .or(Err(cause!(ErrorType::CurrentDirConvert)))?;
+            Ok((root, vec![cli_parsed.clone()], Some(cli_parsed.clone())))
+        }
+
+        // Neither provided - show interactive prompt
+        (None, None) => match super::parse::prompt_create_gitwire()? {
+            Some(parsed) => {
+                let root = std::env::current_dir()
+                    .or(Err(cause!(ErrorType::CurrentDirRetrieve)))?
+                    .into_os_string()
+                    .into_string()
+                    .or(Err(cause!(ErrorType::CurrentDirConvert)))?;
+
+                // Save the prompted config
+                super::parse::save_to_gitwire_toml(&parsed, false)?;
+
+                Ok((root, vec![parsed.clone()], Some(parsed)))
+            }
+            None => Err(cause!(
+                NoItemToOperate,
+                "No .gitwire.toml file found and no CLI arguments provided.\n\
+                 \nUsage examples:\n\
+                 \n  git-wire check --url <URL> --rev <REV> --src <SRC> --dst <DST>\n\
+                 \n  git-wire check --url <URL> --rev <REV> --src '[\"lib\",\"tools\"]' --dst <DST>\n\
+                 \n  git-wire check  # Interactive mode"
+            )),
+        },
+    }
+}
+
+pub fn sequence(
+    target: &Target,
+    operation: &Arc<dyn Operation + Send + Sync>,
+    mode: &Mode,
+) -> Result<bool, Cause<ErrorType>> {
+    let (rootdir, parsed, cli_parsed_for_save): (String, Vec<_>, Option<Parsed>) = match target {
+        Target::Declared(config) => {
+            let (root, items, cli_parsed) = get_parsed_from_config(config)?;
+
+            // Handle --save flag if applicable
+            if config.save_config
+                && let Some(ref p) = cli_parsed
+            {
+                super::parse::save_to_gitwire_toml(p, config.append_config)?;
+            }
+
+            (root, items, cli_parsed)
+        }
     };
+
+    // Suppress unused variable warning
+    let _ = cli_parsed_for_save;
 
     let len = parsed.len();
     if len == 0 {

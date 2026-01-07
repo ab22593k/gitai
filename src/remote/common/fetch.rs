@@ -60,20 +60,25 @@ fn git_checkout_partial(
         parsed.rev.clone()
     };
 
-    let out = Command::new("git")
-        .args([
-            "-C",
-            path.to_str().expect("Failed to convert path to string for git checkout; path contains invalid Unicode characters"),
-            "checkout",
-            "--progress",
-            rev.as_ref(),
-            "--",
-            parsed.src.as_ref(),
-        ])
-        .output()
-        .map_err(|e| cause!(GitCheckoutCommand).src(e))?;
+    // Handle multiple source paths
+    for src_path in &parsed.src {
+        let out = Command::new("git")
+            .args([
+                "-C",
+                path.to_str().expect("Failed to convert path to string for git checkout; path contains invalid Unicode characters"),
+                "checkout",
+                "--progress",
+                rev.as_ref(),
+                "--",
+                src_path.as_ref(),
+            ])
+            .output()
+            .map_err(|e| cause!(GitCheckoutCommand).src(e))?;
 
-    handle_git_output(out, "git checkout", GitCheckoutCommandExitStatus)
+        handle_git_output(out, "git checkout", GitCheckoutCommandExitStatus)?;
+    }
+
+    Ok(())
 }
 
 fn git_checkout_shallow_no_sparse(
@@ -113,36 +118,39 @@ fn git_checkout_shallow_core(
 
     if use_sparse {
         // Make a kind of absolute path from repository root for sparse checkout.
-        let sparse_path: Cow<'_, str> = if parsed.src.starts_with('/') {
-            parsed.src.as_str().into()
-        } else {
-            format!("/{}", &parsed.src).into()
-        };
+        // Handle multiple source paths
+        for src_path in &parsed.src {
+            let sparse_path: Cow<'_, str> = if src_path.starts_with('/') {
+                src_path.as_str().into()
+            } else {
+                format!("/{src_path}").into()
+            };
 
-        let out = Command::new("git")
-            .args([
-                "-C",
-                path.to_str()
-                    .expect("Failed to convert path to string for sparse checkout; path contains invalid Unicode characters"),
-                "sparse-checkout",
-                "set",
-                "--no-cone",
-                &sparse_path,
-            ])
-            .output();
+            let out = Command::new("git")
+                .args([
+                    "-C",
+                    path.to_str()
+                        .expect("Failed to convert path to string for sparse checkout; path contains invalid Unicode characters"),
+                    "sparse-checkout",
+                    "add",
+                    "--no-cone",
+                    &sparse_path,
+                ])
+                .output();
 
-        let output = out.expect("Failed to execute git sparse-checkout command. Ensure 'git' is installed and in your PATH, and you have necessary permissions.");
+            let output = out.expect("Failed to execute git sparse-checkout command. Ensure 'git' is installed and in your PATH, and you have necessary permissions.");
 
-        if !output.status.success() {
-            // sparse-checkout command is optional, even if it failed,
-            // subsequent sequence will be performed without any problem.
-            println!("    - {prefix}Could not activate sparse-checkout feature.");
-            println!("    - {prefix}Your git client might not support this feature.");
+            if !output.status.success() {
+                // sparse-checkout command is optional, even if it failed,
+                // subsequent sequence will be performed without any problem.
+                println!("    - {prefix}Could not activate sparse-checkout feature.");
+                println!("    - {prefix}Your git client might not support this feature.");
 
-            // Print stderr for more context, as the command did run but failed.
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            if !stderr.trim().is_empty() {
-                println!("    - {prefix}  stderr: {}", stderr.trim());
+                // Print stderr for more context, as the command did run but failed.
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                if !stderr.trim().is_empty() {
+                    println!("    - {prefix}  stderr: {}", stderr.trim());
+                }
             }
         }
     }

@@ -28,7 +28,7 @@ impl Operation for CheckOperation {
     }
 }
 
-pub fn check(target: Target, mode: &sequence::Mode) -> Result<bool, Cause<ErrorType>> {
+pub fn check(target: &Target, mode: &sequence::Mode) -> Result<bool, Cause<ErrorType>> {
     println!("git-wire check started\n");
     let operation: Arc<dyn Operation + Send + Sync + 'static> = Arc::new(CheckOperation {});
     let result = sequence::sequence(target, &operation, mode)?;
@@ -43,58 +43,61 @@ fn compare_with_temp(
 ) -> Result<bool, Cause<ErrorType>> {
     println!("  - {prefix}compare `src` and `dst`");
 
-    let temp_root = temp;
-    let temp = temp.join(parsed.src.as_str());
-    let root = Path::new(root).join(parsed.dst.as_str());
-
-    let fc1 =
-        FolderCompare::new(&temp, &root, &vec![]).map_err(|_| cause!(CheckDifferenceExecution))?;
-    let fc2 =
-        FolderCompare::new(&root, &temp, &vec![]).map_err(|_| cause!(CheckDifferenceExecution))?;
-
     let mut result = true;
+    let temp_root = temp;
 
-    if !fc1.new_files.is_empty() {
-        let temp_root = temp_root
-            .to_str()
-            .ok_or_else(|| cause!(CheckDifferenceStringReplace))?;
-        for file in fc1.new_files {
-            let file = file
+    // Handle multiple source paths
+    for src_path in &parsed.src {
+        let temp_src = temp.join(src_path.as_str());
+        let root_dst = Path::new(root).join(parsed.dst.as_str());
+
+        let fc1 = FolderCompare::new(&temp_src, &root_dst, &vec![])
+            .map_err(|_| cause!(CheckDifferenceExecution))?;
+        let fc2 = FolderCompare::new(&root_dst, &temp_src, &vec![])
+            .map_err(|_| cause!(CheckDifferenceExecution))?;
+
+        if !fc1.new_files.is_empty() {
+            let temp_root_str = temp_root
                 .to_str()
                 .ok_or_else(|| cause!(CheckDifferenceStringReplace))?;
-            let file = file.replace(temp_root, "");
-            println!(
-                "{}",
-                format!("    {prefix}! file {file} does not exist").red()
-            );
+            for file in fc1.new_files {
+                let file = file
+                    .to_str()
+                    .ok_or_else(|| cause!(CheckDifferenceStringReplace))?;
+                let file = file.replace(temp_root_str, "");
+                println!(
+                    "{}",
+                    format!("    {prefix}! file {file} does not exist").red()
+                );
+            }
+            result = false;
         }
-        result = false;
-    }
-    if !fc2.new_files.is_empty() {
-        for file in fc2.new_files {
-            println!(
-                "{}",
-                format!(
-                    "    {prefix}! file {} does not exist on original",
-                    file.display()
-                )
-                .red()
-            );
+        if !fc2.new_files.is_empty() {
+            for file in fc2.new_files {
+                println!(
+                    "{}",
+                    format!(
+                        "    {prefix}! file {} does not exist on original",
+                        file.display()
+                    )
+                    .red()
+                );
+            }
+            result = false;
         }
-        result = false;
-    }
-    if !fc2.changed_files.is_empty() {
-        for file in fc2.changed_files {
-            println!(
-                "{}",
-                format!(
-                    "    {prefix}! file {} is not identical to original",
-                    file.display()
-                )
-                .red()
-            );
+        if !fc2.changed_files.is_empty() {
+            for file in fc2.changed_files {
+                println!(
+                    "{}",
+                    format!(
+                        "    {prefix}! file {} is not identical to original",
+                        file.display()
+                    )
+                    .red()
+                );
+            }
+            result = false;
         }
-        result = false;
     }
 
     Ok(result)

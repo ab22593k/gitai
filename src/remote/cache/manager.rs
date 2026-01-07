@@ -29,10 +29,11 @@ impl CacheManager {
         config: &RepositoryConfiguration,
     ) -> Result<String, String> {
         let key = CacheKeyGenerator::generate_key(config);
-        let mut cache = self
-            .cache
-            .lock()
-            .expect("Failed to lock cache mutex, likely due to a poisoned mutex (another thread panicked while holding the lock)");
+        let Ok(cache) = self.cache.lock() else {
+            return Err(
+                "Cache mutex was poisoned. Cache may be in inconsistent state.".to_string(),
+            );
+        };
 
         if let Some(cached_repo) = cache.get(&key) {
             // Repository is already cached, return its path
@@ -49,6 +50,10 @@ impl CacheManager {
                 "placeholder_commit_hash".to_string(), // This would be obtained from the actual fetch
             );
 
+            drop(cache); // Release lock before inserting
+            let Ok(mut cache) = self.cache.lock() else {
+                return Err("Cache mutex was poisoned after fetch operation.".to_string());
+            };
             cache.insert(key, new_cached_repo);
 
             // Return the cache path for this repository
@@ -81,6 +86,7 @@ impl CacheManager {
         for config in configs {
             let key = CacheKeyGenerator::generate_key(config);
 
+            // Only add to unique configs if we haven't seen this key before
             if !seen_keys.contains(&key) {
                 // This is a new unique repository (based on URL + branch + commit), add to fetch list
                 unique_configs.push(config.clone());
@@ -88,6 +94,7 @@ impl CacheManager {
             }
 
             // Get or create cached path for this repository
+            // Reuse the key we already generated instead of regenerating
             let cached_path = self.get_or_schedule_fetch(config)?;
 
             // Create a wire operation to extract content from the cached repo
@@ -109,8 +116,8 @@ mod tests {
             cache_manager
                 .cache
                 .lock()
-                .expect("Failed to lock cache in test")
-                .len(),
+                .map(|guard| guard.len())
+                .unwrap_or(0),
             0
         );
     }
@@ -122,7 +129,7 @@ mod tests {
             "https://github.com/example/repo.git".to_string(),
             "main".to_string(),
             "./src/module1".to_string(),
-            vec!["src/".to_string()],
+            vec!["src/".to_string(), "lib/".to_string()],
             None,
             None,
         );

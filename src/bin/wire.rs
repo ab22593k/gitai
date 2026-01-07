@@ -4,7 +4,7 @@ use gait::{
     init_logger,
     remote::{
         check,
-        common::{Parsed, Target, sequence},
+        common::{Method, Parsed, Target, TargetConfig, sequence},
         sync,
     },
 };
@@ -30,35 +30,129 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Synchronizes code depending on a file '.gitwire' definition.
-    Sync,
+    /// Synchronizes code depending on a file '.gitwire.toml' definition or CLI arguments.
+    Sync {
+        /// Repository URL
+        #[arg(long)]
+        url: Option<String>,
+
+        /// Git revision (branch, tag, or commit hash)
+        #[arg(long)]
+        rev: Option<String>,
+
+        /// Source path(s) in the repository. Can be:
+        /// - Single value: --src "lib"
+        /// - Multiple flags: --src lib --src tools
+        /// - JSON array: `--src '["lib", "tools", "src"]'`
+        #[arg(long, num_args = 1..)]
+        src: Vec<String>,
+
+        /// Destination path in the local repository
+        #[arg(long)]
+        dst: Option<String>,
+
+        /// Optional name for this wire entry
+        #[arg(long)]
+        entry_name: Option<String>,
+
+        /// Optional description for this wire entry
+        #[arg(long)]
+        description: Option<String>,
+
+        /// Clone method (shallow, `shallow_no_sparse`, or partial)
+        #[arg(long, value_parser = ["shallow", "shallow_no_sparse", "partial"])]
+        method: Option<String>,
+
+        /// Save this configuration to .gitwire.toml after syncing
+        #[arg(long)]
+        save: bool,
+
+        /// Append to existing .gitwire.toml instead of creating new (requires --save)
+        #[arg(long, requires = "save")]
+        append: bool,
+    },
 
     /// Checks if the synchronized code identical to the original.
-    Check,
+    Check {
+        /// Repository URL
+        #[arg(long)]
+        url: Option<String>,
 
-    /// Directly synchronizes code depending on given arguments
-    DirectSync {
+        /// Git revision (branch, tag, or commit hash)
         #[arg(long)]
-        url: String,
-        #[arg(long)]
-        rev: String,
-        #[arg(long)]
-        src: String,
-        #[arg(long)]
-        dst: String,
-    },
+        rev: Option<String>,
 
-    /// Directly checks if the code is identical to the code led by given arguments.
-    DirectCheck {
+        /// Source path(s) in the repository
+        #[arg(long, num_args = 1..)]
+        src: Vec<String>,
+
+        /// Destination path in the local repository
         #[arg(long)]
-        url: String,
+        dst: Option<String>,
+
+        /// Optional name for this wire entry
         #[arg(long)]
-        rev: String,
+        entry_name: Option<String>,
+
+        /// Optional description for this wire entry
         #[arg(long)]
-        src: String,
+        description: Option<String>,
+
+        /// Clone method (shallow, `shallow_no_sparse`, or partial)
+        #[arg(long, value_parser = ["shallow", "shallow_no_sparse", "partial"])]
+        method: Option<String>,
+
+        /// Save this configuration to .gitwire.toml after checking
         #[arg(long)]
-        dst: String,
+        save: bool,
+
+        /// Append to existing .gitwire.toml instead of creating new (requires --save)
+        #[arg(long, requires = "save")]
+        append: bool,
     },
+}
+
+/// Build a Parsed struct from CLI arguments
+/// Returns None if no CLI args are provided, Some(Parsed) otherwise
+fn build_parsed_from_cli(
+    url: Option<String>,
+    rev: Option<String>,
+    src: Vec<String>,
+    dst: Option<String>,
+    entry_name: Option<String>,
+    description: Option<String>,
+    method: Option<&String>,
+) -> Option<Parsed> {
+    // If no required fields are provided, return None
+    if url.is_none() && rev.is_none() && src.is_empty() && dst.is_none() {
+        return None;
+    }
+
+    // Parse src - handle JSON array if provided as single argument
+    let src_paths = if src.len() == 1 && src[0].trim().starts_with('[') {
+        // Try to parse as JSON array
+        serde_json::from_str::<Vec<String>>(&src[0]).unwrap_or(src)
+    } else {
+        src
+    };
+
+    // Parse method
+    let mtd = method.and_then(|m| match m.as_str() {
+        "shallow" => Some(Method::Shallow),
+        "shallow_no_sparse" => Some(Method::ShallowNoSparse),
+        "partial" => Some(Method::Partial),
+        _ => None,
+    });
+
+    Some(Parsed {
+        name: entry_name,
+        dsc: description,
+        url: url.unwrap_or_default(),
+        rev: rev.unwrap_or_default(),
+        src: src_paths,
+        dst: dst.unwrap_or_default(),
+        mtd,
+    })
 }
 
 #[tokio::main]
@@ -67,7 +161,7 @@ async fn main() {
 
     let cli = Cli::parse();
 
-    let target = cli.target.or(cli.name);
+    let target_name = cli.target.or(cli.name);
 
     let mode = if cli.singlethread {
         sequence::Mode::Single
@@ -76,36 +170,69 @@ async fn main() {
     };
 
     let result = match cli.command {
-        Command::Sync => sync::sync_with_caching(&Target::Declared(target), mode).await,
-        Command::Check => check::check(Target::Declared(target), &mode),
-        Command::DirectSync { url, rev, src, dst } => {
-            sync::sync_with_caching(
-                // Also use caching for direct sync
-                &Target::Direct(Parsed {
-                    name: None,
-                    dsc: None,
-                    mtd: None,
-                    url,
-                    rev,
-                    src,
-                    dst,
-                }),
-                mode,
-            )
-            .await
+        Command::Sync {
+            url,
+            rev,
+            src,
+            dst,
+            entry_name,
+            description,
+            method,
+            save,
+            append,
+        } => {
+            let cli_override =
+                build_parsed_from_cli(url, rev, src, dst, entry_name, description, method.as_ref());
+
+            // Validate CLI override if provided
+            if let Some(ref parsed) = cli_override
+                && let Err(e) = parsed.validate()
+            {
+                eprintln!("{}", format!("Invalid arguments: {e}").red().bold());
+                exit(1);
+            }
+
+            let target_config = TargetConfig {
+                name_filter: target_name,
+                cli_override,
+                save_config: save,
+                append_config: append,
+            };
+
+            sync::sync_with_caching(&Target::Declared(target_config), mode).await
         }
-        Command::DirectCheck { url, rev, src, dst } => check::check(
-            Target::Direct(Parsed {
-                name: None,
-                dsc: None,
-                mtd: None,
-                url,
-                rev,
-                src,
-                dst,
-            }),
-            &mode,
-        ),
+
+        Command::Check {
+            url,
+            rev,
+            src,
+            dst,
+            entry_name,
+            description,
+            method,
+            save,
+            append,
+        } => {
+            let cli_override =
+                build_parsed_from_cli(url, rev, src, dst, entry_name, description, method.as_ref());
+
+            // Validate CLI override if provided
+            if let Some(ref parsed) = cli_override
+                && let Err(e) = parsed.validate()
+            {
+                eprintln!("{}", format!("Invalid arguments: {e}").red().bold());
+                exit(1);
+            }
+
+            let target_config = TargetConfig {
+                name_filter: target_name,
+                cli_override,
+                save_config: save,
+                append_config: append,
+            };
+
+            check::check(&Target::Declared(target_config), &mode)
+        }
     };
 
     match result.as_ref() {

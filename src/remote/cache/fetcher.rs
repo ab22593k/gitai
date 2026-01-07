@@ -3,6 +3,7 @@ use crate::remote::models::repo_config::RepositoryConfiguration;
 use super::super::common::{ErrorType, Method};
 use cause::{Cause, cause};
 use git2::Repository;
+use serde::{Deserialize, Serialize};
 use std::process::Command;
 
 #[derive(Clone)]
@@ -29,11 +30,17 @@ impl RepositoryFetcher {
 
         // Wrap blocking operations in spawn_blocking
         let cache_path_clone = cache_path.clone();
-        tokio::task::spawn_blocking(move || {
-            Self::execute_git_clone(&config, &cache_path_clone)?;
-            if !matches!(config.mtd, Some(Method::ShallowNoSparse)) {
-                Self::execute_git_checkout(&cache_path_clone, &config.branch)?;
+        let config_clone = config.clone();
+        tokio::task::spawn_blocking(move || -> Result<(), Cause<ErrorType>> {
+            Self::execute_git_clone(&config_clone, &cache_path_clone)?;
+            if !matches!(config_clone.mtd, Some(Method::ShallowNoSparse)) {
+                Self::execute_git_checkout(&cache_path_clone, &config_clone.branch)?;
             }
+
+            // Get the actual commit hash and write cache metadata
+            let commit_hash = Self::get_current_commit_hash(&cache_path_clone)?;
+            Self::write_cache_metadata(&config_clone, &cache_path_clone, &commit_hash)?;
+
             Ok(())
         })
         .await
@@ -102,10 +109,92 @@ impl RepositoryFetcher {
     }
 
     /// Check if the cached repository is still valid (up-to-date)
-    fn is_cache_valid(_config: &RepositoryConfiguration, cache_path: &str) -> bool {
-        // Check if the directory exists
-        std::path::Path::new(cache_path).exists()
+    fn is_cache_valid(config: &RepositoryConfiguration, cache_path: &str) -> bool {
+        let path = std::path::Path::new(cache_path);
+        if !path.exists() {
+            return false;
+        }
+
+        // Check for .git directory to verify it's a valid git repo
+        if !path.join(".git").exists() {
+            return false;
+        }
+
+        // Try to read the cached commit hash if available
+        let metadata_path = path.join(".cache_metadata");
+        if let Ok(metadata) = std::fs::read_to_string(metadata_path)
+            && let Ok(cached) = serde_json::from_str::<CacheEntry>(&metadata)
+        {
+            // Verify URL matches
+            if cached.url != config.url {
+                return false;
+            }
+            // Verify branch matches
+            if cached.branch != config.branch {
+                return false;
+            }
+            // If config specifies a commit hash, verify it matches
+            if let Some(ref requested_commit) = config.commit_hash
+                && cached.commit_hash != *requested_commit
+            {
+                return false;
+            }
+            // Cache is valid
+            return true;
+        }
+
+        // No metadata found, but directory exists - assume stale
+        false
     }
+
+    /// Get the current HEAD commit hash from a repository
+    fn get_current_commit_hash(cache_path: &str) -> Result<String, Cause<ErrorType>> {
+        let repo = git2::Repository::open(cache_path)
+            .map_err(|e| cause!(ErrorType::GitCheckoutCommand).src(e))?;
+
+        let head = repo
+            .head()
+            .map_err(|e| cause!(ErrorType::GitCheckoutCommand).src(e))?;
+
+        let oid = head
+            .target()
+            .ok_or_else(|| cause!(ErrorType::GitCheckoutCommand, "HEAD is not a commit"))?;
+
+        Ok(oid.to_string())
+    }
+
+    /// Write cache metadata after successful fetch
+    fn write_cache_metadata(
+        config: &RepositoryConfiguration,
+        cache_path: &str,
+        commit_hash: &str,
+    ) -> Result<(), Cause<ErrorType>> {
+        let metadata = CacheEntry {
+            url: config.url.clone(),
+            branch: config.branch.clone(),
+            commit_hash: commit_hash.to_string(),
+            cached_at: chrono::Utc::now().to_rfc3339(),
+        };
+
+        let metadata_path = std::path::Path::new(cache_path).join(".cache_metadata");
+        let json = serde_json::to_string(&metadata).map_err(|e| {
+            cause!(ErrorType::GitCloneCommand)
+                .msg(format!("Failed to serialize cache metadata: {e}"))
+        })?;
+
+        std::fs::write(&metadata_path, json)
+            .map_err(|e| cause!(ErrorType::GitCloneCommand).src(e))?;
+
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct CacheEntry {
+    url: String,
+    branch: String,
+    commit_hash: String,
+    cached_at: String,
 }
 
 #[cfg(test)]
@@ -132,6 +221,9 @@ mod tests {
         // Test with a path that doesn't exist
         let result = RepositoryFetcher::is_cache_valid(&config, "/definitely/does/not/exist");
         // It should return false since the path doesn't exist
-        assert!(!result);
+        assert!(
+            !result,
+            "Expected cache to be invalid for non-existent path"
+        );
     }
 }

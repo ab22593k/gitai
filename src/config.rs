@@ -5,7 +5,6 @@ use crate::git::GitRepo;
 
 use anyhow::{Context, Result, anyhow};
 use git2::Config as GitConfig;
-use keyring::Entry;
 use log::debug;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -56,23 +55,10 @@ fn get_api_key_env_var(provider: &str) -> Option<&'static str> {
     }
 }
 
-/// Get API key for a provider: env var > keyring
+/// Get API key for a provider from environment variables
 fn get_api_key_for_provider(provider: &str) -> Option<String> {
-    // 1. Check environment variable
-    if let Some(env_var) = get_api_key_env_var(provider) {
-        if let Ok(val) = std::env::var(env_var) {
-            return Some(val);
-        }
-    }
-
-    // 2. Check keyring
-    if let Ok(entry) = Entry::new("gait", provider) {
-        if let Ok(val) = entry.get_password() {
-            return Some(val);
-        }
-    }
-
-    None
+    // Check environment variable
+    get_api_key_env_var(provider).and_then(|env_var| std::env::var(env_var).ok())
 }
 
 /// Configuration structure

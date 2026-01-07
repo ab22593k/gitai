@@ -134,20 +134,18 @@ fn commit_touches_files(
 
     for delta in diff.deltas() {
         // Check new_file path (for added/modified/renamed-to)
-        if let Some(path) = delta.new_file().path() {
-            if let Some(path_str) = path.to_str() {
-                if file_set.contains(path_str) {
-                    return Ok(true);
-                }
-            }
+        if let Some(path) = delta.new_file().path()
+            && let Some(path_str) = path.to_str()
+            && file_set.contains(path_str)
+        {
+            return Ok(true);
         }
         // Check old_file path (for deleted/renamed-from)
-        if let Some(path) = delta.old_file().path() {
-            if let Some(path_str) = path.to_str() {
-                if file_set.contains(path_str) {
-                    return Ok(true);
-                }
-            }
+        if let Some(path) = delta.old_file().path()
+            && let Some(path_str) = path.to_str()
+            && file_set.contains(path_str)
+        {
+            return Ok(true);
         }
     }
 
