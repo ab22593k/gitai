@@ -1,4 +1,3 @@
-use futures::StreamExt;
 use super::input_handler::{InputResult, handle_input};
 use super::spinner::SpinnerState;
 use super::state::{Mode, TuiState};
@@ -8,6 +7,7 @@ use crate::features::commit::{
     CommitService, completion::CompletionService, format_commit_result, types::GeneratedMessage,
 };
 use anyhow::{Error, Result};
+use futures::StreamExt;
 use ratatui::{
     Terminal,
     backend::CrosstermBackend,
@@ -191,12 +191,11 @@ impl TuiCommit {
 
             tokio::select! {
                 _ = ticker.tick() => {
-                    if self.state.mode() == Mode::Generating {
-                        if let Some(spinner) = self.state.spinner_mut() {
+                    if self.state.mode() == Mode::Generating
+                        && let Some(spinner) = self.state.spinner_mut() {
                             spinner.tick();
                             self.state.set_dirty(true);
                         }
-                    }
                 }
                 Some(result) = rx.recv() => {
                     match result {
@@ -235,8 +234,8 @@ impl TuiCommit {
                     completion_task_spawned = false;
                 }
                 maybe_event = events.next() => {
-                    if let Some(Ok(Event::Key(key))) = maybe_event {
-                        if key.kind == crossterm::event::KeyEventKind::Press {
+                    if let Some(Ok(Event::Key(key))) = maybe_event
+                        && key.kind == crossterm::event::KeyEventKind::Press {
                             let input_result = handle_input(self, key).await;
                             match input_result {
                                 InputResult::Exit => return Ok(ExitStatus::Cancelled),
@@ -252,7 +251,6 @@ impl TuiCommit {
                                 InputResult::Continue => self.state.set_dirty(true),
                             }
                         }
-                    }
                 }
             }
         }

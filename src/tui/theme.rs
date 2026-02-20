@@ -142,12 +142,12 @@ impl Theme {
                 component_focus: Color::Rgb(59, 130, 246), // Blue-500
 
                 selection_bg: Color::Rgb(219, 234, 254), // Blue-100
-                selection_fg: Color::Rgb(30, 64, 175), // Blue-800
+                selection_fg: Color::Rgb(30, 64, 175),   // Blue-800
 
                 state_success: Color::Rgb(22, 163, 74), // Green-600
-                state_error: Color::Rgb(220, 38, 38), // Red-600
+                state_error: Color::Rgb(220, 38, 38),   // Red-600
                 state_warning: Color::Rgb(217, 119, 6), // Amber-600
-                state_info: Color::Rgb(8, 145, 178), // Cyan-600
+                state_info: Color::Rgb(8, 145, 178),    // Cyan-600
 
                 accent: Color::Rgb(79, 70, 229), // Indigo-600
                 secondary_accent: Color::Rgb(147, 51, 234), // Purple-600
@@ -164,8 +164,8 @@ impl Theme {
                 brand_primary: Color::Rgb(180, 190, 254), // Lavender
 
                 text_default: Color::Rgb(205, 214, 244), // Text
-                text_dimmed: Color::Rgb(147, 153, 178), // Overlay0
-                text_on_accent: Color::Rgb(17, 17, 27), // Crust
+                text_dimmed: Color::Rgb(147, 153, 178),  // Overlay0
+                text_on_accent: Color::Rgb(17, 17, 27),  // Crust
 
                 background_base: Color::Rgb(30, 30, 46), // Base
                 background_surface: Color::Rgb(49, 50, 68), // Surface0
@@ -173,19 +173,19 @@ impl Theme {
 
                 component_active: Color::Rgb(203, 166, 247), // Mauve
                 component_inactive: Color::Rgb(88, 91, 112), // Surface2
-                component_focus: Color::Rgb(137, 180, 250), // Blue
+                component_focus: Color::Rgb(137, 180, 250),  // Blue
 
                 selection_bg: Color::Rgb(180, 190, 254), // Lavender
-                selection_fg: Color::Rgb(17, 17, 27), // Crust
+                selection_fg: Color::Rgb(17, 17, 27),    // Crust
 
                 state_success: Color::Rgb(166, 227, 161), // Green
-                state_error: Color::Rgb(243, 139, 168), // Red
+                state_error: Color::Rgb(243, 139, 168),   // Red
                 state_warning: Color::Rgb(250, 179, 135), // Peach
-                state_info: Color::Rgb(137, 220, 235), // Sky
+                state_info: Color::Rgb(137, 220, 235),    // Sky
 
                 accent: Color::Rgb(203, 166, 247), // Mauve
                 secondary_accent: Color::Rgb(245, 194, 231), // Pink
-                border: Color::Rgb(88, 91, 112), // Surface2
+                border: Color::Rgb(88, 91, 112),   // Surface2
                 border_active: Color::Rgb(180, 190, 254), // Lavender
 
                 font_weight_regular: Modifier::empty(),
@@ -204,12 +204,24 @@ impl Theme {
             brand_primary: Color::Blue,
 
             text_default: if is_light { Color::Black } else { Color::White },
-            text_dimmed: if is_light { Color::DarkGray } else { Color::Gray },
+            text_dimmed: if is_light {
+                Color::DarkGray
+            } else {
+                Color::Gray
+            },
             text_on_accent: if is_light { Color::White } else { Color::Black },
 
             background_base: if is_light { Color::White } else { Color::Black },
-            background_surface: if is_light { Color::Gray } else { Color::DarkGray },
-            background_overlay: if is_light { Color::Gray } else { Color::DarkGray },
+            background_surface: if is_light {
+                Color::Gray
+            } else {
+                Color::DarkGray
+            },
+            background_overlay: if is_light {
+                Color::Gray
+            } else {
+                Color::DarkGray
+            },
 
             component_active: Color::Blue,
             component_inactive: Color::Gray,

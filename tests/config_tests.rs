@@ -41,7 +41,8 @@ fn test_project_config_security() {
     let mut config = MockDataBuilder::config();
 
     // Add API keys to multiple providers
-    for provider_name in &["openai", "anthropic", "cohere"] {
+    {
+        let provider_name = &"google";
         let provider_config = ProviderConfig {
             api_key: format!("secret_{provider_name}_api_key"),
             model_name: format!("{provider_name}_model"),
@@ -59,7 +60,8 @@ fn test_project_config_security() {
         .expect("Failed to save project config");
 
     // Verify no API keys are in git config
-    for provider_name in &["openai", "anthropic", "cohere"] {
+    {
+        let provider_name = &"google";
         let key = format!("gitai.{provider_name}-apikey");
         let output = Command::new("git")
             .args(["config", "--get", &key])
@@ -75,22 +77,22 @@ fn test_project_config_security() {
     // 2. Test merging project config with personal config
     // Create configs using our MockDataBuilder
     let mut personal_config =
-        MockDataBuilder::test_config_with_api_key("openai", "personal_api_key");
+        MockDataBuilder::test_config_with_api_key("google", "personal_api_key");
     personal_config
         .providers
-        .get_mut("openai")
-        .expect("OpenAI provider should exist")
-        .model_name = "gpt-3.5-turbo".to_string();
+        .get_mut("google")
+        .expect("Google provider should exist")
+        .model_name = "gemini-2.5-flash-lite".to_string();
 
     let mut project_config = MockDataBuilder::config();
     let project_provider_config = ProviderConfig {
         api_key: String::new(), // Empty API key
-        model_name: "gpt-4".to_string(),
+        model_name: "gemini-pro".to_string(),
         ..Default::default()
     };
     project_config
         .providers
-        .insert("openai".to_string(), project_provider_config);
+        .insert("google".to_string(), project_provider_config);
 
     // Merge configs
     personal_config.merge_with_project_config(project_config);
@@ -98,8 +100,8 @@ fn test_project_config_security() {
     // Verify API key from personal config is preserved
     let provider_config = personal_config
         .providers
-        .get("openai")
-        .expect("OpenAI provider config not found");
+        .get("google")
+        .expect("Google provider config not found");
     assert_eq!(
         provider_config.api_key, "personal_api_key",
         "Personal API key was lost during merge"
@@ -107,14 +109,14 @@ fn test_project_config_security() {
 
     // Verify model from project config is used
     assert_eq!(
-        provider_config.model_name, "gpt-4",
+        provider_config.model_name, "gemini-pro",
         "Project model setting was not applied"
     );
 
     // 3. Test CLI command integration
     // Set up common parameters similar to CLI arguments
     let common = CommonParams {
-        provider: Some("openai".to_string()),
+        provider: Some("google".to_string()),
         instructions: Some("Test instructions".to_string()),
         detail_level: "standard".to_string(),
         repository_url: None,
@@ -130,8 +132,8 @@ fn test_project_config_security() {
     // Set an API key
     let provider_config = config
         .providers
-        .get_mut("openai")
-        .expect("OpenAI provider config not found");
+        .get_mut("google")
+        .expect("Google provider config not found");
     provider_config.api_key = "cli_integration_api_key".to_string();
 
     // Save as project config
@@ -141,7 +143,7 @@ fn test_project_config_security() {
 
     // Verify the API key is not in git config
     let output = Command::new("git")
-        .args(["config", "--get", "gitai.openai-apikey"])
+        .args(["config", "--get", "gitai.google-apikey"])
         .current_dir(".")
         .output()
         .expect("Failed to check git config");

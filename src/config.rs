@@ -108,7 +108,7 @@ impl Config {
             local_config.as_ref(),
             global_config.as_ref(),
         )
-        .unwrap_or_else(|| "openai".to_string()); // fallback to openai if not set
+        .unwrap_or_else(|| "google".to_string()); // fallback to google if not set
 
         let instructions = get_layered_value(
             "gitai.instructions",

@@ -1,5 +1,5 @@
 use super::types::GeneratedMessage;
-use crate::common::{get_combined_instructions, DetailLevel};
+use crate::common::{DetailLevel, get_combined_instructions};
 use crate::config::Config;
 use crate::core::context::{ChangeType, CommitContext, RecentCommit, StagedFile};
 

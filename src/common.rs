@@ -139,16 +139,7 @@ impl CommonParams {
         let mut changes_made = false;
 
         if let Some(provider) = &self.provider {
-            // Convert "claude" to "anthropic" for backward compatibility
-            let provider_name = if provider.to_lowercase() == "claude" {
-                "anthropic".to_string()
-            } else if provider.to_lowercase() == "openrouter" {
-                "openrouter".to_string()
-            } else if provider.to_lowercase() == "google" {
-                "google".to_string()
-            } else {
-                provider.clone()
-            };
+            let provider_name = provider.to_lowercase();
 
             // Check if we need to update the default provider
             if config.default_provider != provider_name {
@@ -197,13 +188,7 @@ impl CommonParams {
 
 /// Validates that a provider name is available in the system
 pub fn available_providers_parser(s: &str) -> Result<String, String> {
-    let mut provider_name = s.to_lowercase();
-
-    // Handle legacy "claude" provider name by mapping it to "anthropic"
-    if provider_name == "claude" {
-        provider_name = "anthropic".to_string();
-    }
-
+    let provider_name = s.to_lowercase();
     let available_providers = get_available_provider_names();
 
     if available_providers

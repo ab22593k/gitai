@@ -1,3 +1,4 @@
+use git2::Repository;
 use gitai::{
     config::{Config, ProviderConfig},
     core::context::{ChangeType, CommitContext, RecentCommit, StagedFile},
@@ -10,7 +11,6 @@ use gitai::{
     },
     git::GitRepo,
 };
-use git2::Repository;
 
 use anyhow::Result;
 use std::fs;
@@ -604,6 +604,6 @@ impl TestEnvironment {
 
     /// Setup for tests that need API keys
     pub fn setup_api_test_env() -> Option<String> {
-        std::env::var("OPENAI_API_KEY").ok()
+        std::env::var("GOOGLE_API_KEY").ok()
     }
 }

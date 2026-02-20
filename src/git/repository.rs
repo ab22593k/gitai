@@ -154,7 +154,7 @@ impl GitRepo {
 
         // Fetch updates from the remote (all branches)
         let mut remote = repo.find_remote(remote_name)?;
-        remote.fetch(&[] as &[&str], None, None)?;
+        remote.fetch(<&[&str]>::default(), None, None)?;
 
         debug!("Successfully updated remote repository");
         Ok(())

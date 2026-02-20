@@ -9,8 +9,11 @@ use crate::git::GitRepo;
 use crate::tui::run_tui_commit;
 use crate::ui::{self, SpinnerState};
 
-use crossterm::{ExecutableCommand, terminal::{Clear, ClearType}};
 use anyhow::{Context, Result};
+use crossterm::{
+    ExecutableCommand,
+    terminal::{Clear, ClearType},
+};
 use std::{
     io::{self, Write},
     str::FromStr,

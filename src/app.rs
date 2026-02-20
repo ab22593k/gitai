@@ -12,7 +12,7 @@ use log::debug;
 #[command(
     author,
     version = crate_version!(),
-    about = "Gait: AI-powered Git workflow assistant",
+    about = "GitAI: AI-powered Git workflow assistant",
     disable_version_flag = true,
     after_help = get_dynamic_help(),
     styles = get_styles(),
@@ -20,7 +20,7 @@ use log::debug;
 pub struct Cli {
     /// Subcommands available for the CLI
     #[command(subcommand)]
-    pub command: Option<Gait>,
+    pub command: Option<Gitai>,
 
     /// Log debug messages to a file
     #[arg(
@@ -71,7 +71,7 @@ pub struct Cli {
 #[derive(Subcommand)]
 #[command(subcommand_negates_reqs = true)]
 #[command(subcommand_precedence_over_arg = true)]
-pub enum Gait {
+pub enum Gitai {
     /// Generate a commit message using AI
     #[command(
         about = "Generate a commit message using AI",
@@ -320,12 +320,12 @@ pub async fn handle_release_notes(
 }
 
 /// Handle the command based on parsed arguments
-pub async fn handle_command(command: Gait, repository_url: Option<String>) -> anyhow::Result<()> {
+pub async fn handle_command(command: Gitai, repository_url: Option<String>) -> anyhow::Result<()> {
     // Initialize tracing to file
     crate::core::llm::init_tracing_to_file();
 
     match command {
-        Gait::Message {
+        Gitai::Message {
             common,
             print,
             dry_run,
@@ -346,7 +346,7 @@ pub async fn handle_command(command: Gait, repository_url: Option<String>) -> an
             )
             .await
         }
-        Gait::Changelog {
+        Gitai::Changelog {
             common,
             from,
             to,
@@ -354,13 +354,13 @@ pub async fn handle_command(command: Gait, repository_url: Option<String>) -> an
             file,
             version_name,
         } => handle_changelog(common, from, to, repository_url, update, file, version_name).await,
-        Gait::ReleaseNotes {
+        Gitai::ReleaseNotes {
             common,
             from,
             to,
             version_name,
         } => handle_release_notes(common, from, to, repository_url, version_name).await,
-        Gait::Pr {
+        Gitai::Pr {
             common,
             print,
             from,

@@ -89,16 +89,11 @@ impl GitIgnoreMatcher {
 
     /// Recursively adds all .gitignore files to the builder
     fn add_gitignore_files(&self, builder: &mut ignore::gitignore::GitignoreBuilder) {
-        self.add_gitignore_from_dir(builder, &self.repo_root);
+        Self::add_gitignore_from_dir(builder, &self.repo_root);
     }
 
     /// Recursively adds .gitignore files from a directory and its subdirectories to the builder
-    #[allow(clippy::only_used_in_recursion)]
-    fn add_gitignore_from_dir(
-        &self,
-        builder: &mut ignore::gitignore::GitignoreBuilder,
-        dir: &Path,
-    ) {
+    fn add_gitignore_from_dir(builder: &mut ignore::gitignore::GitignoreBuilder, dir: &Path) {
         let gitignore_path = dir.join(".gitignore");
         if gitignore_path.exists() {
             debug!("Adding .gitignore from: {}", gitignore_path.display());
@@ -120,7 +115,7 @@ impl GitIgnoreMatcher {
                     let subdir = entry.path();
                     // Skip .git directory
                     if !subdir.ends_with(".git") {
-                        self.add_gitignore_from_dir(builder, &subdir);
+                        Self::add_gitignore_from_dir(builder, &subdir);
                     }
                 }
             }

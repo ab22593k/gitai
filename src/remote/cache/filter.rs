@@ -6,7 +6,6 @@ impl RepositoryFilter {
     /// Filter repository content based on the configuration filters.
     /// This function copies only the specified paths from source to destination.
     pub fn filter_repository_content(
-        &self,
         source_path: &str,
         destination_path: &str,
         filters: &[String],
@@ -16,7 +15,7 @@ impl RepositoryFilter {
 
         // Process each filter path.
         for filter_path in filters {
-            self.copy_filtered_content(source_path, destination_path, filter_path)?;
+            Self::copy_filtered_content(source_path, destination_path, filter_path)?;
         }
 
         Ok(())
@@ -24,7 +23,6 @@ impl RepositoryFilter {
 
     /// Copy specific content from source to destination based on a filter path.
     fn copy_filtered_content(
-        &self,
         source_path: &str,
         destination_path: &str,
         filter_path: &str,
@@ -47,7 +45,7 @@ impl RepositoryFilter {
             } else if source_filtered_path.is_dir() {
                 // Copy the entire directory recursively, preserving the path structure.
                 let dest_subdir = dest_dir.join(&normalized_filter);
-                self.copy_dir_all(&source_filtered_path, &dest_subdir)?;
+                Self::copy_dir_all(&source_filtered_path, &dest_subdir)?;
             }
         } else {
             // The filter path doesn't exist in the source; skip it.
@@ -59,8 +57,7 @@ impl RepositoryFilter {
 
     /// Recursively copy a directory and its contents.
     /// Skips symlinks and other non-regular file types.
-    #[allow(clippy::only_used_in_recursion)]
-    fn copy_dir_all(&self, src: &Path, dst: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    fn copy_dir_all(src: &Path, dst: &Path) -> Result<(), Box<dyn std::error::Error>> {
         // Ensure the destination directory exists.
         fs::create_dir_all(dst)?;
 
@@ -75,7 +72,7 @@ impl RepositoryFilter {
 
             if file_type.is_dir() {
                 // Recurse into subdirectory.
-                self.copy_dir_all(&entry_path, &dest_entry_path)?;
+                Self::copy_dir_all(&entry_path, &dest_entry_path)?;
             } else if file_type.is_file() {
                 // Copy the file.
                 fs::copy(&entry_path, &dest_entry_path)?;
@@ -174,19 +171,17 @@ mod tests {
         let dest_dir = TempDir::new().expect("Failed to create temporary destination directory");
         let dest_path = dest_dir.path();
 
-        let filter = RepositoryFilter;
         let filters = vec!["src/".to_string()];
 
         // Apply the filter.
-        filter
-            .filter_repository_content(
-                src_path.to_str().expect("Source path is not valid UTF-8"),
-                dest_path
-                    .to_str()
-                    .expect("Destination path is not valid UTF-8"),
-                &filters,
-            )
-            .expect("Failed to filter repository content");
+        RepositoryFilter::filter_repository_content(
+            src_path.to_str().expect("Source path is not valid UTF-8"),
+            dest_path
+                .to_str()
+                .expect("Destination path is not valid UTF-8"),
+            &filters,
+        )
+        .expect("Failed to filter repository content");
 
         // Verify that only the filtered content was copied.
         assert!(dest_path.join("src").exists());

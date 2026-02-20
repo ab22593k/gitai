@@ -11,11 +11,11 @@ use super::state::{Mode, TuiState};
 use super::theme::get_theme;
 use ratatui::prelude::Stylize;
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap},
-    Frame,
 };
 use unicode_width::UnicodeWidthStr;
 
@@ -220,7 +220,7 @@ fn draw_header_and_nav(f: &mut Frame, state: &TuiState, area: Rect) {
                 .add_modifier(font_weight_bold()),
         ));
         nav_spans.push(Span::styled(
-            format!("{desc}"),
+            desc.to_string(),
             Style::default().fg(text_color()),
         ));
         if i < nav_items.len() - 1 {
@@ -406,13 +406,13 @@ pub fn draw_status(f: &mut Frame, state: &mut TuiState, area: Rect) {
 
     let status_line = Line::from(vec![
         Span::styled(
-            format!(" {} ", spinner),
+            format!(" {spinner} "),
             Style::default()
                 .bg(bg)
                 .fg(fg)
                 .add_modifier(font_weight_bold()),
         ),
-        Span::styled(format!(" {} ", content), Style::default().bg(bg).fg(fg)),
+        Span::styled(format!(" {content} "), Style::default().bg(bg).fg(fg)),
     ]);
 
     let status_widget = Paragraph::new(status_line).alignment(ratatui::layout::Alignment::Left);
@@ -610,11 +610,7 @@ fn draw_selection_list(f: &mut Frame, state: &mut TuiState, area: Rect) {
             };
             let checkbox = if is_selected { "󰄲 " } else { "󰄱 " }; // Using nerd font symbols (fallback to [x] if no font)
             let checkbox = if checkbox.width() == 1 {
-                if is_selected {
-                    "[x] "
-                } else {
-                    "[ ] "
-                }
+                if is_selected { "[x] " } else { "[ ] " }
             } else {
                 checkbox
             };
@@ -651,11 +647,7 @@ fn draw_selection_list(f: &mut Frame, state: &mut TuiState, area: Rect) {
             };
             let checkbox = if is_selected { "󰄲 " } else { "󰄱 " };
             let checkbox = if checkbox.width() == 1 {
-                if is_selected {
-                    "[x] "
-                } else {
-                    "[ ] "
-                }
+                if is_selected { "[x] " } else { "[ ] " }
             } else {
                 checkbox
             };

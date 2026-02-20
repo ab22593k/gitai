@@ -9,7 +9,6 @@ use log::debug;
 use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
 use std::collections::HashMap;
-use std::str::FromStr;
 use std::time::Duration;
 use tokio_retry::Retry;
 use tokio_retry::strategy::ExponentialBackoff;
@@ -28,66 +27,10 @@ static PROVIDER_DEFAULTS: std::sync::LazyLock<
 > = std::sync::LazyLock::new(|| {
     let mut m = std::collections::HashMap::new();
     m.insert(
-        "openai",
-        ProviderDefault {
-            model: "gpt-4.1",
-            token_limit: 128_000,
-        },
-    );
-    m.insert(
-        "anthropic",
-        ProviderDefault {
-            model: "claude-sonnet-4-20250514",
-            token_limit: 200_000,
-        },
-    );
-    m.insert(
         "google",
         ProviderDefault {
             model: "gemini-2.5-flash-lite",
             token_limit: 1_000_000,
-        },
-    );
-    m.insert(
-        "xai",
-        ProviderDefault {
-            model: "grok-2-beta",
-            token_limit: 128_000,
-        },
-    ); // assuming, since not in test
-    m.insert(
-        "deepseek",
-        ProviderDefault {
-            model: "deepseek-chat",
-            token_limit: 64_000,
-        },
-    ); // assuming
-    m.insert(
-        "phind",
-        ProviderDefault {
-            model: "Phind-70B",
-            token_limit: 32_000,
-        },
-    ); // assuming
-    m.insert(
-        "groq",
-        ProviderDefault {
-            model: "llama3-70b-8192",
-            token_limit: 8_192,
-        },
-    ); // assuming
-    m.insert(
-        "openrouter",
-        ProviderDefault {
-            model: "gpt-4.1",
-            token_limit: 128_000,
-        },
-    );
-    m.insert(
-        "cerebras",
-        ProviderDefault {
-            model: "llama-3.3-70b",
-            token_limit: 128_000,
         },
     );
     m
@@ -118,15 +61,12 @@ where
     debug!("System prompt: {system_prompt}");
     debug!("User prompt: {user_prompt}");
 
-    // Parse the provider type - Cerebras uses OpenAI-compatible API
-    let (backend, custom_base_url) = match provider_name.to_lowercase().as_str() {
-        "openrouter" => (LLMBackend::OpenRouter, None),
-        "cerebras" => (LLMBackend::OpenAI, Some("https://api.cerebras.ai/v1/")),
-        _ => (
-            LLMBackend::from_str(provider_name).map_err(|e| anyhow!("Invalid provider: {e}"))?,
-            None,
-        ),
-    };
+    // Only Google is supported
+    if provider_name.to_lowercase() != "google" {
+        return Err(anyhow!("Only Google provider is supported"));
+    }
+
+    let backend = LLMBackend::Google;
 
     // Get provider configuration
     let provider_config = config
@@ -145,13 +85,8 @@ where
     builder = builder.system(system_prompt.to_string());
 
     // Set API key if needed
-    if requires_api_key(&backend) && !provider_config.api_key.is_empty() {
+    if !provider_config.api_key.is_empty() {
         builder = builder.api_key(provider_config.api_key.clone());
-    }
-
-    // Set custom base URL if specified (e.g., for Cerebras)
-    if let Some(base_url) = custom_base_url {
-        builder = builder.base_url(base_url);
     }
 
     // Set temperature if specified in additional params
@@ -161,14 +96,8 @@ where
         builder = builder.temperature(temp_val);
     }
 
-    // Set max tokens if specified in additional params, otherwise use 4096 as default
-    // For OpenAI thinking models, don't set max_tokens via builder since they use max_completion_tokens
-    if is_openai_thinking_model(&provider_config.model_name)
-        && provider_name.to_lowercase() == "openai"
-    {
-        // For thinking models, max_completion_tokens should be handled via additional_params
-        // Don't set max_tokens via the builder for these models
-    } else if let Some(max_tokens) = provider_config.additional_params.get("max_tokens") {
+    // Set max tokens if specified in additional params, otherwise use provider default
+    if let Some(max_tokens) = provider_config.additional_params.get("max_tokens") {
         if let Ok(mt_val) = max_tokens.parse::<u32>() {
             builder = builder.max_tokens(mt_val);
         }
@@ -199,7 +128,7 @@ where
 pub async fn get_message_with_provider<T>(
     provider: Box<dyn LLMProvider + Send + Sync>,
     user_prompt: &str,
-    provider_type: &str,
+    _provider_type: &str,
     #[allow(clippy::used_underscore_binding)] _system_prompt: &str,
 ) -> Result<T>
 where
@@ -220,58 +149,22 @@ where
         };
 
         // Create chat message with user prompt
-        let mut messages = vec![ChatMessage::user().content(enhanced_prompt.clone()).build()];
-
-        // Special handling for Anthropic - use the "prefill" technique with "{"
-        if provider_type.to_lowercase() == "anthropic" && std::any::type_name::<T>() != std::any::type_name::<String>() {
-            messages.push(ChatMessage::assistant().content("Here is the JSON:\n{").build());
-        }
+        let messages = vec![ChatMessage::user().content(enhanced_prompt.clone()).build()];
 
         match tokio::time::timeout(Duration::from_secs(60), provider.chat(&messages)).await {
             Ok(Ok(response)) => {
                 let response_text = response.text().unwrap_or_default();
-
-
-
-
                 debug!("Received response from provider");
 
-                // Provider-specific response parsing
-                let result = match provider_type.to_lowercase().as_str() {
-                    // For Anthropic with brace prefixing
-                    "anthropic" => {
-                        if std::any::type_name::<T>() == std::any::type_name::<String>() {
-                            // For String type, we need to handle differently
-                            #[allow(clippy::unnecessary_to_owned)]
-                            let string_result: T = serde_json::from_value(serde_json::Value::String(response_text.clone()))
-                                .map_err(|e| anyhow!("String conversion error: {e}"))?;
-                            Ok(string_result)
-                        } else {
-                            parse_json_response_with_brace_prefix::<T>(&response_text)
-                        }
-                    },
-
-                    // For all other providers - use appropriate parsing
-                    _ => {
-                        if std::any::type_name::<T>() == std::any::type_name::<String>() {
-                            // For String type, we need to handle differently
-                            #[allow(clippy::unnecessary_to_owned)]
-                            let string_result: T = serde_json::from_value(serde_json::Value::String(response_text.clone()))
-                                .map_err(|e| anyhow!("String conversion error: {e}"))?;
-                            Ok(string_result)
-                        } else {
-                            // First try direct parsing, then fall back to extraction
-                            parse_json_response::<T>(&response_text)
-                        }
-                    }
-                };
-
-                match result {
-                    Ok(message) => Ok(message),
-                    Err(e) => {
-                        debug!("JSON parse error: {e} text: {response_text}");
-                        Err(anyhow!("JSON parse error: {e}"))
-                    }
+                if std::any::type_name::<T>() == std::any::type_name::<String>() {
+                    // For String type, we need to handle differently
+                    #[allow(clippy::unnecessary_to_owned)]
+                    let string_result: T = serde_json::from_value(serde_json::Value::String(response_text.clone()))
+                        .map_err(|e| anyhow!("String conversion error: {e}"))?;
+                    Ok(string_result)
+                } else {
+                    // First try direct parsing, then fall back to extraction
+                    parse_json_response::<T>(&response_text)
                 }
             }
             Ok(Err(e)) => {
@@ -310,19 +203,6 @@ fn parse_json_response<T: DeserializeOwned>(text: &str) -> Result<T> {
     }
 }
 
-/// Parse a response from Anthropic that needs the prefixed "{"
-fn parse_json_response_with_brace_prefix<T: DeserializeOwned>(text: &str) -> Result<T> {
-    // Add the opening brace that we prefilled in the prompt
-    let json_text = format!("{{{text}");
-    match serde_json::from_str::<T>(&json_text) {
-        Ok(message) => Ok(message),
-        Err(e) => {
-            debug!("Brace-prefixed JSON parse failed: {e}. Attempting fallback extraction.");
-            extract_and_parse_json(text)
-        }
-    }
-}
-
 /// Extracts and parses JSON from a potentially non-JSON response
 fn extract_and_parse_json<T: DeserializeOwned>(text: &str) -> Result<T> {
     let cleaned_json = clean_json_from_llm(text);
@@ -330,64 +210,36 @@ fn extract_and_parse_json<T: DeserializeOwned>(text: &str) -> Result<T> {
 }
 
 pub fn get_available_provider_names() -> Vec<String> {
-    vec![
-        "openai".to_string(),
-        "anthropic".to_string(),
-        "ollama".to_string(),
-        "google".to_string(),
-        "groq".to_string(),
-        "xai".to_string(),
-        "deepseek".to_string(),
-        "phind".to_string(),
-        "openrouter".to_string(),
-        "cerebras".to_string(),
-    ]
+    vec!["google".to_string()]
 }
 
 /// Returns the default model for a given provider
 pub fn get_default_model_for_provider(provider_type: &str) -> &'static str {
     PROVIDER_DEFAULTS
         .get(provider_type.to_lowercase().as_str())
-        .map_or("gpt-4.1", |def| def.model)
+        .map_or("gemini-2.5-flash-lite", |def| def.model)
 }
 
 /// Returns the default token limit for a given provider
 pub fn get_default_token_limit_for_provider(provider_type: &str) -> usize {
     PROVIDER_DEFAULTS
         .get(provider_type.to_lowercase().as_str())
-        .map_or(8_192, |def| def.token_limit)
+        .map_or(1_000_000, |def| def.token_limit)
 }
 
 /// Checks if a provider requires an API key
-pub fn provider_requires_api_key(provider_type: &str) -> bool {
-    if let Ok(backend) = LLMBackend::from_str(provider_type) {
-        requires_api_key(&backend)
-    } else {
-        true // Default to requiring API key for unknown providers
-    }
-}
-
-/// Helper function: check if `LLMBackend` requires API key
-fn requires_api_key(backend: &LLMBackend) -> bool {
-    !matches!(backend, LLMBackend::Ollama | LLMBackend::Phind)
-}
-
-/// Helper function: check if the model is an `OpenAI` thinking model
-fn is_openai_thinking_model(model: &str) -> bool {
-    let model_lower = model.to_lowercase();
-    model_lower.starts_with('o')
+pub fn provider_requires_api_key(_provider_type: &str) -> bool {
+    true
 }
 
 /// Validates the provider configuration
 pub fn validate_provider_config(config: &Config, provider_name: &str) -> Result<()> {
-    if provider_requires_api_key(provider_name) {
-        let provider_config = config
-            .get_provider_config(provider_name)
-            .ok_or_else(|| anyhow!("Provider '{provider_name}' not found in configuration"))?;
+    let provider_config = config
+        .get_provider_config(provider_name)
+        .ok_or_else(|| anyhow!("Provider '{provider_name}' not found in configuration"))?;
 
-        if provider_config.api_key.is_empty() {
-            return Err(anyhow!("API key required for provider: {provider_name}"));
-        }
+    if provider_config.api_key.is_empty() {
+        return Err(anyhow!("API key required for provider: {provider_name}"));
     }
 
     Ok(())
@@ -425,15 +277,6 @@ pub fn get_combined_config<S: ::std::hash::BuildHasher>(
         if !value.is_empty() {
             combined_params.insert(key.clone(), value.clone());
         }
-    }
-
-    // Handle OpenAI thinking models: convert max_tokens to max_completion_tokens
-    if provider_name.to_lowercase() == "openai"
-        && let Some(model) = combined_params.get("model")
-        && is_openai_thinking_model(model)
-        && let Some(max_tokens) = combined_params.remove("max_tokens")
-    {
-        combined_params.insert("max_completion_tokens".to_string(), max_tokens);
     }
 
     combined_params
