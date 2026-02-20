@@ -207,7 +207,7 @@ where
 {
     debug!("Entering get_message_with_provider");
 
-    let retry_strategy = ExponentialBackoff::from_millis(10).factor(2).take(2); // 2 attempts total: initial + 1 retry
+    let retry_strategy = ExponentialBackoff::from_millis(50).factor(2).take(3); // 3 attempts total: initial + 2 retries
 
     let result = Retry::spawn(retry_strategy, || async {
         debug!("Attempting to generate message");
@@ -227,7 +227,7 @@ where
             messages.push(ChatMessage::assistant().content("Here is the JSON:\n{").build());
         }
 
-        match tokio::time::timeout(Duration::from_secs(30), provider.chat(&messages)).await {
+        match tokio::time::timeout(Duration::from_secs(60), provider.chat(&messages)).await {
             Ok(Ok(response)) => {
                 let response_text = response.text().unwrap_or_default();
 

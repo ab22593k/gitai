@@ -31,22 +31,18 @@ fn get_files_from_diff(
 
     let diff_len = diff.deltas().len();
     for i in 0..diff_len {
-        let mut patch = git2::Patch::from_diff(diff, i)?
-            .ok_or_else(|| anyhow!("Failed to get patch at index {}", i))?;
-        let (file_path, change_type) = {
-            let delta = patch.delta();
+        let (file_path, change_type, status) = {
+            let delta = diff.get_delta(i).ok_or_else(|| anyhow!("Failed to get delta at index {}", i))?;
             let to_owned_path =
                 |p: Option<&std::path::Path>| p.and_then(|path| path.to_str()).map(String::from);
-            // Heuristic: If no hunks, it's a pure rename (100% similarity)
-            let similarity = if patch.num_hunks() == 0 { 100 } else { 0 };
-
+            
             match delta.status() {
-                git2::Delta::Added => (to_owned_path(delta.new_file().path()), ChangeType::Added),
+                git2::Delta::Added => (to_owned_path(delta.new_file().path()), ChangeType::Added, delta.status()),
                 git2::Delta::Modified => {
-                    (to_owned_path(delta.new_file().path()), ChangeType::Modified)
+                    (to_owned_path(delta.new_file().path()), ChangeType::Modified, delta.status())
                 }
                 git2::Delta::Deleted => {
-                    (to_owned_path(delta.old_file().path()), ChangeType::Deleted)
+                    (to_owned_path(delta.old_file().path()), ChangeType::Deleted, delta.status())
                 }
                 git2::Delta::Renamed => {
                     let old_path = to_owned_path(delta.old_file().path()).unwrap_or_default();
@@ -54,8 +50,9 @@ fn get_files_from_diff(
                         to_owned_path(delta.new_file().path()),
                         ChangeType::Renamed {
                             from: old_path,
-                            similarity,
+                            similarity: 0, // Placeholder, will update if patch is created
                         },
+                        delta.status()
                     )
                 }
                 git2::Delta::Copied => {
@@ -64,8 +61,9 @@ fn get_files_from_diff(
                         to_owned_path(delta.new_file().path()),
                         ChangeType::Copied {
                             from: old_path,
-                            similarity,
+                            similarity: 0,
                         },
+                        delta.status()
                     )
                 }
                 _ => continue,
@@ -78,49 +76,70 @@ fn get_files_from_diff(
 
             if should_exclude {
                 diff_content = String::from("[Content excluded]");
+            } else if status == git2::Delta::Deleted {
+                diff_content = format!("[DELETED] File '{}' was removed", path_str);
             } else {
-                match &change_type {
-                    ChangeType::Deleted => {
-                        diff_content = format!("[DELETED] File '{}' was removed", path_str);
+                // Now create patch only if needed
+                let mut patch = git2::Patch::from_diff(diff, i)?
+                    .ok_or_else(|| anyhow!("Failed to get patch at index {}", i))?;
+                
+                // Update similarity if it's a rename/copy with no hunks
+                let mut final_change_type = change_type.clone();
+                if patch.num_hunks() == 0 {
+                    match &mut final_change_type {
+                        ChangeType::Renamed { similarity, .. } | ChangeType::Copied { similarity, .. } => {
+                            *similarity = 100;
+                        }
+                        _ => {}
                     }
-                    ChangeType::Renamed { .. } if patch.num_hunks() == 0 => {
-                        diff_content = format!(
-                            "[RENAMED] '{}' -> '{}' (no content changes)",
-                            match &change_type {
-                                ChangeType::Renamed { from, .. } => from,
-                                _ => "",
-                            },
-                            path_str
-                        );
-                    }
-                    _ => {
-                        let buf = patch
-                            .to_buf()
-                            .map_err(|e| anyhow!("Failed to get patch buffer: {}", e))?;
-                        let patch_str = match std::str::from_utf8(&buf) {
-                            Ok(s) => s.to_string(),
-                            Err(_) => "[Binary data]".to_string(),
-                        };
+                }
 
-                        if is_binary_diff(&patch_str) {
-                            diff_content = "[Binary file changed]".to_string();
-                        } else {
-                            match &change_type {
-                                ChangeType::Renamed { from, .. } => {
-                                    diff_content = format!(
-                                        "[RENAMED] '{}' -> '{}'\n{}",
-                                        from, path_str, patch_str
-                                    );
-                                }
-                                ChangeType::Copied { from, .. } => {
-                                    diff_content =
-                                        format!("[COPIED] from '{}'\n{}", from, patch_str);
-                                }
-                                _ => diff_content = patch_str,
+                if patch.num_hunks() == 0 && matches!(status, git2::Delta::Renamed | git2::Delta::Copied) {
+                    diff_content = format!(
+                        "[{}] '{}' -> '{}' (no content changes)",
+                        if status == git2::Delta::Renamed { "RENAMED" } else { "COPIED" },
+                        match &final_change_type {
+                            ChangeType::Renamed { from, .. } | ChangeType::Copied { from, .. } => from,
+                            _ => "",
+                        },
+                        path_str
+                    );
+                } else {
+                    let buf = patch
+                        .to_buf()
+                        .map_err(|e| anyhow!("Failed to get patch buffer: {}", e))?;
+                    let patch_str = match std::str::from_utf8(&buf) {
+                        Ok(s) => s.to_string(),
+                        Err(_) => "[Binary data]".to_string(),
+                    };
+
+                    if is_binary_diff(&patch_str) {
+                        diff_content = "[Binary file changed]".to_string();
+                    } else {
+                        match &final_change_type {
+                            ChangeType::Renamed { from, .. } => {
+                                diff_content = format!(
+                                    "[RENAMED] '{}' -> '{}'\n{}",
+                                    from, path_str, patch_str
+                                );
                             }
+                            ChangeType::Copied { from, .. } => {
+                                diff_content =
+                                    format!("[COPIED] from '{}'\n{}", from, patch_str);
+                            }
+                            _ => diff_content = patch_str,
                         }
                     }
                 }
+                
+                files.push(StagedFile {
+                    path: path_str.clone(),
+                    change_type: final_change_type,
+                    diff: diff_content,
+                    content: None,
+                    content_excluded: should_exclude,
+                });
+                continue;
             }
 
             files.push(StagedFile {
@@ -226,32 +245,27 @@ pub fn amend_commit(
     let commit = repo.find_commit(commit_oid)?;
     let short_hash = commit.id().to_string()[..7].to_string();
 
-    let mut files_changed = 0;
-    let insertions = 0;
-    let deletions = 0;
+    let index = repo.index()?;
+    let parent_tree = if head_commit.parent_count() > 0 {
+        Some(head_commit.parent(0)?.tree()?)
+    } else {
+        None
+    };
+
+    // Calculate stats using diff
+    let mut diff_options = git2::DiffOptions::new();
+    let diff = repo.diff_tree_to_index(parent_tree.as_ref(), Some(&index), Some(&mut diff_options))?;
+    let stats = diff.stats()?;
+    let files_changed = stats.files_changed();
+    let insertions = stats.insertions();
+    let deletions = stats.deletions();
+
     let mut new_files = Vec::new();
-
-    // Count staged files for commit stats
-    let statuses = repo.statuses(None)?;
-    for entry in statuses.iter() {
-        if entry.status().contains(git2::Status::INDEX_NEW)
-            || entry.status().contains(git2::Status::INDEX_MODIFIED)
-            || entry.status().contains(git2::Status::INDEX_DELETED)
-        {
-            files_changed += 1;
-        }
-    }
-
-    let statuses = repo.statuses(None)?;
-
-    for entry in statuses.iter() {
-        if entry.status().contains(git2::Status::INDEX_NEW)
-            && let Some(path) = entry.path()
-        {
-            let mode = entry
-                .index_to_workdir()
-                .map_or(git2::FileMode::Blob, |d| d.new_file().mode());
-            new_files.push((path.to_string(), mode));
+    for delta in diff.deltas() {
+        if delta.status() == git2::Delta::Added {
+            if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
+                new_files.push((path.to_string(), delta.new_file().mode()));
+            }
         }
     }
 
@@ -283,12 +297,6 @@ pub fn commit(repo: &Repository, message: &str, is_remote: bool) -> Result<Commi
 
     let mut index = repo.index()?;
 
-    // Count staged files BEFORE the commit by comparing index with HEAD
-    let mut files_changed = 0;
-    let insertions = 0;
-    let deletions = 0;
-    let mut new_files = Vec::new();
-
     // Get HEAD tree for comparison
     let head_tree = if let Ok(head) = repo.head() {
         Some(head.peel_to_commit()?.tree()?)
@@ -296,38 +304,19 @@ pub fn commit(repo: &Repository, message: &str, is_remote: bool) -> Result<Commi
         None
     };
 
-    // Compare each index entry with HEAD
-    for entry in index.iter() {
-        let path_str = std::str::from_utf8(&entry.path)?;
-        let path = std::path::Path::new(path_str);
+    // Calculate stats using diff
+    let mut diff_options = git2::DiffOptions::new();
+    let diff = repo.diff_tree_to_index(head_tree.as_ref(), Some(&index), Some(&mut diff_options))?;
+    let stats = diff.stats()?;
+    let files_changed = stats.files_changed();
+    let insertions = stats.insertions();
+    let deletions = stats.deletions();
 
-        let is_changed = if let Some(ref head_tree) = head_tree {
-            // Check if file exists in HEAD
-            match head_tree.get_path(path) {
-                Ok(head_entry) => {
-                    // File exists in HEAD, check if different
-                    let head_oid = head_entry.id();
-                    head_oid != entry.id
-                }
-                Err(_) => {
-                    // File doesn't exist in HEAD, so it's new
-                    true
-                }
-            }
-        } else {
-            // Fresh repo, all files are new
-            true
-        };
-
-        if is_changed {
-            files_changed += 1;
-            // For new files, check if it's actually new
-            if let Some(ref head_tree) = head_tree {
-                if head_tree.get_path(path).is_err() {
-                    new_files.push((path_str.to_string(), FileMode::Blob));
-                }
-            } else {
-                new_files.push((path_str.to_string(), FileMode::Blob));
+    let mut new_files = Vec::new();
+    for delta in diff.deltas() {
+        if delta.status() == git2::Delta::Added {
+            if let Some(path) = delta.new_file().path().and_then(|p| p.to_str()) {
+                new_files.push((path.to_string(), delta.new_file().mode()));
             }
         }
     }

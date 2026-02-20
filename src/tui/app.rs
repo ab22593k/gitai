@@ -1,3 +1,4 @@
+use futures::StreamExt;
 use super::input_handler::{InputResult, handle_input};
 use super::spinner::SpinnerState;
 use super::state::{Mode, TuiState};
@@ -11,13 +12,12 @@ use ratatui::{
     Terminal,
     backend::CrosstermBackend,
     crossterm::{
-        event::{self, Event},
+        event::{Event, EventStream},
         execute,
         terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
     },
 };
 
-use log::debug;
 use std::io;
 use std::panic;
 use std::sync::Arc;
@@ -130,6 +130,9 @@ impl TuiCommit {
         let mut task_spawned = false;
         let mut completion_task_spawned = false;
 
+        let mut events = EventStream::new();
+        let mut ticker = tokio::time::interval(Duration::from_millis(100));
+
         loop {
             // Redraw only if dirty
             if self.state.is_dirty() {
@@ -145,7 +148,6 @@ impl TuiCommit {
                 let tx = tx.clone();
 
                 tokio::spawn(async move {
-                    // Use filtered context if available, otherwise use default
                     let result = if let Some(context) = filtered_context {
                         service
                             .generate_message_with_context(&instructions, context)
@@ -156,7 +158,7 @@ impl TuiCommit {
                     let _ = tx.send(result).await;
                 });
 
-                task_spawned = true; // Ensure we only spawn the task once
+                task_spawned = true;
             }
 
             // Spawn completion task if there's a pending completion request
@@ -168,18 +170,11 @@ impl TuiCommit {
                 let completion_tx = completion_tx.clone();
 
                 tokio::spawn(async move {
-                    debug!("Generating completion for prefix: {prefix}");
-                    // Generate real completion suggestions using the completion service
                     match completion_service.complete_message(&prefix, 0.5).await {
                         Ok(completed_message) => {
-                            // Extract the completed title as a suggestion
-                            let suggestion = completed_message.title;
-                            let suggestions = vec![suggestion];
-                            let _ = completion_tx.send(Ok(suggestions)).await;
+                            let _ = completion_tx.send(Ok(vec![completed_message.title])).await;
                         }
-                        Err(e) => {
-                            debug!("Completion failed: {e}");
-                            // Fallback to basic suggestions if completion fails
+                        Err(_e) => {
                             let suggestions = vec![
                                 format!("{}: add new feature", prefix),
                                 format!("{}: fix bug", prefix),
@@ -191,117 +186,76 @@ impl TuiCommit {
                 });
 
                 completion_task_spawned = true;
-                self.state.set_pending_completion_prefix(None); // Clear the pending request
+                self.state.set_pending_completion_prefix(None);
             }
 
-            // Check if a message has been received from the generation task
-            match rx.try_recv() {
-                Ok(result) => match result {
-                    Ok(new_message) => {
-                        // Add the new message to the list and switch to it
-                        self.state.add_message(new_message);
-
-                        self.state.set_mode(Mode::Normal); // Exit Generating mode
-                        self.state.set_spinner(None); // Stop the spinner
-                        self.state.set_status(format!(
-                            "New message generated! Viewing {}/{}",
-                            self.state.current_index() + 1,
-                            self.state.messages().len()
-                        ));
-                        task_spawned = false; // Reset for future regenerations
-                    }
-                    Err(e) => {
-                        self.state.set_mode(Mode::Normal); // Exit Generating mode
-                        self.state.set_spinner(None); // Stop the spinner
-                        self.state.set_status(format!(
-                            "Generation failed: {e}. Press 'R' to retry or 'Esc' to exit."
-                        ));
-                        task_spawned = false; // Reset for future regenerations
-                    }
-                },
-                Err(tokio::sync::mpsc::error::TryRecvError::Empty) => {
-                    // No message available yet, continue the loop
-                }
-                Err(tokio::sync::mpsc::error::TryRecvError::Disconnected) => {
-                    // Handle the case where the sender has disconnected
-                    task_spawned = false;
-                }
-            }
-
-            // Check if completion suggestions have been received
-            match completion_rx.try_recv() {
-                Ok(result) => match result {
-                    Ok(suggestions) => {
-                        self.state.set_completion_suggestions(suggestions);
-                        completion_task_spawned = false;
-                    }
-                    Err(e) => {
-                        self.state.set_status(format!(
-                            "Completion failed: {e}. Press Tab to retry or continue editing."
-                        ));
-                        self.state.set_mode(Mode::EditingMessage);
-                        completion_task_spawned = false;
-                    }
-                },
-                Err(tokio::sync::mpsc::error::TryRecvError::Empty) => {
-                    // No completion available yet, continue the loop
-                }
-                Err(tokio::sync::mpsc::error::TryRecvError::Disconnected) => {
-                    // Handle the case where the sender has disconnected
-                    break;
-                }
-            }
-
-            // Poll for input events asynchronously
-            let event = tokio::task::spawn_blocking(|| {
-                if event::poll(Duration::from_millis(20)).unwrap_or(false) {
-                    if let Ok(Event::Key(key)) = event::read() {
-                        if key.kind == crossterm::event::KeyEventKind::Press {
-                            Some(key)
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            })
-            .await
-            .expect("Failed to poll for input events");
-
-            if let Some(key) = event {
-                let input_result = handle_input(self, key).await;
-                match input_result {
-                    InputResult::Exit => return Ok(ExitStatus::Cancelled),
-                    InputResult::Commit(message) => match self.perform_commit(&message) {
-                        Ok(status) => return Ok(status),
-                        Err(e) => {
-                            self.state.set_status(format!(
-                                "Commit failed: {e}. Check your staged changes and try again."
-                            ));
+            tokio::select! {
+                _ = ticker.tick() => {
+                    if self.state.mode() == Mode::Generating {
+                        if let Some(spinner) = self.state.spinner_mut() {
+                            spinner.tick();
                             self.state.set_dirty(true);
                         }
-                    },
-                    InputResult::Continue => self.state.set_dirty(true),
+                    }
                 }
-            }
-
-            // Update the spinner state and redraw if in generating mode
-            if self.state.mode() == Mode::Generating
-                && self.state.last_spinner_update().elapsed() >= Duration::from_millis(100)
-            {
-                if let Some(spinner) = self.state.spinner_mut() {
-                    spinner.tick();
-                    self.state.set_dirty(true); // Mark dirty to trigger redraw
+                Some(result) = rx.recv() => {
+                    match result {
+                        Ok(new_message) => {
+                            self.state.add_message(new_message);
+                            self.state.set_mode(Mode::Normal);
+                            self.state.set_spinner(None);
+                            self.state.set_status(format!(
+                                "New message generated! Viewing {}/{}",
+                                self.state.current_index() + 1,
+                                self.state.messages().len()
+                            ));
+                        }
+                        Err(e) => {
+                            self.state.set_mode(Mode::Normal);
+                            self.state.set_spinner(None);
+                            self.state.set_status(format!(
+                                "Generation failed: {e}. Press 'R' to retry or 'Esc' to exit."
+                            ));
+                        }
+                    }
+                    task_spawned = false;
                 }
-                self.state
-                    .set_last_spinner_update(std::time::Instant::now()); // Reset the update time
+                Some(result) = completion_rx.recv() => {
+                    match result {
+                        Ok(suggestions) => {
+                            self.state.set_completion_suggestions(suggestions);
+                        }
+                        Err(e) => {
+                            self.state.set_status(format!(
+                                "Completion failed: {e}. Press Tab to retry or continue editing."
+                            ));
+                            self.state.set_mode(Mode::EditingMessage);
+                        }
+                    }
+                    completion_task_spawned = false;
+                }
+                maybe_event = events.next() => {
+                    if let Some(Ok(Event::Key(key))) = maybe_event {
+                        if key.kind == crossterm::event::KeyEventKind::Press {
+                            let input_result = handle_input(self, key).await;
+                            match input_result {
+                                InputResult::Exit => return Ok(ExitStatus::Cancelled),
+                                InputResult::Commit(message) => match self.perform_commit(&message) {
+                                    Ok(status) => return Ok(status),
+                                    Err(e) => {
+                                        self.state.set_status(format!(
+                                            "Commit failed: {e}. Check your staged changes and try again."
+                                        ));
+                                        self.state.set_dirty(true);
+                                    }
+                                },
+                                InputResult::Continue => self.state.set_dirty(true),
+                            }
+                        }
+                    }
+                }
             }
         }
-
-        Ok(ExitStatus::Cancelled)
     }
 
     pub fn handle_regenerate(&mut self) {

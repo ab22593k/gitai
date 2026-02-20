@@ -120,40 +120,38 @@ impl Config {
 
         let mut providers = HashMap::new();
         for provider in get_available_provider_names() {
-            let api_key = get_api_key_for_provider(&provider);
+            let api_key = get_api_key_for_provider(&provider).unwrap_or_default();
 
-            if let Some(api_key) = api_key {
-                let default_model = get_default_model_for_provider(&provider).to_string();
-                let model = get_layered_value(
-                    &format!("gait.{provider}-model"),
-                    None, // no env for model yet
-                    local_config.as_ref(),
-                    global_config.as_ref(),
-                )
-                .unwrap_or(default_model);
+            let default_model = get_default_model_for_provider(&provider).to_string();
+            let model = get_layered_value(
+                &format!("gait.{provider}-model"),
+                None, // no env for model yet
+                local_config.as_ref(),
+                global_config.as_ref(),
+            )
+            .unwrap_or(default_model);
 
-                let token_limit = get_layered_value(
-                    &format!("gait.{provider}-tokenlimit"),
-                    None,
-                    local_config.as_ref(),
-                    global_config.as_ref(),
-                )
-                .and_then(|s| s.parse::<i64>().ok())
-                .and_then(|v| usize::try_from(v).ok());
+            let token_limit = get_layered_value(
+                &format!("gait.{provider}-tokenlimit"),
+                None,
+                local_config.as_ref(),
+                global_config.as_ref(),
+            )
+            .and_then(|s| s.parse::<i64>().ok())
+            .and_then(|v| usize::try_from(v).ok());
 
-                let additional_params = HashMap::new(); // TODO: handle additional params if needed
+            let additional_params = HashMap::new(); // TODO: handle additional params if needed
 
-                providers.insert(
-                    #[allow(clippy::implicit_clone)]
-                    provider.to_owned(),
-                    ProviderConfig {
-                        api_key,
-                        model_name: model,
-                        additional_params,
-                        token_limit,
-                    },
-                );
-            }
+            providers.insert(
+                #[allow(clippy::implicit_clone)]
+                provider.to_owned(),
+                ProviderConfig {
+                    api_key,
+                    model_name: model,
+                    additional_params,
+                    token_limit,
+                },
+            );
         }
 
         let config = Self {

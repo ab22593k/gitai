@@ -9,6 +9,7 @@ use crate::git::GitRepo;
 use crate::tui::run_tui_commit;
 use crate::ui::{self, SpinnerState};
 
+use crossterm::{ExecutableCommand, terminal::{Clear, ClearType}};
 use anyhow::{Context, Result};
 use std::{
     io::{self, Write},
@@ -43,7 +44,8 @@ where
             }
         }
         // Clear the spinner line
-        let _ = write!(stdout, "\r{}\r", " ".repeat(80));
+        let _ = stdout.execute(Clear(ClearType::CurrentLine));
+        let _ = write!(stdout, "\r");
         let _ = stdout.flush();
     });
 

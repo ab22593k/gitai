@@ -1,9 +1,13 @@
 use super::types::GeneratedMessage;
-use crate::common::{DetailLevel, get_combined_instructions};
+use crate::common::{get_combined_instructions, DetailLevel};
 use crate::config::Config;
 use crate::core::context::{ChangeType, CommitContext, RecentCommit, StagedFile};
 
 use log::debug;
+
+const MAX_DIFF_LENGTH: usize = 2000;
+const MAX_FILE_CONTENT_LENGTH: usize = 5000;
+const MAX_FILES_FOR_DETAILED_CHANGES: usize = 30;
 
 pub fn create_system_prompt(config: &Config) -> anyhow::Result<String> {
     let commit_schema = schemars::schema_for!(GeneratedMessage);
@@ -170,15 +174,37 @@ fn format_detailed_changes(files: &[StagedFile]) -> String {
     );
     all_sections.push(summary);
 
+    // Limit the number of files in detailed changes to avoid context overflow
+    let displayed_files = if files.len() > MAX_FILES_FOR_DETAILED_CHANGES {
+        all_sections.push(format!(
+            "NOTE: Only first {} files out of {} are shown in detail below.",
+            MAX_FILES_FOR_DETAILED_CHANGES,
+            files.len()
+        ));
+        &files[..MAX_FILES_FOR_DETAILED_CHANGES]
+    } else {
+        files
+    };
+
     // First section: File summaries with diffs
-    let diff_section = files
+    let diff_section = displayed_files
         .iter()
         .map(|file| {
+            let truncated_diff = if file.diff.len() > MAX_DIFF_LENGTH {
+                format!(
+                    "{}\n... [TRUNCATED {} bytes]",
+                    &file.diff[..MAX_DIFF_LENGTH],
+                    file.diff.len() - MAX_DIFF_LENGTH
+                )
+            } else {
+                file.diff.clone()
+            };
+
             format!(
                 "File: {}\nChange Type: {}\n\nDiff:\n{}",
                 file.path,
                 format_change_type(&file.change_type),
-                file.diff
+                truncated_diff
             )
         })
         .collect::<Vec<_>>()
@@ -186,12 +212,12 @@ fn format_detailed_changes(files: &[StagedFile]) -> String {
 
     all_sections.push(format!(
         "=== DIFFS ({} files) ===\n\n{}",
-        files.len(),
+        displayed_files.len(),
         diff_section
     ));
 
     // Second section: Full file contents (only for added files)
-    let content_files: Vec<_> = files
+    let content_files: Vec<_> = displayed_files
         .iter()
         .filter(|file| file.change_type == ChangeType::Added && file.content.is_some())
         .collect();
@@ -207,13 +233,20 @@ fn format_detailed_changes(files: &[StagedFile]) -> String {
                     ChangeType::Copied { .. } => "📋",
                 };
 
+                let content = file.content.as_ref().expect("content checked in filter");
+                let truncated_content = if content.len() > MAX_FILE_CONTENT_LENGTH {
+                    format!(
+                        "{}\n... [TRUNCATED {} bytes]",
+                        &content[..MAX_FILE_CONTENT_LENGTH],
+                        content.len() - MAX_FILE_CONTENT_LENGTH
+                    )
+                } else {
+                    content.clone()
+                };
+
                 format!(
                     "{} File: {}\nFull File Content:\n{}\n\n--- End of File ---",
-                    change_indicator,
-                    file.path,
-                    file.content
-                        .as_ref()
-                        .expect("File content should be present for added/modified files")
+                    change_indicator, file.path, truncated_content
                 )
             })
             .collect::<Vec<_>>()

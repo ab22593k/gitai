@@ -152,9 +152,9 @@ impl GitRepo {
             .next()
             .ok_or_else(|| anyhow!("No remote found"))?;
 
-        // Fetch updates from the remote
+        // Fetch updates from the remote (all branches)
         let mut remote = repo.find_remote(remote_name)?;
-        remote.fetch(&["master", "main"], None, None)?;
+        remote.fetch(&[] as &[&str], None, None)?;
 
         debug!("Successfully updated remote repository");
         Ok(())

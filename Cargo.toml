@@ -41,7 +41,7 @@ chrono = "0.4.38"
 clap = { version = "4.5.47", features = ["derive", "cargo"] }
 colored = "3.0.0"
 console = "0.16.1"
-crossterm = "0.28.0"
+crossterm = { version = "0.28.0", features = ["event-stream"] }
 dirs = "6.0.0"
 futures = "0.3.30"
 git2 = { version = "0.20.1", features = ["vendored-openssl"] }
