@@ -411,7 +411,6 @@ impl MockDataBuilder {
         };
 
         Config {
-            default_provider: provider.to_string(),
             providers: [(provider.to_string(), provider_config)]
                 .into_iter()
                 .collect(),

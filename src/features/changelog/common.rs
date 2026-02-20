@@ -35,7 +35,7 @@ where
     let (analyzed_changes, total_metrics) = analyzer.analyze_changes(from, to).await?;
 
     // Get README summary for context
-    let provider_name = &config.default_provider;
+    let provider_name = "google";
     let readme_summary = get_readme_summary(git_repo, to, config, provider_name)
         .await
         .context("Failed to get README summary")?;

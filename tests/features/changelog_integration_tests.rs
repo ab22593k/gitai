@@ -31,15 +31,12 @@ fn setup_test_repo() -> Result<(TempDir, Repository)> {
 
 fn setup_config() -> Config {
     dotenv().ok();
-    let mut config = Config {
-        default_provider: "openai".to_string(),
-        ..Default::default()
-    };
-    let api_key = env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY not set");
+    let mut config = Config::default();
+    let api_key = env::var("GOOGLE_API_KEY").expect("GOOGLE_API_KEY not set");
     config
         .providers
-        .get_mut(&config.default_provider)
-        .expect("OpenAI provider config not found")
+        .get_mut("google")
+        .expect("Google provider config not found")
         .api_key = api_key;
     config
 }

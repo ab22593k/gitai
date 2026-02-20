@@ -1,5 +1,4 @@
 use crate::config::Config;
-use crate::core::llm::get_available_provider_names;
 use anyhow::Result;
 use clap::{Args, ValueEnum};
 use std::env;
@@ -84,10 +83,6 @@ impl ThemeMode {
 
 #[derive(Args, Clone, Debug)]
 pub struct CommonParams {
-    /// Override default LLM provider
-    #[arg(long, help = "Override default LLM provider", value_parser = available_providers_parser)]
-    pub provider: Option<String>,
-
     /// Override default LLM model
     #[arg(long, help = "Override default LLM model")]
     pub model: Option<String>,
@@ -124,7 +119,6 @@ pub struct CommonParams {
 impl Default for CommonParams {
     fn default() -> Self {
         Self {
-            provider: None,
             model: None,
             instructions: None,
             detail_level: "standard".to_string(),
@@ -138,37 +132,8 @@ impl CommonParams {
     pub fn apply_to_config(&self, config: &mut Config) -> Result<bool> {
         let mut changes_made = false;
 
-        if let Some(provider) = &self.provider {
-            let provider_name = provider.to_lowercase();
-
-            // Check if we need to update the default provider
-            if config.default_provider != provider_name {
-                // Ensure the provider exists in the providers HashMap
-                if !config.providers.contains_key(&provider_name) {
-                    // Import ProviderConfig here
-                    use crate::config::ProviderConfig;
-                    config.providers.insert(
-                        provider_name.clone(),
-                        ProviderConfig::default_for(&provider_name),
-                    );
-                }
-
-                config.default_provider.clone_from(&provider_name);
-                changes_made = true;
-            }
-        }
-
         if let Some(model) = &self.model {
-            let provider_name = config.default_provider.clone();
-            // Ensure the provider exists in the providers HashMap
-            if !config.providers.contains_key(&provider_name) {
-                use crate::config::ProviderConfig;
-                config.providers.insert(
-                    provider_name.clone(),
-                    ProviderConfig::default_for(&provider_name),
-                );
-            }
-
+            let provider_name = "google".to_string();
             if let Some(provider_config) = config.providers.get_mut(&provider_name)
                 && provider_config.model_name != *model
             {
@@ -179,29 +144,9 @@ impl CommonParams {
 
         if let Some(instructions) = &self.instructions {
             config.set_temp_instructions(Some(instructions.clone()));
-            // Note: temp instructions don't count as permanent changes
         }
 
         Ok(changes_made)
-    }
-}
-
-/// Validates that a provider name is available in the system
-pub fn available_providers_parser(s: &str) -> Result<String, String> {
-    let provider_name = s.to_lowercase();
-    let available_providers = get_available_provider_names();
-
-    if available_providers
-        .iter()
-        .any(|p| p.to_lowercase() == provider_name)
-    {
-        Ok(provider_name)
-    } else {
-        Err(format!(
-            "Invalid provider '{}'. Available providers: {}",
-            s,
-            available_providers.join(", ")
-        ))
     }
 }
 

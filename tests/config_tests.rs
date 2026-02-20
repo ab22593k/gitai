@@ -116,7 +116,6 @@ fn test_project_config_security() {
     // 3. Test CLI command integration
     // Set up common parameters similar to CLI arguments
     let common = CommonParams {
-        provider: Some("google".to_string()),
         instructions: Some("Test instructions".to_string()),
         detail_level: "standard".to_string(),
         repository_url: None,

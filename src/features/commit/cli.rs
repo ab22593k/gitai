@@ -548,7 +548,7 @@ fn create_commit_service(
     let git_repo = GitRepo::new_from_url(repo_url).context("Failed to create GitRepo")?;
 
     let repo_path = git_repo.repo_path().clone();
-    let provider_name = &config.default_provider;
+    let provider_name = "google";
 
     let detail_level = DetailLevel::from_str(&common.detail_level).unwrap_or(DetailLevel::Standard);
 
@@ -584,7 +584,7 @@ fn create_completion_service(
     let git_repo = GitRepo::new_from_url(repo_url).context("Failed to create GitRepo")?;
 
     let repo_path = git_repo.repo_path().clone();
-    let provider_name = &config.default_provider;
+    let provider_name = "google";
 
     let service = Arc::new(
         CompletionService::new(config.clone(), &repo_path, provider_name, git_repo)

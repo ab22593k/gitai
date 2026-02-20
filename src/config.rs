@@ -1,6 +1,4 @@
-use crate::core::llm::{
-    get_available_provider_names, get_default_model_for_provider, provider_requires_api_key,
-};
+use crate::core::llm::{get_available_provider_names, get_default_model_for_provider};
 use crate::git::GitRepo;
 
 use anyhow::{Context, Result, anyhow};
@@ -64,8 +62,6 @@ fn get_api_key_for_provider(provider: &str) -> Option<String> {
 /// Configuration structure
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Config {
-    /// Default LLM provider
-    pub default_provider: String,
     /// Provider-specific configurations
     pub providers: HashMap<String, ProviderConfig>,
     /// Instructions for commit messages
@@ -101,14 +97,6 @@ impl Config {
         let local_config = git2::Repository::discover(".")
             .ok()
             .and_then(|repo| repo.config().ok());
-
-        let default_provider = get_layered_value(
-            "gitai.defaultprovider",
-            Some("GITAI_DEFAULT_PROVIDER"),
-            local_config.as_ref(),
-            global_config.as_ref(),
-        )
-        .unwrap_or_else(|| "google".to_string()); // fallback to google if not set
 
         let instructions = get_layered_value(
             "gitai.instructions",
@@ -155,7 +143,6 @@ impl Config {
         }
 
         let config = Self {
-            default_provider,
             providers,
             instructions,
             temp_instructions: None,
@@ -170,12 +157,6 @@ impl Config {
     /// But never allow API keys from project config
     pub fn merge_with_project_config(&mut self, project_config: Self) {
         debug!("Merging with project configuration");
-
-        // Override default provider if set in project config
-        if project_config.default_provider != Self::default().default_provider {
-            self.default_provider
-                .clone_from(&project_config.default_provider);
-        }
 
         // Merge provider configs, but never allow API keys from project config
         for (provider, proj_provider_config) in project_config.providers {
@@ -219,8 +200,6 @@ impl Config {
     /// Save the configuration to a git config
     fn save_to_config(&self, config: &mut GitConfig, prefix: &str) -> Result<()> {
         // Set default provider
-        config.set_str(&format!("{prefix}.defaultprovider"), &self.default_provider)?;
-
         // Set instructions
         config.set_str(&format!("{prefix}.instructions"), &self.instructions)?;
 
@@ -298,45 +277,36 @@ impl Config {
     #[allow(clippy::too_many_arguments)]
     pub fn update(
         &mut self,
-        provider: Option<String>,
         api_key: Option<String>,
         model: Option<String>,
         additional_params: Option<HashMap<String, String>>,
         instructions: Option<String>,
         token_limit: Option<usize>,
     ) -> Result<()> {
-        if let Some(provider) = provider {
-            self.default_provider.clone_from(&provider);
-            if !self.providers.contains_key(&provider) {
-                // Only insert a new provider if it requires configuration
-                if provider_requires_api_key(&provider.to_lowercase()) {
-                    self.providers.insert(
-                        provider.clone(),
-                        ProviderConfig::default_for(&provider.to_lowercase()),
-                    );
-                }
-            }
-        }
-
-        let provider_config = self
-            .providers
-            .get_mut(&self.default_provider)
-            .context("Could not get default provider")?;
+        let provider_name = "google".to_string();
 
         if let Some(key) = api_key {
-            provider_config.api_key = key;
+            let entry = self.providers.entry(provider_name.clone()).or_default();
+            entry.api_key = key;
         }
+
         if let Some(model) = model {
-            provider_config.model_name = model;
+            let entry = self.providers.entry(provider_name.clone()).or_default();
+            entry.model_name = model;
         }
-        if let Some(params) = additional_params {
+
+        if let Some(params) = additional_params
+            && let Some(provider_config) = self.providers.get_mut(&provider_name)
+        {
             provider_config.additional_params.extend(params);
         }
 
         if let Some(instr) = instructions {
             self.instructions = instr;
         }
-        if let Some(limit) = token_limit {
+        if let Some(limit) = token_limit
+            && let Some(provider_config) = self.providers.get_mut(&provider_name)
+        {
             provider_config.token_limit = Some(limit);
         }
 
@@ -381,18 +351,7 @@ impl Default for Config {
             .map(|provider| (provider.clone(), ProviderConfig::default_for(&provider)))
             .collect();
 
-        // Default to OpenAI if available, otherwise use the first available provider
-        let default_provider = if providers.contains_key("openai") {
-            "openai".to_string()
-        } else {
-            providers
-                .keys()
-                .next()
-                .map_or_else(|| "openai".to_string(), std::string::ToString::to_string)
-        };
-
         Self {
-            default_provider,
             providers,
             instructions: String::new(),
             temp_instructions: None,
