@@ -33,10 +33,21 @@ pub struct Theme {
     /// Text colors
     pub text_default: Color,
     pub text_dimmed: Color,
+    pub text_on_accent: Color,
 
     /// Background colors
-    pub background_default: Color,
-    pub background_elevated: Color,
+    pub background_base: Color,
+    pub background_surface: Color,
+    pub background_overlay: Color,
+
+    /// UI Component Colors
+    pub component_active: Color,
+    pub component_inactive: Color,
+    pub component_focus: Color,
+
+    /// Selection/Highlight
+    pub selection_bg: Color,
+    pub selection_fg: Color,
 
     /// State colors
     pub state_success: Color,
@@ -46,13 +57,14 @@ pub struct Theme {
 
     /// UI element colors
     pub accent: Color,
-    pub accent_active: Color,
+    pub secondary_accent: Color,
     pub border: Color,
     pub border_active: Color,
 
     /// Typography
     pub font_weight_regular: Modifier,
     pub font_weight_bold: Modifier,
+    pub font_weight_italic: Modifier,
 }
 
 impl Default for Theme {
@@ -110,114 +122,115 @@ impl Theme {
         ColorCapability::Basic16
     }
 
-    /// Modern theme for terminals with good color support
     fn modern_theme(capability: ColorCapability, mode: ThemeMode) -> Self {
         match mode {
             ThemeMode::Light => Self {
                 capability,
                 mode,
-                // Brand colors
                 brand_primary: Color::Rgb(37, 99, 235), // Blue-600
 
-                // Text colors (increased contrast against white background)
-                text_default: Color::Rgb(12, 16, 20), // Deeper near-black for better contrast
-                text_dimmed: Color::Rgb(82, 90, 102), // Dimmed but legible
+                text_default: Color::Rgb(15, 23, 42), // Slate-900
+                text_dimmed: Color::Rgb(100, 116, 139), // Slate-500
+                text_on_accent: Color::Rgb(248, 250, 252), // Slate-50
 
-                // Background colors
-                background_default: Color::Rgb(255, 255, 255), // White
-                background_elevated: Color::Rgb(243, 244, 246), // Slightly off-white for elevation
+                background_base: Color::Rgb(255, 255, 255), // White
+                background_surface: Color::Rgb(241, 245, 249), // Slate-100
+                background_overlay: Color::Rgb(226, 232, 240), // Slate-200
 
-                // State colors
+                component_active: Color::Rgb(37, 99, 235), // Blue-600
+                component_inactive: Color::Rgb(203, 213, 225), // Slate-300
+                component_focus: Color::Rgb(59, 130, 246), // Blue-500
+
+                selection_bg: Color::Rgb(219, 234, 254), // Blue-100
+                selection_fg: Color::Rgb(30, 64, 175), // Blue-800
+
                 state_success: Color::Rgb(22, 163, 74), // Green-600
-                state_error: Color::Rgb(220, 38, 38),   // Red-600
+                state_error: Color::Rgb(220, 38, 38), // Red-600
                 state_warning: Color::Rgb(217, 119, 6), // Amber-600
-                state_info: Color::Rgb(37, 99, 235),    // Blue-600
+                state_info: Color::Rgb(8, 145, 178), // Cyan-600
 
-                // UI element colors (bolder borders/accents to improve separation)
-                accent: Color::Rgb(37, 99, 235),         // Blue-600
-                accent_active: Color::Rgb(59, 130, 246), // Blue-500
-                border: Color::Rgb(148, 163, 184),       // Gray-400 (darker for contrast)
+                accent: Color::Rgb(79, 70, 229), // Indigo-600
+                secondary_accent: Color::Rgb(147, 51, 234), // Purple-600
+                border: Color::Rgb(203, 213, 225), // Slate-300
                 border_active: Color::Rgb(59, 130, 246), // Blue-500
 
-                // Typography
                 font_weight_regular: Modifier::empty(),
                 font_weight_bold: Modifier::BOLD,
+                font_weight_italic: Modifier::ITALIC,
             },
             _ => Self {
-                // Dark (Default)
                 capability,
                 mode,
-                // Brand colors
-                brand_primary: Color::Rgb(180, 190, 254), // Lavender (Catppuccin)
+                brand_primary: Color::Rgb(180, 190, 254), // Lavender
 
-                // Text colors (adjusted for better contrast on dark backgrounds)
-                text_default: Color::Rgb(205, 214, 244), // Text (Catppuccin Mocha)
-                text_dimmed: Color::Rgb(166, 173, 200),  // Subtext0 (Catppuccin Mocha)
+                text_default: Color::Rgb(205, 214, 244), // Text
+                text_dimmed: Color::Rgb(147, 153, 178), // Overlay0
+                text_on_accent: Color::Rgb(17, 17, 27), // Crust
 
-                // Background colors
-                background_default: Color::Rgb(30, 30, 46), // Base (Catppuccin Mocha)
-                background_elevated: Color::Rgb(49, 51, 56), // Surface0 (Catppuccin Mocha)
+                background_base: Color::Rgb(30, 30, 46), // Base
+                background_surface: Color::Rgb(49, 50, 68), // Surface0
+                background_overlay: Color::Rgb(69, 71, 90), // Surface1
 
-                // State colors
-                state_success: Color::Rgb(166, 227, 161), // Green (Catppuccin Mocha)
-                state_error: Color::Rgb(243, 139, 168),   // Red (Catppuccin Mocha)
-                state_warning: Color::Rgb(250, 179, 135), // Peach (Catppuccin Mocha)
-                state_info: Color::Rgb(137, 180, 250),    // Blue (Catppuccin Mocha)
+                component_active: Color::Rgb(203, 166, 247), // Mauve
+                component_inactive: Color::Rgb(88, 91, 112), // Surface2
+                component_focus: Color::Rgb(137, 180, 250), // Blue
 
-                // UI element colors (ensure borders are visible against dark background)
-                accent: Color::Rgb(203, 166, 247), // Mauve (Catppuccin Mocha)
-                accent_active: Color::Rgb(203, 166, 247), // Mauve active (same for vibrancy)
-                border: Color::Rgb(108, 112, 134), // Overlay0 (Catppuccin Mocha)
-                border_active: Color::Rgb(180, 190, 254), // Lavender (Catppuccin Mocha)
+                selection_bg: Color::Rgb(180, 190, 254), // Lavender
+                selection_fg: Color::Rgb(17, 17, 27), // Crust
 
-                // Typography
+                state_success: Color::Rgb(166, 227, 161), // Green
+                state_error: Color::Rgb(243, 139, 168), // Red
+                state_warning: Color::Rgb(250, 179, 135), // Peach
+                state_info: Color::Rgb(137, 220, 235), // Sky
+
+                accent: Color::Rgb(203, 166, 247), // Mauve
+                secondary_accent: Color::Rgb(245, 194, 231), // Pink
+                border: Color::Rgb(88, 91, 112), // Surface2
+                border_active: Color::Rgb(180, 190, 254), // Lavender
+
                 font_weight_regular: Modifier::empty(),
                 font_weight_bold: Modifier::BOLD,
+                font_weight_italic: Modifier::ITALIC,
             },
         }
     }
 
-    /// Basic theme for terminals with limited color support
     fn basic_theme(mode: ThemeMode) -> Self {
         let is_light = matches!(mode, ThemeMode::Light);
 
         Self {
             capability: ColorCapability::Basic16,
             mode,
-            // Brand colors
             brand_primary: Color::Blue,
 
-            // Text colors
             text_default: if is_light { Color::Black } else { Color::White },
-            text_dimmed: if is_light {
-                Color::DarkGray
-            } else {
-                Color::Gray
-            },
+            text_dimmed: if is_light { Color::DarkGray } else { Color::Gray },
+            text_on_accent: if is_light { Color::White } else { Color::Black },
 
-            // Background colors
-            background_default: if is_light { Color::White } else { Color::Black },
-            background_elevated: if is_light {
-                Color::Gray
-            } else {
-                Color::DarkGray
-            },
+            background_base: if is_light { Color::White } else { Color::Black },
+            background_surface: if is_light { Color::Gray } else { Color::DarkGray },
+            background_overlay: if is_light { Color::Gray } else { Color::DarkGray },
 
-            // State colors
+            component_active: Color::Blue,
+            component_inactive: Color::Gray,
+            component_focus: Color::Cyan,
+
+            selection_bg: Color::Blue,
+            selection_fg: Color::White,
+
             state_success: Color::Green,
             state_error: Color::Red,
             state_warning: Color::Yellow,
             state_info: Color::Blue,
 
-            // UI element colors
             accent: Color::Blue,
-            accent_active: Color::Cyan,
+            secondary_accent: Color::Magenta,
             border: Color::DarkGray,
             border_active: Color::Cyan,
 
-            // Typography
             font_weight_regular: Modifier::empty(),
             font_weight_bold: Modifier::BOLD,
+            font_weight_italic: Modifier::ITALIC,
         }
     }
 

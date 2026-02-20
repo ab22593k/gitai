@@ -67,7 +67,7 @@ fn handle_normal_mode(state: &mut TuiState, key: KeyEvent) -> InputResult {
         KeyCode::Left => {
             state.previous_message();
             state.set_status(format!(
-                "Viewing message {}/{}",
+                "󰮳 Message {}/{}",
                 state.current_index() + 1,
                 state.messages().len()
             ));
@@ -76,7 +76,7 @@ fn handle_normal_mode(state: &mut TuiState, key: KeyEvent) -> InputResult {
         KeyCode::Right => {
             state.next_message();
             state.set_status(format!(
-                "Viewing message {}/{}",
+                "󰮳 Message {}/{}",
                 state.current_index() + 1,
                 state.messages().len()
             ));
@@ -101,7 +101,7 @@ fn handle_editing_message_mode(state: &mut TuiState, key: KeyEvent) -> InputResu
         KeyCode::Esc => {
             state.set_mode(Mode::Normal);
             state.update_current_message_from_textarea();
-            state.set_status("Edited message saved. Press 'Enter' to commit.");
+            state.set_status("󰄬 Edited message saved. Press 'Enter' to commit.");
             InputResult::Continue
         }
         KeyCode::Tab => {
@@ -135,7 +135,7 @@ fn handle_editing_instructions_mode(state: &mut TuiState, key: KeyEvent) -> Inpu
     if key.code == KeyCode::Esc {
         state.set_mode(Mode::Normal);
         state.update_instructions_from_textarea();
-        state.set_status("Instructions updated. Press 'R' to regenerate.");
+        state.set_status("󰄬 Instructions updated. Press 'R' to regenerate.");
         InputResult::Continue
     } else {
         state.instructions_textarea_mut().input(key);
@@ -165,7 +165,7 @@ fn handle_completing_mode(state: &mut TuiState, key: KeyEvent) -> InputResult {
                 state.message_textarea_mut().insert_str(&suggestion);
                 state.set_completion_suggestions(Vec::new()); // Clear suggestions
                 state.set_mode(Mode::EditingMessage);
-                state.set_status("Completion applied.");
+                state.set_status("󰄬 Completion applied.");
             }
             InputResult::Continue
         }
@@ -192,7 +192,7 @@ fn handle_context_selection_mode(state: &mut TuiState, key: KeyEvent) -> InputRe
         }
         KeyCode::Enter => {
             state.set_mode(Mode::Normal);
-            state.set_status("Context updated. Press 'R' to regenerate with new context.");
+            state.set_status("󰄬 Context updated. Press 'R' to regenerate with new context.");
             InputResult::Continue
         }
         KeyCode::Up => {
