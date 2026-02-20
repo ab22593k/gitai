@@ -1,7 +1,7 @@
 #![allow(clippy::cast_precision_loss)]
 #![allow(clippy::as_conversions)]
 
-use gait::RepositoryConfiguration;
+use gitai::RepositoryConfiguration;
 use std::time::Instant;
 
 // Note: This is a placeholder performance test. A real performance test

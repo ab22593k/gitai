@@ -1,9 +1,9 @@
 use anyhow::Result;
 use clap::Parser;
-use gait::{app, common::CommonParams};
+use gitai::{app, common::CommonParams};
 
 #[derive(Parser)]
-#[command(name = "git-release-notes", about = "Generate release notes")]
+#[command(name = "gitai-release-notes", about = "Generate release notes")]
 struct ReleaseNotesArgs {
     #[command(flatten)]
     common: CommonParams,

@@ -1,4 +1,4 @@
-use gait::{
+use gitai::{
     common::DetailLevel,
     config::Config,
     core::context::CommitContext,

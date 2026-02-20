@@ -1,10 +1,10 @@
 use anyhow::Result;
 use clap::Parser;
-use gait::{app, common::CommonParams};
+use gitai::{app, common::CommonParams};
 
 #[derive(Parser)]
 #[command(
-    name = "git-pr",
+    name = "gitai-pr",
     about = "Generate a pull request description using AI"
 )]
 struct PrArgs {

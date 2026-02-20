@@ -1,4 +1,4 @@
-use gait::{common::CommonParams, config::Config};
+use gitai::{common::CommonParams, config::Config};
 
 #[test]
 fn test_apply_to_config_model_override() {

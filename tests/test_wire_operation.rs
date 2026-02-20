@@ -1,4 +1,4 @@
-use gait::{
+use gitai::{
     RepositoryConfiguration, WireOperation, remote::cache::key_generator::CacheKeyGenerator,
 };
 

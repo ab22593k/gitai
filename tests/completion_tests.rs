@@ -1,10 +1,10 @@
-use gait::core::context::{ChangeType, CommitContext, RecentCommit, StagedFile};
+use gitai::core::context::{ChangeType, CommitContext, RecentCommit, StagedFile};
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use gait::Config;
-    use gait::features::commit::prompt::{
+    use gitai::Config;
+    use gitai::features::commit::prompt::{
         create_completion_system_prompt, create_completion_user_prompt,
     };
 
@@ -13,7 +13,7 @@ mod tests {
     }
 
     fn create_mock_commit_context() -> CommitContext {
-        use gait::core::context::{ChangeType, CommitContext, RecentCommit, StagedFile};
+        use gitai::core::context::{ChangeType, CommitContext, RecentCommit, StagedFile};
 
         CommitContext::new(
             "main".to_string(),

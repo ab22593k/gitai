@@ -1,4 +1,4 @@
-use gait::CachedRepository;
+use gitai::CachedRepository;
 
 const EXAMPLE_REPO_URL: &str = "https://github.com/example/repo.git";
 

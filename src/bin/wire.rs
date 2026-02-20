@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
 use colored::Colorize;
-use gait::{
+use gitai::{
     init_logger,
     remote::{
         check,
@@ -10,7 +10,7 @@ use gait::{
 };
 use std::process::exit;
 
-pub use gait::{CachedRepository, RepositoryConfiguration, WireOperation};
+pub use gitai::{CachedRepository, RepositoryConfiguration, WireOperation};
 
 #[derive(Parser)]
 #[command(version, author, about, long_about = None)]

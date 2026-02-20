@@ -315,8 +315,8 @@ mod tests {
     #[test]
     fn test_light_theme() {
         let theme = Theme::modern_theme(ColorCapability::TrueColor, ThemeMode::Light);
-        assert_eq!(theme.background_default, Color::Rgb(255, 255, 255));
-        assert_eq!(theme.text_default, Color::Rgb(12, 16, 20));
+        assert_eq!(theme.background_base, Color::Rgb(255, 255, 255));
+        assert_eq!(theme.text_default, Color::Rgb(15, 23, 42));
     }
 
     #[test]

@@ -1,4 +1,4 @@
-use gait::{CachedRepository, RepositoryConfiguration, WireOperation};
+use gitai::{CachedRepository, RepositoryConfiguration, WireOperation};
 use std::collections::HashMap;
 
 #[test]

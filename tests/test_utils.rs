@@ -1,4 +1,4 @@
-use gait::{
+use gitai::{
     config::{Config, ProviderConfig},
     core::context::{ChangeType, CommitContext, RecentCommit, StagedFile},
     features::{

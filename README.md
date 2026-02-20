@@ -1,6 +1,6 @@
-![Git Smart workflow logo](assets/gait.png)
+![Git Smart workflow logo](assets/gitai.png)
 
-# Git workflow
+# GitAI
 
 AI-powered `Git` toolkit that enhances workflow with intelligent commit messages, pull request generation, code reviews, changelogs, and more. It integrates with various LLM providers to automate and improve your development process.
 

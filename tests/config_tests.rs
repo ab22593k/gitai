@@ -1,4 +1,4 @@
-use gait::{common::CommonParams, config::ProviderConfig};
+use gitai::{common::CommonParams, config::ProviderConfig};
 use std::env;
 use std::path::Path;
 use std::process::Command;
@@ -60,7 +60,7 @@ fn test_project_config_security() {
 
     // Verify no API keys are in git config
     for provider_name in &["openai", "anthropic", "cohere"] {
-        let key = format!("gait.{provider_name}-apikey");
+        let key = format!("gitai.{provider_name}-apikey");
         let output = Command::new("git")
             .args(["config", "--get", &key])
             .current_dir(".")
@@ -141,7 +141,7 @@ fn test_project_config_security() {
 
     // Verify the API key is not in git config
     let output = Command::new("git")
-        .args(["config", "--get", "gait.openai-apikey"])
+        .args(["config", "--get", "gitai.openai-apikey"])
         .current_dir(".")
         .output()
         .expect("Failed to check git config");

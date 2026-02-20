@@ -1,5 +1,5 @@
 use anyhow::Result;
-use gait::{
+use gitai::{
     commit::{
         prompt::{create_pr_system_prompt, create_pr_user_prompt},
         service::CommitService,

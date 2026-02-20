@@ -131,14 +131,13 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: gait-${{ matrix.build }}
+          name: gitai-${{ matrix.build }}
           path: |
-            ./target/${{ matrix.target }}/release/git-changelog${{ matrix.os == 'windows-latest' && '.exe' || '' }}
-            ./target/${{ matrix.target }}/release/git-message${{ matrix.os == 'windows-latest' && '.exe' || '' }}
-            ./target/${{ matrix.target }}/release/git-pr${{ matrix.os == 'windows-latest' && '.exe' || '' }}
-            ./target/${{ matrix.target }}/release/git-release-notes${{ matrix.os == 'windows-latest' && '.exe' || '' }}
-            ./target/${{ matrix.target }}/release/git-review${{ matrix.os == 'windows-latest' && '.exe' || '' }}
-            ./target/${{ matrix.target }}/release/git-wire${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+            ./target/${{ matrix.target }}/release/gitai-changelog${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+            ./target/${{ matrix.target }}/release/gitai-message${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+            ./target/${{ matrix.target }}/release/gitai-pr${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+            ./target/${{ matrix.target }}/release/gitai-release-notes${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+            ./target/${{ matrix.target }}/release/gitai-wire${{ matrix.os == 'windows-latest' && '.exe' || '' }}
           if-no-files-found: error
           retention-days: 1
 
@@ -200,22 +199,22 @@ jobs:
           ls -la ./release-assets
           echo "::endgroup::"
 
-      - name: Generate release notes with gait
+      - name: Generate release notes with gitai
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           echo "::group::Generating release notes"
           if [ -n "$OPENAI_API_KEY" ]; then
-            # Build gait locally to generate release notes
+            # Build gitai locally to generate release notes
             cargo build --release
 
             # Get previous tag
             PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
 
             if [ -n "$PREVIOUS_TAG" ]; then
-              # Generate release notes using gait
-              ./target/release/git-release-notes --from "$PREVIOUS_TAG" --to "$GITHUB_REF_NAME" --print > RELEASE_NOTES.md
-              echo "✨ Generated release notes with gait"
+              # Generate release notes using gitai
+              ./target/release/gitai-release-notes --from "$PREVIOUS_TAG" --to "$GITHUB_REF_NAME" --print > RELEASE_NOTES.md
+              echo "✨ Generated release notes with gitai"
             else
               echo "No previous tag found, using default release notes"
               echo "# Release $GITHUB_REF_NAME" > RELEASE_NOTES.md

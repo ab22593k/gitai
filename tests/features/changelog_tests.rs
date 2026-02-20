@@ -1,5 +1,5 @@
 use anyhow::Result;
-use gait::{
+use gitai::{
     changes::models::{
         ChangeEntry, ChangeMetrics, ChangelogResponse, ChangelogType, ReleaseNotesResponse,
     },
@@ -114,7 +114,7 @@ fn test_detail_level_from_str() {
 /// Test that the `version_name` parameter correctly overrides the changelog version
 #[test]
 fn test_update_changelog_file_with_version_name() -> Result<()> {
-    use gait::{changes::ChangelogGenerator, git::GitRepo};
+    use gitai::{changes::ChangelogGenerator, git::GitRepo};
     use std::sync::Arc;
     use tempfile::TempDir;
 

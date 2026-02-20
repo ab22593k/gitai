@@ -1,12 +1,12 @@
 use anyhow::Result;
 use clap::Parser;
-use gait::{
+use gitai::{
     app::{self, CmsgConfig},
     common::CommonParams,
 };
 
 #[derive(Parser)]
-#[command(name = "git-message", about = "Generate a commit message using AI")]
+#[command(name = "gitai-message", about = "Generate a commit message using AI")]
 #[allow(clippy::struct_excessive_bools)]
 struct MessageArgs {
     #[command(flatten)]

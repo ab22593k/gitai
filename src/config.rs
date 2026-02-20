@@ -103,16 +103,16 @@ impl Config {
             .and_then(|repo| repo.config().ok());
 
         let default_provider = get_layered_value(
-            "gait.defaultprovider",
-            Some("GAIT_DEFAULT_PROVIDER"),
+            "gitai.defaultprovider",
+            Some("GITAI_DEFAULT_PROVIDER"),
             local_config.as_ref(),
             global_config.as_ref(),
         )
         .unwrap_or_else(|| "openai".to_string()); // fallback to openai if not set
 
         let instructions = get_layered_value(
-            "gait.instructions",
-            Some("GAIT_INSTRUCTIONS"),
+            "gitai.instructions",
+            Some("GITAI_INSTRUCTIONS"),
             local_config.as_ref(),
             global_config.as_ref(),
         )
@@ -124,7 +124,7 @@ impl Config {
 
             let default_model = get_default_model_for_provider(&provider).to_string();
             let model = get_layered_value(
-                &format!("gait.{provider}-model"),
+                &format!("gitai.{provider}-model"),
                 None, // no env for model yet
                 local_config.as_ref(),
                 global_config.as_ref(),
@@ -132,7 +132,7 @@ impl Config {
             .unwrap_or(default_model);
 
             let token_limit = get_layered_value(
-                &format!("gait.{provider}-tokenlimit"),
+                &format!("gitai.{provider}-tokenlimit"),
                 None,
                 local_config.as_ref(),
                 global_config.as_ref(),
@@ -211,7 +211,7 @@ impl Config {
         }
 
         let mut config = GitConfig::open_default()?;
-        self.save_to_config(&mut config, "gait")?;
+        self.save_to_config(&mut config, "gitai")?;
         debug!("Configuration saved to global git config: {self:?}");
         Ok(())
     }
@@ -263,7 +263,7 @@ impl Config {
 
         // Save to local git config
         let mut config = repo.config()?;
-        project_config.save_to_config(&mut config, "gait")?;
+        project_config.save_to_config(&mut config, "gitai")?;
         debug!("Project configuration saved to local git config: {project_config:?}");
         Ok(())
     }

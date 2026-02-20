@@ -1,4 +1,4 @@
-use gait::{
+use gitai::{
     CacheManager, RepositoryConfiguration, remote::cache::key_generator::CacheKeyGenerator,
 };
 use std::time::Instant;

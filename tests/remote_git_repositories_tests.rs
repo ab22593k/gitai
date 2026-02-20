@@ -1,4 +1,4 @@
-use gait::{config::Config, git::GitRepo};
+use gitai::{config::Config, git::GitRepo};
 
 #[tokio::test]
 async fn test_remote_repository_support() {

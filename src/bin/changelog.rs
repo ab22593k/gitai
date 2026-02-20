@@ -1,9 +1,9 @@
 use anyhow::Result;
 use clap::Parser;
-use gait::{app, common::CommonParams};
+use gitai::{app, common::CommonParams};
 
 #[derive(Parser)]
-#[command(name = "git-changelog", about = "Generate a changelog")]
+#[command(name = "gitai-changelog", about = "Generate a changelog")]
 struct ChangelogArgs {
     #[command(flatten)]
     common: CommonParams,

@@ -168,7 +168,7 @@ fn draw_header_and_nav(f: &mut Frame, state: &TuiState, area: Rect) {
     // Brand / Logo
     let brand = Paragraph::new(Line::from(vec![
         Span::styled(
-            " GAIT ",
+            " GITAI ",
             Style::default()
                 .bg(brand_color())
                 .fg(text_on_accent())

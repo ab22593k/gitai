@@ -1,4 +1,4 @@
-use gait::{config::Config, git::GitRepo};
+use gitai::{config::Config, git::GitRepo};
 use git2::Repository;
 use std::fs;
 use std::path::Path;
