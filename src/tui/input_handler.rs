@@ -34,19 +34,22 @@ fn handle_normal_mode(state: &mut TuiState, key: KeyEvent) -> InputResult {
             );
             InputResult::Commit(message)
         }
-        KeyCode::Char('e') => {
+        KeyCode::Char('E') => {
             state.set_mode(Mode::EditingMessage);
             state.set_status(
                 "Editing commit message... Press 'Esc' to finish, 'Tab' for completion",
             );
             InputResult::Continue
         }
-        KeyCode::Char('i') => {
+        KeyCode::Char('I') => {
             state.set_mode(Mode::EditingInstructions);
+            if !state.is_instructions_visible() {
+                state.toggle_instructions_visibility();
+            }
             state.set_status("Editing instructions... Press 'Esc' to finish");
             InputResult::Continue
         }
-        KeyCode::Char('r') => {
+        KeyCode::Char('R') => {
             state.set_mode(Mode::Generating);
             state.set_spinner(Some(super::spinner::SpinnerState::new()));
             state.set_status("Regenerating commit message...");
@@ -57,7 +60,7 @@ fn handle_normal_mode(state: &mut TuiState, key: KeyEvent) -> InputResult {
             state.set_mode(Mode::Help);
             InputResult::Continue
         }
-        KeyCode::Char('c') => {
+        KeyCode::Char('C') => {
             state.set_mode(Mode::ContextSelection);
             state.set_status(
                 "Select context: 'Space' toggle, 'Tab' switch category, 'Enter' confirm, 'Esc' cancel",

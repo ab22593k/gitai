@@ -20,7 +20,7 @@ use ratatui::{
 use unicode_width::UnicodeWidthStr;
 
 // Spacing Tokens (in character units)
-const SPACING_SM: u16 = 2; // Small spacing
+const SPACING_SM: u16 = 3; // Small spacing (Expressive)
 
 // Helper functions to get theme colors
 fn brand_color() -> Color {
@@ -192,7 +192,7 @@ fn draw_header(f: &mut Frame, state: &TuiState, area: Rect) {
         chunks[0],
     );
 
-    // Navigation hints as pill-like elements
+    // Navigation hints with expressive inline highlighting
     let nav_items: Vec<(&str, &str)> = match state.mode() {
         Mode::Completing => vec![
             ("TAB", "Next"),
@@ -211,9 +211,9 @@ fn draw_header(f: &mut Frame, state: &TuiState, area: Rect) {
         Mode::Help => vec![("ANY", "Close")],
         _ => vec![
             ("E", "Edit"),
-            ("I", "Instr"),
+            ("I", "Instructions"),
             ("C", "Context"),
-            ("R", "Regen"),
+            ("R", "Regenerate"),
             ("ENTER", "Commit"),
             ("?", "Help"),
         ],
@@ -221,14 +221,41 @@ fn draw_header(f: &mut Frame, state: &TuiState, area: Rect) {
 
     let mut nav_spans = Vec::new();
     for (key, desc) in nav_items {
+        let desc_lower = desc.to_lowercase();
+        let key_lower = key.to_lowercase();
+
+        // Expressive: if the key is a single char in the word, highlight it inline
+        if let Some(idx) = desc_lower.find(&key_lower).filter(|_| key.len() == 1) {
+            let (prefix, rest) = desc.split_at(idx);
+            let (k, suffix) = rest.split_at(1);
+
+            nav_spans.push(Span::raw(" "));
+            if !prefix.is_empty() {
+                nav_spans.push(Span::styled(prefix, Style::default().fg(subtle_color())));
+            }
+            nav_spans.push(Span::styled(
+                k,
+                Style::default()
+                    .fg(component_focus())
+                    .add_modifier(font_weight_bold()),
+            ));
+            if !suffix.is_empty() {
+                nav_spans.push(Span::styled(suffix, Style::default().fg(subtle_color())));
+            }
+            nav_spans.push(Span::raw("  "));
+            continue;
+        }
+
+        // Fallback for special keys (ENTER, TAB, etc.): expressive pill style
         nav_spans.push(Span::styled(
             format!(" {key} "),
             Style::default()
+                .bg(background_overlay())
                 .fg(component_focus())
                 .add_modifier(font_weight_bold()),
         ));
         nav_spans.push(Span::styled(
-            format!("{desc} "),
+            format!(" {desc}  "),
             Style::default().fg(subtle_color()),
         ));
     }
@@ -244,21 +271,23 @@ fn draw_tabs(f: &mut Frame, state: &TuiState, area: Rect) {
     let mut tabs = Vec::new();
     for i in 0..state.messages().len() {
         let is_selected = i == state.current_index();
-        let (style, indicator) = if is_selected {
-            (
+        if is_selected {
+            tabs.push(Span::styled(
+                format!("  󰄬 Message {}  ", i + 1),
                 Style::default()
+                    .bg(background_base())
                     .fg(accent_color())
                     .add_modifier(font_weight_bold()),
-                " 󰄬 ",
-            )
+            ));
         } else {
-            (Style::default().fg(subtle_color()), "   ")
-        };
+            tabs.push(Span::styled(
+                format!("    Message {}  ", i + 1),
+                Style::default().fg(subtle_color()),
+            ));
+        }
 
-        tabs.push(Span::styled(format!(" Message {} ", i + 1), style));
-        tabs.push(Span::styled(indicator, style));
         if i < state.messages().len() - 1 {
-            tabs.push(Span::styled("│", Style::default().fg(background_overlay())));
+            tabs.push(Span::styled(" ", Style::default()));
         }
     }
 
@@ -306,13 +335,20 @@ fn draw_commit_editor(f: &mut Frame, state: &mut TuiState, area: Rect) {
 fn render_commit_message_content(f: &mut Frame, state: &TuiState, block: Block, area: Rect) {
     let current_message = state.current_message();
 
-    // Title
+    // Expressive Title
     let title_text = Line::from(vec![
-        Span::styled("󰜘 ", Style::default().fg(accent_color())),
+        Span::styled(" 󰜘 ", Style::default().fg(accent_color())),
+        Span::styled(
+            "COMMIT MESSAGE ",
+            Style::default()
+                .fg(subtle_color())
+                .add_modifier(font_weight_bold()),
+        ),
+        Span::raw(" "),
         Span::styled(
             &current_message.title,
             Style::default()
-                .fg(accent_color())
+                .fg(brand_color())
                 .add_modifier(font_weight_bold()),
         ),
     ]);
@@ -320,17 +356,17 @@ fn render_commit_message_content(f: &mut Frame, state: &TuiState, block: Block, 
     let mut content = vec![
         title_text,
         Line::from(vec![Span::styled(
-            "━".repeat(area.width.saturating_sub(4) as usize),
+            "─".repeat(area.width.saturating_sub(4) as usize),
             Style::default().fg(background_overlay()),
         )]),
         Line::from(""), // Spacing
     ];
 
     for line in current_message.message.lines() {
-        content.push(Line::from(vec![Span::styled(
-            line,
-            Style::default().fg(text_color()),
-        )]));
+        content.push(Line::from(vec![
+            Span::styled("  │ ", Style::default().fg(background_overlay())),
+            Span::styled(line, Style::default().fg(text_color())),
+        ]));
     }
 
     let message = Paragraph::new(content)
@@ -349,15 +385,31 @@ fn draw_instructions(f: &mut Frame, state: &mut TuiState, area: Rect) {
         background_base()
     };
 
-    let block = Block::default()
+    let mut block = Block::default()
         .bg(card_bg)
         .padding(ratatui::widgets::Padding::new(2, 2, 0, 0));
 
     if is_editing {
+        // Expressive: Add a clear border and title when editing
+        block = block
+            .border_style(Style::default().fg(secondary_accent_color()))
+            .borders(ratatui::widgets::Borders::ALL)
+            .title(Span::styled(
+                " EDITING INSTRUCTIONS ",
+                Style::default()
+                    .fg(secondary_accent_color())
+                    .add_modifier(font_weight_bold()),
+            ));
+
         state.instructions_textarea_mut().set_block(block);
         state
             .instructions_textarea_mut()
             .set_cursor_style(Style::default().bg(component_focus()).fg(text_on_accent()));
+        // Ensure text is visible
+        state
+            .instructions_textarea_mut()
+            .set_style(Style::default().fg(text_color()));
+
         f.render_widget(state.instructions_textarea(), area);
     } else {
         let title = Line::from(vec![
@@ -372,7 +424,7 @@ fn draw_instructions(f: &mut Frame, state: &mut TuiState, area: Rect) {
 
         if state.custom_instructions().trim().is_empty() {
             content.push(Line::from(Span::styled(
-                " No instructions provided. Press 'i' to add some...",
+                " No instructions provided. Press 'I' to add some...",
                 Style::default()
                     .fg(subtle_color())
                     .add_modifier(font_weight_italic()),
@@ -396,25 +448,29 @@ fn draw_instructions(f: &mut Frame, state: &mut TuiState, area: Rect) {
 pub fn draw_status(f: &mut Frame, state: &mut TuiState, area: Rect) {
     let (spinner, content, _color, _) = get_status_components(state);
 
-    let (bg, fg) = if state.status().contains("Error") || state.status().contains("Failed") {
-        (error_color(), text_on_accent())
+    let (bg, fg, label) = if state.status().contains("Error") || state.status().contains("Failed") {
+        (error_color(), text_on_accent(), " 󰅚 ERROR ")
     } else if state.status().contains("Success") || state.status().contains("Complete") {
-        (success_color(), text_on_accent())
+        (success_color(), text_on_accent(), " 󰄬 SUCCESS ")
     } else if state.status().contains("Warning") {
-        (warning_color(), Color::Black)
+        (warning_color(), Color::Black, " 󱈸 WARNING ")
     } else {
-        (background_overlay(), text_color())
+        (background_overlay(), text_color(), " 󰋖 STATUS ")
     };
 
     let status_line = Line::from(vec![
         Span::styled(
-            format!(" {spinner} "),
+            label,
             Style::default()
                 .bg(bg)
                 .fg(fg)
                 .add_modifier(font_weight_bold()),
         ),
-        Span::styled(format!(" {content} "), Style::default().bg(bg).fg(fg)),
+        Span::styled(
+            format!("  {spinner}  "),
+            Style::default().bg(background_surface()).fg(accent_color()),
+        ),
+        Span::styled(format!(" {content} "), Style::default().fg(subtle_color())),
     ]);
 
     let status_widget = Paragraph::new(status_line)

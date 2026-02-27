@@ -67,9 +67,10 @@ pub fn print_success(message: &str) {
 /// Print content with decorative borders
 pub fn print_bordered_content(content: &str) {
     if !is_quiet_mode() {
-        let border = "━".repeat(50).bright_purple();
+        // Expressive: Thicker border with custom brand color
+        let border = "━".repeat(60).truecolor(167, 132, 239); // NEBULA_PURPLE
         println!("{border}");
-        println!("{content}");
+        println!(" {content} ");
         println!("{border}");
     }
 }
@@ -91,11 +92,10 @@ pub fn print_newline() {
 #[must_use]
 pub fn create_gradient_text(text: &str) -> String {
     const GRADIENT: &[(u8, u8, u8)] = &[
-        (129, 0, 255), // Deep purple
-        (134, 51, 255),
-        (139, 102, 255),
-        (144, 153, 255),
-        (149, 204, 255), // Light cyan
+        (255, 0, 127),   // Vibrant Pink
+        (167, 132, 239), // Nebula Purple
+        (75, 115, 235),  // Celestial Blue
+        (20, 255, 255),  // Plasma Cyan
     ];
 
     apply_gradient(text, GRADIENT)

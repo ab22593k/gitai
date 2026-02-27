@@ -127,32 +127,32 @@ impl Theme {
             ThemeMode::Light => Self {
                 capability,
                 mode,
-                brand_primary: Color::Rgb(37, 99, 235), // Blue-600
+                brand_primary: Color::Rgb(79, 70, 229), // Indigo-600
 
-                text_default: Color::Rgb(15, 23, 42), // Slate-900
+                text_default: Color::Rgb(30, 41, 59), // Slate-800
                 text_dimmed: Color::Rgb(100, 116, 139), // Slate-500
-                text_on_accent: Color::Rgb(248, 250, 252), // Slate-50
+                text_on_accent: Color::Rgb(255, 255, 255), // White
 
-                background_base: Color::Rgb(255, 255, 255), // White
-                background_surface: Color::Rgb(241, 245, 249), // Slate-100
+                background_base: Color::Rgb(248, 250, 252), // Slate-50
+                background_surface: Color::Rgb(255, 255, 255), // White (elevated)
                 background_overlay: Color::Rgb(226, 232, 240), // Slate-200
 
-                component_active: Color::Rgb(37, 99, 235), // Blue-600
+                component_active: Color::Rgb(79, 70, 229), // Indigo-600
                 component_inactive: Color::Rgb(203, 213, 225), // Slate-300
-                component_focus: Color::Rgb(59, 130, 246), // Blue-500
+                component_focus: Color::Rgb(99, 102, 241), // Indigo-500
 
-                selection_bg: Color::Rgb(219, 234, 254), // Blue-100
-                selection_fg: Color::Rgb(30, 64, 175),   // Blue-800
+                selection_bg: Color::Rgb(238, 242, 255), // Indigo-50
+                selection_fg: Color::Rgb(67, 56, 202),   // Indigo-700
 
-                state_success: Color::Rgb(22, 163, 74), // Green-600
-                state_error: Color::Rgb(220, 38, 38),   // Red-600
-                state_warning: Color::Rgb(217, 119, 6), // Amber-600
-                state_info: Color::Rgb(8, 145, 178),    // Cyan-600
+                state_success: Color::Rgb(16, 185, 129), // Emerald-500
+                state_error: Color::Rgb(244, 63, 94),    // Rose-500
+                state_warning: Color::Rgb(245, 158, 11), // Amber-500
+                state_info: Color::Rgb(14, 165, 233),    // Sky-500
 
-                accent: Color::Rgb(79, 70, 229), // Indigo-600
-                secondary_accent: Color::Rgb(147, 51, 234), // Purple-600
-                border: Color::Rgb(203, 213, 225), // Slate-300
-                border_active: Color::Rgb(59, 130, 246), // Blue-500
+                accent: Color::Rgb(219, 39, 119), // Pink-600
+                secondary_accent: Color::Rgb(124, 58, 237), // Violet-600
+                border: Color::Rgb(226, 232, 240), // Slate-200
+                border_active: Color::Rgb(99, 102, 241), // Indigo-500
 
                 font_weight_regular: Modifier::empty(),
                 font_weight_bold: Modifier::BOLD,
@@ -161,32 +161,32 @@ impl Theme {
             _ => Self {
                 capability,
                 mode,
-                brand_primary: Color::Rgb(180, 190, 254), // Lavender
+                brand_primary: Color::Rgb(203, 166, 247), // Mauve
 
                 text_default: Color::Rgb(205, 214, 244), // Text
                 text_dimmed: Color::Rgb(147, 153, 178),  // Overlay0
                 text_on_accent: Color::Rgb(17, 17, 27),  // Crust
 
-                background_base: Color::Rgb(30, 30, 46), // Base
-                background_surface: Color::Rgb(49, 50, 68), // Surface0
-                background_overlay: Color::Rgb(69, 71, 90), // Surface1
+                background_base: Color::Rgb(24, 24, 37), // Mantle (deeper)
+                background_surface: Color::Rgb(30, 30, 46), // Base
+                background_overlay: Color::Rgb(49, 50, 68), // Surface0
 
                 component_active: Color::Rgb(203, 166, 247), // Mauve
                 component_inactive: Color::Rgb(88, 91, 112), // Surface2
                 component_focus: Color::Rgb(137, 180, 250),  // Blue
 
-                selection_bg: Color::Rgb(180, 190, 254), // Lavender
-                selection_fg: Color::Rgb(17, 17, 27),    // Crust
+                selection_bg: Color::Rgb(69, 71, 90), // Surface1
+                selection_fg: Color::Rgb(137, 180, 250), // Blue
 
                 state_success: Color::Rgb(166, 227, 161), // Green
                 state_error: Color::Rgb(243, 139, 168),   // Red
                 state_warning: Color::Rgb(250, 179, 135), // Peach
                 state_info: Color::Rgb(137, 220, 235),    // Sky
 
-                accent: Color::Rgb(203, 166, 247), // Mauve
-                secondary_accent: Color::Rgb(245, 194, 231), // Pink
-                border: Color::Rgb(88, 91, 112),   // Surface2
-                border_active: Color::Rgb(180, 190, 254), // Lavender
+                accent: Color::Rgb(245, 194, 231),           // Pink
+                secondary_accent: Color::Rgb(180, 190, 254), // Lavender
+                border: Color::Rgb(69, 71, 90),              // Surface1
+                border_active: Color::Rgb(203, 166, 247),    // Mauve
 
                 font_weight_regular: Modifier::empty(),
                 font_weight_bold: Modifier::BOLD,

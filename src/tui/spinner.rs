@@ -18,7 +18,8 @@ impl SpinnerState {
     // Modern gradient-style spinner with smooth rotation
     pub fn new() -> Self {
         Self {
-            frames: vec!["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],
+            // Expressive modern spinner (Rotating Circle)
+            frames: vec!["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"],
             current_frame: 0,
             message: get_waiting_message().clone(),
         }
