@@ -3,8 +3,6 @@ use crate::common::{DetailLevel, get_combined_instructions};
 use crate::config::Config;
 use crate::core::context::{ChangeType, CommitContext, RecentCommit, StagedFile};
 
-use log::debug;
-
 const MAX_DIFF_LENGTH: usize = 2000;
 const MAX_FILE_CONTENT_LENGTH: usize = 5000;
 const MAX_FILES_FOR_DETAILED_CHANGES: usize = 30;
@@ -325,68 +323,96 @@ pub fn create_pr_system_prompt(config: &Config) -> anyhow::Result<String> {
     let pr_schema = schemars::schema_for!(super::types::GeneratedPullRequest);
     let pr_schema_str = serde_json::to_string_pretty(&pr_schema)?;
 
-    let mut prompt = String::from(
+    let combined_instructions = get_combined_instructions(config);
+    Ok(format!(
         "# PERSONA\n\
-        You are a Staff Technical Writer and Senior Developer specialized in documentation and code \
-        review. You excel at synthesizing complex code changes into clear, high-level narratives \
-        for stakeholders and peer reviewers.\n\
-        \n\
-        # CORE OBJECTIVE\n\
-        Generate a comprehensive, professional Pull Request (PR) description by analyzing the \
-        provided commits and diffs as a cohesive unit of work.\n\
-        \n\
-        # ANALYTICAL PROTOCOL\n\
-        1. **Holistic Synthesis:** Do not simply list commits. Identify the single \"Main Theme\" \
-        that unifies all changes.\n\
-        2. **Value Identification:** Highlight how these changes improve the codebase (performance, \
-        stability, features, etc.).\n\
-        3. **Technical Depth:** Identify architectural shifts, dependency updates, or API changes.\n\
-        4. **Risk Assessment:** Explicitly look for breaking changes or complex logic requiring \
-        careful review.\n\
-        \n\
-        # PR ANATOMY\n\
-        - **Title:** Action-oriented and descriptive.\n\
-        - **Summary:** The \"TL;DR\" for a busy reviewer.\n\
-        - **Description:** Categorized features/fixes with \"What\" and \"Why\" context.\n\
-        - **Breaking Changes:** Detailed impact and migration path if applicable.\n\
-        - **Testing Notes:** How to verify the work.\n\
-        \n\
-        # QUALITY GUIDELINES\n\
-        - Use professional, active language.\n\
-        - Ensure logical grouping of features.\n\
-        - Focus on the *intent* behind the changeset.\n\
-        ",
-    );
+         You are a Principal Linux Kernel Maintainer. You are technically rigorous, demanding, \
+         and believe that a PR description (cover letter) is a permanent piece of technical \
+         documentation for the project's history. You expect developers to justify their \
+         architectural choices with absolute precision.\n\
+         \n\
+         # CORE OBJECTIVE\n\
+         Generate a comprehensive, professional technical narrative for a high-stakes pull request. \
+         Analyze the provided commits and diffs as a cohesive unit of work, not just a list of \
+         changes.\n\
+         \n\
+         # OPERATIONAL GUIDELINES\n\
+         1. **Technical Narrative (The Cover Letter Style):**\n\
+            - Describe the **Context**: What subsystem or capability is being modified?\n\
+            - Describe the **Problem**: What is the specific limitation, bug, or missing feature?\n\
+            - Describe the **Solution**: How does this changeset technically address the problem?\n\
+            - Describe the **Reasoning**: Why is this the correct approach? Mention tradeoffs, \
+            alternatives considered, and architectural impact.\n\
+         \n\
+         2. **Subsystem Identification:**\n\
+            - Identify the primary subsystem being touched (e.g., \"core\", \"tui\", \"git\").\n\
+            - The title should be imperative and follow the \"subsystem: summary\" pattern.\n\
+         \n\
+         3. **Tone & Style:**\n\
+            - Professional, objective, and authoritative.\n\
+            - Avoid \"shallow\" bullet points for complex logic; use full, technical paragraphs.\n\
+            - Ensure the intent behind the changeset is crystalline.\n\
+         \n\
+         4. **Formatting Constraints:**\n\
+            - Wrap all body text at exactly 82 characters for maximum readability in diff-friendly \
+            environments.\n\
+         \n\
+         # USER INSTRUCTIONS\n\
+         {}\n\
+         \n\
+         # OUTPUT SPECIFICATION\n\
+         Your final response MUST be a single, valid JSON object matching this schema:\n\
+         \n\
+         ```json\n\
+         {}\n\
+         ```\n\
+         \n\
+         **CRITICAL:** Output ONLY the JSON object. No conversational filler.",
+        combined_instructions, pr_schema_str
+    ))
+}
 
-    prompt.push_str("\n# ADDITIONAL INSTRUCTIONS\n");
-    prompt.push_str(get_combined_instructions(config).as_str());
+/// Creates a user prompt for PR description generation
+pub fn create_pr_user_prompt(context: &CommitContext, commit_messages: &[String]) -> String {
+    let detailed_changes = format_detailed_changes(&context.staged_files);
+    let recent_commits = format_recent_commits(&context.recent_commits);
 
-    prompt.push_str(
-        "\n\n# OUTPUT REQUIREMENTS\n\
-        Output MUST be a valid JSON object matching the following structure and example logic.\n\
-        \n\
-        ## SCHEMA\n\
-        ```json\n",
-    );
-    prompt.push_str(&pr_schema_str);
-    prompt.push_str("\n```\n\n");
+    let commits_section = if commit_messages.is_empty() {
+        "No commits in current range.".to_string()
+    } else {
+        commit_messages.join("\n")
+    };
 
-    prompt.push_str(
-        "## EXAMPLE LOGIC\n\
-        {\n\
-          \"title\": \"Add comprehensive Experience Fragment management system\",\n\
-          \"summary\": \"Implements full lifecycle support for Experience Fragments (XFs), including create, retrieve, update, and page integration operations.\",\n\
-          \"description\": \"### Core Capabilities\\n\\n* Unified `manage_experience_fragments` tool...\",\n\
-          \"commits\": [\"b1b1f3f: feat(xf): add experience fragment management system\"],\n\
-          \"breaking_changes\": [],\n\
-          \"testing_notes\": \"Verified XF creation, update, and population.\",\n\
-          \"notes\": \"Requires sufficient AEM permissions.\"\n\
-        }\n\
-        \n\
-        **CRITICAL:** Output ONLY the JSON object. No conversational filler."
-    );
-
-    Ok(prompt)
+    format!(
+        "### MAINTAINER TASK: GENERATE PR TECHNICAL NARRATIVE\n\
+         \n\
+         #### DATA CONTEXT\n\
+         - **Branch/Range:** `{}`\n\
+         \n\
+         - **Commits to Analyze (Current Work):**\n\
+         ```\n\
+         {}\n\
+         ```\n\
+         \n\
+         - **Detailed Diffs (Source of Truth):**\n\
+         {}\n\
+         \n\
+         - **Contextual Project History:**\n\
+         {}\n\
+         \n\
+         #### ANALYSIS REQUIREMENTS\n\
+         1. **Subsystem Context:** Identify the core module being evolved.\n\
+         2. **Change Rationale:** Extract the 'Why' from the commits and diffs.\n\
+         3. **Impact Assessment:** Determine what changed for the system and the user.\n\
+         \n\
+         #### RULES FOR SUCCESS\n\
+         - Use the \"Problem / Solution / Reasoning\" structure in the description field.\n\
+         - Ensure the title is formatted as `<subsystem>: <short description>`.\n\
+         - HARD WRAP all body lines at 82 characters.\n\
+         \n\
+         Generate the JSON PR description now.",
+        context.branch, commits_section, detailed_changes, recent_commits
+    )
 }
 
 pub fn create_completion_system_prompt(config: &Config) -> anyhow::Result<String> {
@@ -473,37 +499,4 @@ pub fn create_completion_user_prompt(
         recent_commits,
         author_history
     )
-}
-
-/// Creates a user prompt for PR description generation
-pub fn create_pr_user_prompt(context: &CommitContext, commit_messages: &[String]) -> String {
-    let detailed_changes = format_detailed_changes(&context.staged_files);
-
-    let commits_section = if commit_messages.is_empty() {
-        "No commits available".to_string()
-    } else {
-        commit_messages.join("\n")
-    };
-
-    let prompt = format!(
-        "Based on the following context, generate a comprehensive pull request description:\n\n\
-         Range: {}\n\n\
-         Commits in this PR:\n{}\n\n\
-         Recent commit history:\n{}\n\n\
-         File changes summary:\n{}\n\n\
-         Detailed changes:\n{}",
-        context.branch,
-        commits_section,
-        format_recent_commits(&context.recent_commits),
-        format_staged_files(&context.staged_files),
-        detailed_changes
-    );
-
-    debug!(
-        "Generated PR prompt for {} files across {} commits",
-        context.staged_files.len(),
-        commit_messages.len()
-    );
-
-    prompt
 }
