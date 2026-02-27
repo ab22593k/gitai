@@ -4,7 +4,7 @@ use crate::common::{CommonParams, DetailLevel};
 use crate::config::Config;
 use crate::git::GitRepo;
 use crate::ui;
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow};
 use colored::Colorize;
 use std::env;
 use std::str::FromStr;
@@ -29,12 +29,14 @@ use std::sync::Arc;
 /// # Returns
 ///
 /// Returns a Result indicating success or containing an error if the operation failed.
+#[allow(clippy::too_many_arguments)]
 pub async fn handle_changelog_command(
     common: CommonParams,
-    from: String,
+    from: Option<String>,
     to: Option<String>,
     repository_url: Option<String>,
     update_file: bool,
+    save: bool,
     changelog_path: Option<String>,
     version_name: Option<String>,
 ) -> Result<()> {
@@ -71,6 +73,49 @@ pub async fn handle_changelog_command(
     // Keep a clone of the Arc for updating the changelog later if needed
     let git_repo_for_update = Arc::clone(&git_repo);
 
+    // Handle --save flag: auto-detect starting reference and update CHANGELOG.md
+    let should_update_file = update_file || save;
+    let changelog_file_path = if save {
+        // If --save is used, default to CHANGELOG.md in current directory
+        changelog_path.or_else(|| Some("CHANGELOG.md".to_string()))
+    } else {
+        changelog_path
+    };
+
+    // Resolve 'from' reference if not provided (for --save or manual use)
+    let from_ref = if let Some(f) = from {
+        Some(f)
+    } else if save {
+        // Auto-detect the starting reference for --save
+        ui::print_info("Detecting latest tag...");
+        match git_repo.get_latest_tag() {
+            Ok(Some(tag)) => {
+                ui::print_success(&format!("Found latest tag: {}", tag));
+                Some(tag)
+            }
+            Ok(None) => {
+                ui::print_info("No tags found, using first commit...");
+                match git_repo.get_first_commit() {
+                    Ok(commit) => Some(commit),
+                    Err(e) => {
+                        ui::print_error(&format!("Failed to get first commit: {e}"));
+                        return Err(anyhow!("Cannot determine starting point for changelog"));
+                    }
+                }
+            }
+            Err(e) => {
+                ui::print_error(&format!("Failed to get latest tag: {e}"));
+                return Err(anyhow!("Failed to detect latest tag: {}", e));
+            }
+        }
+    } else {
+        None
+    };
+
+    // Validate that we have a 'from' reference
+    let from_ref = from_ref
+        .ok_or_else(|| anyhow!("Starting reference (--from) is required when not using --save"))?;
+
     // Set the default 'to' reference if not provided
     let to = to.unwrap_or_else(|| "HEAD".to_string());
 
@@ -79,7 +124,7 @@ pub async fn handle_changelog_command(
 
     // Generate the changelog
     let changelog =
-        ChangelogGenerator::generate(git_repo, &from, &to, &config, detail_level).await?;
+        ChangelogGenerator::generate(git_repo, &from_ref, &to, &config, detail_level).await?;
 
     // Clear the spinner and display the result
     spinner.tick();
@@ -88,8 +133,8 @@ pub async fn handle_changelog_command(
     ui::print_bordered_content(&changelog);
 
     // Update the changelog file if requested
-    if update_file {
-        let path = changelog_path.unwrap_or_else(|| "CHANGELOG.md".to_string());
+    if should_update_file {
+        let path = changelog_file_path.unwrap_or_else(|| "CHANGELOG.md".to_string());
         let mut update_spinner =
             ui::create_tui_spinner(&format!("Updating changelog file at {path}..."));
 

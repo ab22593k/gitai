@@ -783,6 +783,73 @@ impl GitRepo {
         let repo = self.open_repo()?;
         commit::get_file_paths_for_commit(&repo, commit_id)
     }
+
+    /// Get the latest tag that is an ancestor of HEAD
+    ///
+    /// Uses git describe to find the most recent tag that is an ancestor
+    /// of the current HEAD.
+    ///
+    /// # Returns
+    ///
+    /// A Result containing an Option with the tag name if found, or None if no tags exist.
+    pub fn get_latest_tag(&self) -> Result<Option<String>> {
+        let repo = self.open_repo()?;
+
+        // First, check if there are any tags
+        let tag_names = repo.tag_names(None::<&str>)?;
+        if tag_names.is_empty() {
+            return Ok(None);
+        }
+
+        let mut opts = git2::DescribeOptions::new();
+        opts.describe_tags();
+        opts.show_commit_oid_as_fallback(false);
+
+        let describe = match repo.describe(&opts) {
+            Ok(d) => d,
+            Err(e) => {
+                if e.code() == git2::ErrorCode::NotFound {
+                    return Ok(None);
+                }
+                return Err(anyhow!("Failed to describe: {e}"));
+            }
+        };
+
+        let mut format_opts = git2::DescribeFormatOptions::new();
+        format_opts.abbreviated_size(0);
+
+        let tag_name = describe.format(Some(&format_opts))?;
+
+        // If the output looks like a commit hash (40 hex chars), it means no tag was found
+        if tag_name.len() == 40 && tag_name.chars().all(|c| c.is_ascii_hexdigit()) {
+            return Ok(None);
+        }
+
+        Ok(Some(tag_name))
+    }
+
+    /// Get the first (oldest) commit in the repository
+    ///
+    /// Uses a reverse revision walk to find the oldest commit.
+    ///
+    /// # Returns
+    ///
+    /// A Result containing the commit hash as a String.
+    pub fn get_first_commit(&self) -> Result<String> {
+        let repo = self.open_repo()?;
+        let mut revwalk = repo.revwalk()?;
+        revwalk.push_head()?;
+
+        // Collect all commits and find the oldest
+        let mut commits: Vec<_> = revwalk.filter_map(std::result::Result::ok).collect();
+        commits.reverse();
+
+        if let Some(first_oid) = commits.first() {
+            Ok(first_oid.to_string())
+        } else {
+            Err(anyhow!("No commits found in repository"))
+        }
+    }
 }
 
 impl Drop for GitRepo {

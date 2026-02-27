@@ -72,39 +72,42 @@ mod tests {
 
         // Check that the prompt starts with task header
         assert!(
-            prompt.starts_with("# TASK: Complete Commit Message"),
+            prompt.starts_with("### TASK: COMPLETE PARTIAL COMMIT MESSAGE"),
             "Completion prompt should start with task header"
         );
 
         // Check that it contains the prefix
         assert!(
-            prompt.contains(&format!("**Prefix:** '{prefix}'")),
+            prompt.contains(&format!("**Current Prefix:** `{prefix}`")),
             "Should contain the prefix"
         );
 
         // Check that it contains context ratio
         assert!(
-            prompt.contains("**Context Ratio:** 50%"),
+            prompt.contains("**Context Match Ratio:** 50%"),
             "Should contain context ratio"
         );
 
         // Check that it contains all context sections
-        assert!(prompt.contains("Branch:"), "Should contain branch section");
         assert!(
-            prompt.contains("Recent Commits (for changed files):"),
-            "Should contain recent commits section"
+            prompt.contains("**Branch:**"),
+            "Should contain branch section"
         );
         assert!(
-            prompt.contains("Staged Changes:"),
-            "Should contain staged changes section"
+            prompt.contains("**Recent History:**"),
+            "Should contain recent history section"
         );
         assert!(
-            prompt.contains("Detailed Changes:"),
-            "Should contain detailed changes section"
+            prompt.contains("**Staged Files:**"),
+            "Should contain staged files section"
         );
         assert!(
-            prompt.contains("Author's Commit History:"),
-            "Should contain author history section"
+            prompt.contains("**Diff Detais:**"),
+            "Should contain diff details section"
+        );
+        assert!(
+            prompt.contains("**Author Style:**"),
+            "Should contain author style section"
         );
 
         // Check that it doesn't contain the old "COMPLETE" instruction
@@ -122,26 +125,26 @@ mod tests {
 
         // Check that it defines the role correctly
         assert!(
-            prompt.contains("Git Commit Message Completion Specialist"),
-            "Should define completion specialist role"
+            prompt.contains("Git Workflow Expert"),
+            "Should define workflow expert persona"
         );
 
-        // Check that it has completion rules
+        // Check that it has operational guidelines
         assert!(
-            prompt.contains("## Completion Rules"),
-            "Should contain completion rules section"
+            prompt.contains("# OPERATIONAL GUIDELINES"),
+            "Should contain operational guidelines section"
         );
 
-        // Check that it mentions starting where prefix ends
+        // Check that it mentions zero redundancy
         assert!(
-            prompt.contains("Begin completion exactly where the prefix ends"),
-            "Should mention prefix continuation"
+            prompt.contains("**Zero Redundancy:** Do not repeat the prefix"),
+            "Should mention zero redundancy"
         );
 
-        // Check that it mentions maintaining conventions
+        // Check that it mentions contextual continuity
         assert!(
-            prompt.contains("Maintain the same tone, style, and conventions"),
-            "Should mention style maintenance"
+            prompt.contains("**Contextual Continuity:** Analyze the prefix"),
+            "Should mention continuity"
         );
     }
 

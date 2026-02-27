@@ -169,8 +169,10 @@ Supported commitish syntax: HEAD~2, HEAD^, @~3, main~1, origin/main^, etc."
         common: CommonParams,
 
         /// Starting Git reference (commit hash, tag, or branch name)
-        #[arg(long, required = true)]
-        from: String,
+        /// If not specified, defaults to the latest tag (or first commit if no tags exist)
+        /// when using --save
+        #[arg(long)]
+        from: Option<String>,
 
         /// Ending Git reference (commit hash, tag, or branch name). Defaults to HEAD if not specified.
         #[arg(long)]
@@ -179,6 +181,11 @@ Supported commitish syntax: HEAD~2, HEAD^, @~3, main~1, origin/main^, etc."
         /// Update the changelog file with the new changes
         #[arg(long, help = "Update the changelog file with the new changes")]
         update: bool,
+
+        /// Save: automatically detect the starting reference (latest tag or first commit)
+        /// and update CHANGELOG.md
+        #[arg(long, help = "Auto-detect starting point and save to CHANGELOG.md")]
+        save: bool,
 
         /// Path to the changelog file
         #[arg(long, help = "Path to the changelog file (defaults to CHANGELOG.md)")]
@@ -290,19 +297,31 @@ pub async fn handle_message(
 }
 
 /// Handle the `Changelog` command
+#[allow(clippy::too_many_arguments)]
 pub async fn handle_changelog(
     common: CommonParams,
-    from: String,
+    from: Option<String>,
     to: Option<String>,
     repository_url: Option<String>,
     update: bool,
+    save: bool,
     file: Option<String>,
     version_name: Option<String>,
 ) -> anyhow::Result<()> {
     debug!(
-        "Handling 'changelog' command with common: {common:?}, from: {from}, to: {to:?}, update: {update}, file: {file:?}, version_name: {version_name:?}"
+        "Handling 'changelog' command with common: {common:?}, from: {from:?}, to: {to:?}, update: {update}, save: {save}, file: {file:?}, version_name: {version_name:?}"
     );
-    handle_changelog_command(common, from, to, repository_url, update, file, version_name).await
+    handle_changelog_command(
+        common,
+        from,
+        to,
+        repository_url,
+        update,
+        save,
+        file,
+        version_name,
+    )
+    .await
 }
 
 /// Handle the `ReleaseNotes` command
@@ -351,9 +370,22 @@ pub async fn handle_command(command: Gitai, repository_url: Option<String>) -> a
             from,
             to,
             update,
+            save,
             file,
             version_name,
-        } => handle_changelog(common, from, to, repository_url, update, file, version_name).await,
+        } => {
+            handle_changelog(
+                common,
+                from,
+                to,
+                repository_url,
+                update,
+                save,
+                file,
+                version_name,
+            )
+            .await
+        }
         Gitai::ReleaseNotes {
             common,
             from,
