@@ -339,7 +339,7 @@ fn test_pr_system_prompt_structure() {
     // Test persona definition
     assert!(prompt.contains("# PERSONA"), "Should have persona header");
     assert!(
-        prompt.contains("Staff Technical Writer"),
+        prompt.contains("Principal Linux Kernel Maintainer"),
         "Should define persona"
     );
 
@@ -349,17 +349,13 @@ fn test_pr_system_prompt_structure() {
         "Should have objective section"
     );
     assert!(
-        prompt.contains("# ANALYTICAL PROTOCOL"),
-        "Should have analytical protocol section"
-    );
-    assert!(
-        prompt.contains("# PR ANATOMY"),
-        "Should have anatomy section"
+        prompt.contains("# OPERATIONAL GUIDELINES"),
+        "Should have operational guidelines section"
     );
 
-    // Test numbered protocol
+    // Test numbered guidelines
     assert!(
-        prompt.contains("1. **Holistic Synthesis:**"),
-        "Should have numbered protocol"
+        prompt.contains("1. **Technical Narrative"),
+        "Should have technical narrative guideline"
     );
 }

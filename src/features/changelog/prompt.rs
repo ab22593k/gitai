@@ -19,29 +19,29 @@ pub fn create_changelog_system_prompt(config: &Config) -> String {
 
     let mut prompt = String::from(
         "# PERSONA\n\
-        You are a Lead Maintainer and Technical Architect. You view a changelog as a permanent \
-        record of a project's evolution. You are technically rigorous, prioritize technical \
-        accuracy over marketing fluff, and demand clarity in every entry.\n\
+        You are a Principal Linux Kernel Maintainer. You view a changelog as a permanent \
+        piece of technical documentation for the project's architecture. You are \
+        technically rigorous, objective, and believe that every entry must justify \
+        its existence with technical merit.\n\
         \n\
         # TASK\n\
-        Synthesize the provided commit analysis into a professional changelog adhering to the \
-        Keep a Changelog 1.1.0 format. Your goal is to provide a high-signal technical summary \
-        for other engineers.\n\
+        Synthesize the provided commit analysis into a professional technical changelog \
+        adhering to the Keep a Changelog 1.1.0 format. Your goal is to provide a \
+        high-signal narrative for the maintainers and the developer community.\n\
         \n\
-        # ANALYTICAL PROTOCOL (Chain of Thought)\n\
-        1. **Technical Synthesis:** Group related commits into logical technical themes. Do not \
-        simply list commits; synthesize the *collective impact* of related patches.\n\
-        2. **Impact Filtering:** Ignore trivial changes (formatting, typo fixes in comments) unless \
-        they affect the build or user-facing API.\n\
-        3. **Narrative Generation:** For each category, write entries that explain the solution \
-        and its rationale in the imperative mood.\n\
+        # OPERATIONAL GUIDELINES\n\
+        1. **Technical Synthesis:** Group related commits into logical technical themes. \
+        Do not simply list commits; synthesize the *collective impact* of related patches.\n\
+        2. **Technical Rationale:** For each entry, briefly explain *why* the change was \
+        architecturally necessary or what technical limitation it addressed.\n\
+        3. **Impact Filtering:** Ignore trivial churn (formatting, comment typos) unless \
+        it affects the build system or the public-facing API.\n\
         \n\
-        # OPERATIONAL CONSTRAINTS\n\
-        - **Subject Format:** Imperative, present tense, capitalized, no trailing period.\n\
-        - **No Fluff:** **Negative Constraint:** NEVER use verbs like \"enhanced\", \"optimized\", \
-        or \"streamlined\" without providing a specific technical metric or rationale.\n\
-        - **Technical Precision:** Identify breaking changes with absolute clarity.\n\
-        - **No Yapping:** Output must be the JSON object and nothing else.\n\
+        # FORMATTING CONSTRAINTS\n\
+        - **Subject Line:** Imperative, present tense, capitalized, no trailing period.\n\
+        - **Body Wrap:** HARD WRAP all body text at exactly 90 characters for maximum \
+        readability in mailing lists and diff-friendly environments.\n\
+        - **Tone:** Professional, objective, and authoritative. No marketing fluff.\n\
         \n\
         # OUTPUT SPECIFICATION\n\
         Your response MUST be a valid JSON object strictly following this schema:\n\
@@ -76,24 +76,26 @@ pub fn create_release_notes_system_prompt(config: &Config) -> String {
 
     let mut prompt = String::from(
         "# PERSONA\n\
-        You are a Technical Lead responsible for coordinating major releases. Your tone is \
-        authoritative, direct, and focused on the value provided to the end-user and developer community.\n\
+        You are a Principal Linux Kernel Maintainer and Subsystem Lead. You are responsible \
+        for coordinating major technical releases. Your tone is authoritative, direct, \
+        and focused on the technical value and architectural shifts in the project.\n\
         \n\
         # TASK\n\
-        Generate professional, user-friendly release notes by synthesizing the provided changeset. \
-        Focus on impact, breaking changes, and technical narratives that matter.\n\
+        Generate professional technical release notes by synthesizing the provided \
+        changeset. Focus on technical intent, architectural impact, and breaking changes.\n\
         \n\
-        # ANALYTICAL PROTOCOL\n\
-        1. **Value Mapping:** Identify the most significant new features and improvements. \
-        Translate technical diffs into functional benefits.\n\
-        2. **Risk Assessment:** Explicitly look for architectural shifts or dependency updates \
-        that require migration steps.\n\
-        3. **Executive Summary:** Synthesize the entire release into a high-level summary of intent.\n\
+        # OPERATIONAL GUIDELINES\n\
+        1. **Architectural Narrative:** Synthesize the entire release into a high-level \
+        technical narrative of intent. What is the state of the project after this release?\n\
+        2. **Technical Value Mapping:** Identify the most significant improvements. \
+        Translate raw diffs into meaningful technical capabilities.\n\
+        3. **Risk & Migration:** Explicitly identify architectural shifts, breaking changes, \
+        or dependency updates that require specific migration protocols.\n\
         \n\
-        # QUALITY GUIDELINES\n\
-        - **Active Voice:** Use professional, approachable language.\n\
-        - **Technical Depth:** Provide context for complex technical changes when necessary.\n\
-        - **Constraint:** NO YAPPING. No conversational preambles.\n\
+        # FORMATTING CONSTRAINTS\n\
+        - **Body Wrap:** HARD WRAP all descriptive text at exactly 90 characters for \
+        compatibility with technical mailing lists.\n\
+        - **Tone:** Objective and precise. Avoid marketing superlatives. Use active voice.\n\
         \n\
         # OUTPUT SPECIFICATION\n\
         Your response MUST be a valid JSON object strictly following this schema:\n\
@@ -201,13 +203,13 @@ pub fn create_changelog_user_prompt(
 ) -> String {
     let mut prompt = format!(
         "### MAINTAINER TASK: GENERATE TECHNICAL CHANGELOG\n\
-         Synthesize the following changes from `{from}` to `{to}` into a high-density, \
-         professional changelog.\n\n"
+         Synthesize the technical changeset from `{from}` to `{to}` into a high-density, \
+         architectural changelog.\n\n"
     );
 
     format_metrics_summary(&mut prompt, total_metrics);
 
-    prompt.push_str("#### INPUT DATA: DETAILED CHANGES\n");
+    prompt.push_str("#### INPUT DATA: ANALYZED TECHNICAL PATCHES\n");
     for change in changes {
         format_change_details(&mut prompt, change, detail_level);
     }
@@ -215,26 +217,29 @@ pub fn create_changelog_user_prompt(
     add_readme_summary(&mut prompt, readme_summary);
 
     let detail_req = match detail_level {
-        DetailLevel::Minimal => "EXIGENCY: Keep it technical and extremely concise.",
+        DetailLevel::Minimal => {
+            "EXIGENCY: Extreme technical brevity. Focus only on architectural shifts."
+        }
         DetailLevel::Standard => {
-            "EXIGENCY: Provide a balanced overview of all significant changes."
+            "EXIGENCY: Provide a balanced technical narrative of all significant changes."
         }
         DetailLevel::Detailed => {
-            "EXIGENCY: Exhaustive technical narrative. Include context for major file changes."
+            "EXIGENCY: Exhaustive technical documentation. Explain the 'Why' for major file changes."
         }
     };
 
     write!(
         &mut prompt,
         "\n#### ANALYSIS REQUIREMENTS\n\
-         1. **Categorization:** Strictly use the categories defined in the system prompt.\n\
-         2. **Synthesis:** Group related patches into coherent entries. Focus on the impact.\n\
-         3. **Merit:** Only include changes with technical merit. Ignore churn.\n\
-         4. **Sign-offs:** Include short commit hashes for traceability.\n\
+         1. **Subsystem Logic:** Group related patches into coherent subsystem entries.\n\
+         2. **Merit Only:** Include only changes with technical merit. Ignore administrative churn.\n\
+         3. **Rationale:** Briefly justify architectural choices for significant changes.\n\
          \n\
-         {}\n\
+         #### RULES FOR SUCCESS\n\
+         - HARD WRAP all body lines at 90 characters.\n\
+         - {}\n\
          \n\
-         Generate the JSON object according to the Maintainer's standards now.",
+         Generate the JSON technical log according to the Maintainer's standards now.",
         detail_req
     )
     .expect("writing to string should never fail");
@@ -251,14 +256,14 @@ pub fn create_release_notes_user_prompt(
     readme_summary: Option<&str>,
 ) -> String {
     let mut prompt = format!(
-        "### TASK: GENERATE RELEASE NOTES\n\
-         Synthesize the following release dataset from `{from}` to `{to}` into professional, \
-         approachable release notes.\n\n"
+        "### MAINTAINER TASK: GENERATE TECHNICAL RELEASE NOTES\n\
+         Synthesize the following changeset from `{from}` to `{to}` into professional \
+         technical documentation for a major release.\n\n"
     );
 
     format_metrics_summary(&mut prompt, total_metrics);
 
-    prompt.push_str("#### DATASET: CHANGESET DETAILS\n");
+    prompt.push_str("#### INPUT DATA: ANALYZED TECHNICAL PATCHES\n");
     for change in changes {
         format_change_details(&mut prompt, change, detail_level);
     }
@@ -266,25 +271,29 @@ pub fn create_release_notes_user_prompt(
     add_readme_summary(&mut prompt, readme_summary);
 
     let detail_req = match detail_level {
-        DetailLevel::Minimal => "EXIGENCY: Brief summary focusing only on critical new features.",
+        DetailLevel::Minimal => {
+            "EXIGENCY: Brief technical summary focusing on critical capabilities."
+        }
         DetailLevel::Standard => {
-            "EXIGENCY: Balanced overview of features, fixes, and improvements."
+            "EXIGENCY: Balanced overview of new technical features and architectural improvements."
         }
         DetailLevel::Detailed => {
-            "EXIGENCY: Comprehensive release narrative including technical context and rationale."
+            "EXIGENCY: Comprehensive technical narrative including deep context and rationale."
         }
     };
 
     write!(
         &mut prompt,
-        "\n#### REQUIREMENTS\n\
-         1. **Value Filtering:** Highlight user-facing benefits and major new capabilities.\n\
-         2. **Clarity:** Translate complex diffs into professional narratives. Avoid jargon unless necessary.\n\
-         3. **Structure:** Group changes logically. Ensure breaking changes are impossible to miss.\n\
+        "\n#### ANALYSIS REQUIREMENTS\n\
+         1. **Narrative Focus:** Translate raw diffs into meaningful technical narratives.\n\
+         2. **State Shift:** Explain how this release shifts the project's technical state.\n\
+         3. **Structural Clarity:** Group changes by subsystem. Ensure breaking changes are bold.\n\
          \n\
-         {}\n\
+         #### RULES FOR SUCCESS\n\
+         - HARD WRAP all descriptive text at 90 characters.\n\
+         - {}\n\
          \n\
-         Proceed to generate the JSON release notes now.",
+         Proceed to generate the JSON technical release notes now.",
         detail_req
     )
     .expect("writing to string should never fail");

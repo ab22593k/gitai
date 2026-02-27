@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.1.4] - 2026-02-27
+
+### ✨ Added
+
+- Automate changelog reference resolution via libgit2's describe functionality and introduce a --save flag for persistent updates to CHANGELOG.md. (31947feb395596b3d132ebf1e60d7c3c9bd14e8c)
+- Enforce 'Principal Linux Kernel Maintainer' persona for LLM prompts, requiring structured Problem/Solution/Reasoning narratives with strict 72/82 character line wrapping. (7cda26121e28603a42d70073834d28e86085fb0d)
+- Integrate OpenTelemetry tracing across application entry points and core LLM modules to monitor request flow and performance bottlenecks. (ac877320139a79d4b5e95697ef45382f45b0634d)
+- Add support for Cerebras as an LLM provider within the core LLM and configuration modules. (a03a633016816879a01a2e389ca631f588ba984e)
+- Render code diffs with syntax highlighting in the TUI context selection screen to improve review ergonomics. (fdf73bc090eea96ec28d3abbdd8ff8adc4ea9204)
+- Introduce --model CLI parameter to allow explicit override of the configured LLM model for specific operations. (377232c5d67d43828839fb20952c9c5ab3eb19a0)
+
+### 🔄 Changed
+
+- Offload synchronous libgit2 operations to tokio::task::spawn_blocking and utilize JoinSet for concurrent remote synchronization to prevent TUI executor starvation. (a37ebfaaff9a6b740cf71dc60111e91bbc045666)
+- Overhaul TUI theme with indigo gradients and Nerd Font icons; replace syntect with native Ratatui styling to reduce rendering overhead. (119156906137c02077079fdc1bd5fe9dc398f9e7, c5b7d1206a7180d09ee6f0ceace6d21a8b4f2c90)
+- Implement automated diff truncation in prompt generation to mitigate LLM context window overflow. (bc8ca39d074b332cf14204ee82c51dd53d68b767)
+
+### 🗑️ Removed
+
+- Remove legacy agent skill documentation and provider-specific symlinks to simplify project surface area. (22c6a38eb1486141c6fbf36b8ec2b2a6867b033a)
+- Delete specialized token_optimizer and semantic_similarity modules, consolidating their logic into core context and prompt management services. (4d73083448216fbdd35934435abc1b319ddca131, 252047af4c8e49b3c8c903cebfd1f5572b54f2be)
+
+### ⚠️ Breaking Changes
+
+- Rename project from 'gait' to 'gitai', requiring updates to configuration files, environment variables, and CI/CD pipelines to match the new naming convention. (1573c5df3603fc451e108b52fa56b953dc3affed)
+- Remove 'default_provider' from global configuration, standardizing on explicit provider selection or internal defaults. (bf799f80041ce5d32aee09f987f0f1ecaec84782)
+- Deprecate standalone 'keys' binary and integrate API key management directly into the core configuration subsystem. (e2f0bb74770a6d41c940e013856aff13d74ce502)
+
+### 📊 Metrics
+
+- Total Commits: 34
+- Files Changed: 267
+- Insertions: 7928
+- Deletions: 10674
+
+<!-- -------------------------------------------------------------- -->
+
 ## [v0.1.3] -
 
 ### ✨ Added
