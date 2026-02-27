@@ -12,6 +12,7 @@ use git2::{Repository, Tree};
 use std::collections::HashSet;
 use std::env;
 use std::path::{Path, PathBuf};
+use tokio::task;
 
 use log::debug;
 use tempfile::TempDir;
@@ -342,45 +343,6 @@ impl GitRepo {
         ))
     }
 
-    /// Enhance context with cached commit messages from other repositories
-    fn enhance_context_with_cache(
-        &self,
-        context: &mut CommitContext,
-        _config: &Config,
-    ) -> Result<()> {
-        let cache = CommitMessageCache::new()?;
-
-        // Get cached messages for this author
-        let cached_messages =
-            cache.get_commit_messages(&context.user_email, &self.repo_path.to_string_lossy());
-
-        // Convert cached messages to strings for the context
-        let cached_history: Vec<String> =
-            cached_messages.into_iter().map(|msg| msg.message).collect();
-
-        // Merge with existing history
-        let mut enhanced_history = context.author_history.clone();
-        enhanced_history.extend(cached_history);
-
-        // Remove duplicates and limit size
-        let mut unique_history = Vec::new();
-        let mut seen = HashSet::new();
-        for msg in enhanced_history {
-            if seen.insert(msg.clone()) {
-                unique_history.push(msg);
-            }
-        }
-
-        // Keep only the most recent 100 messages to avoid context overflow
-        if unique_history.len() > 100 {
-            unique_history = unique_history.into_iter().take(100).collect();
-        }
-
-        context.author_history = unique_history;
-
-        Ok(())
-    }
-
     /// Get Git information including unstaged changes
     ///
     /// # Arguments
@@ -390,38 +352,117 @@ impl GitRepo {
     /// # Returns
     ///
     /// A Result containing the `CommitContext` or an error.
-    #[allow(clippy::unused_async)]
-    pub async fn get_git_info(&self, config: &Config) -> Result<CommitContext> {
-        // Get data that doesn't cross async boundaries
-        let repo = self.open_repo()?;
-        debug!("Getting git info for repo path: {}", repo.path().display());
+    pub async fn get_git_info(&self, _config: &Config) -> Result<CommitContext> {
+        let repo_path = self.repo_path.clone();
+        let gitignore_matcher = self.gitignore_matcher.clone();
 
-        let branch = self.get_current_branch()?;
-        let staged_files = get_file_statuses(&repo, &self.gitignore_matcher)?;
+        task::spawn_blocking(move || {
+            let repo = Repository::open(&repo_path)?;
+            debug!("Getting git info for repo path: {}", repo.path().display());
 
-        // Get commits that touched the staged files (more relevant than generic recent commits)
-        // Fall back to generic recent commits if no staged files or no file-specific commits found
-        let file_paths: Vec<String> = staged_files.iter().map(|f| f.path.clone()).collect();
-        let recent_commits = if file_paths.is_empty() {
-            // No staged files - use generic recent commits
-            self.get_recent_commits(10)?
-        } else {
-            let file_commits = self.get_commits_for_files(&file_paths, 10)?;
-            if file_commits.is_empty() {
-                // No commits found for these files - fall back to generic recent commits
-                self.get_recent_commits(10)?
+            let branch = Self::get_current_branch_sync(&repo)?;
+            let staged_files = get_file_statuses(&repo, &gitignore_matcher)?;
+
+            let file_paths: Vec<String> = staged_files.iter().map(|f| f.path.clone()).collect();
+            let recent_commits = if file_paths.is_empty() {
+                Self::get_recent_commits_sync(&repo, 10)?
             } else {
-                file_commits
+                let file_commits = Self::get_commits_for_files_sync(&repo, &file_paths, 10)?;
+                if file_commits.is_empty() {
+                    Self::get_recent_commits_sync(&repo, 10)?
+                } else {
+                    file_commits
+                }
+            };
+
+            let mut context = Self::create_commit_context_sync(
+                &repo,
+                &repo_path,
+                branch,
+                recent_commits,
+                staged_files,
+            )?;
+
+            Self::enhance_context_with_cache_sync(&repo_path, &mut context)?;
+
+            Ok(context)
+        })
+        .await?
+    }
+
+    #[allow(clippy::unnecessary_wraps)]
+    fn get_current_branch_sync(repo: &Repository) -> Result<String> {
+        if let Ok(head) = repo.head() {
+            let branch_name = head.shorthand().unwrap_or("HEAD detached").to_string();
+            debug!("Current branch: {branch_name}");
+            Ok(branch_name)
+        } else {
+            debug!("No HEAD found (fresh repository), defaulting to 'main'");
+            Ok("main".to_string())
+        }
+    }
+
+    fn get_recent_commits_sync(repo: &Repository, count: usize) -> Result<Vec<RecentCommit>> {
+        history::get_recent_commits(repo, count)
+    }
+
+    fn get_commits_for_files_sync(
+        repo: &Repository,
+        file_paths: &[String],
+        max_commits: usize,
+    ) -> Result<Vec<RecentCommit>> {
+        history::get_commits_for_files(repo, file_paths, max_commits)
+    }
+
+    fn create_commit_context_sync(
+        repo: &Repository,
+        repo_path: &Path,
+        branch: String,
+        recent_commits: Vec<RecentCommit>,
+        staged_files: Vec<StagedFile>,
+    ) -> Result<CommitContext> {
+        let user_name = repo.config()?.get_string("user.name").unwrap_or_default();
+        let user_email = repo.config()?.get_string("user.email").unwrap_or_default();
+        let author_history = history::get_author_commit_history(repo, repo_path, &user_email, 10)?;
+
+        Ok(CommitContext::new(
+            branch,
+            recent_commits,
+            staged_files,
+            user_name,
+            user_email,
+            author_history,
+        ))
+    }
+
+    fn enhance_context_with_cache_sync(
+        repo_path: &Path,
+        context: &mut CommitContext,
+    ) -> Result<()> {
+        let cache = CommitMessageCache::new()?;
+        let cached_messages =
+            cache.get_commit_messages(&context.user_email, &repo_path.to_string_lossy());
+
+        let cached_history: Vec<String> =
+            cached_messages.into_iter().map(|msg| msg.message).collect();
+
+        let mut enhanced_history = context.author_history.clone();
+        enhanced_history.extend(cached_history);
+
+        let mut unique_history = Vec::new();
+        let mut seen = HashSet::new();
+        for msg in enhanced_history {
+            if seen.insert(msg.clone()) {
+                unique_history.push(msg);
             }
-        };
+        }
 
-        // Create and return the context
-        let mut context = self.create_commit_context(branch, recent_commits, staged_files)?;
+        if unique_history.len() > 100 {
+            unique_history = unique_history.into_iter().take(100).collect();
+        }
 
-        // Enhance with cached commit messages
-        self.enhance_context_with_cache(&mut context, config)?;
-
-        Ok(context)
+        context.author_history = unique_history;
+        Ok(())
     }
 
     /// Get Git information including unstaged changes
@@ -434,48 +475,54 @@ impl GitRepo {
     /// # Returns
     ///
     /// A Result containing the `CommitContext` or an error.
-    #[allow(clippy::unused_async)]
     pub async fn get_git_info_with_unstaged(
         &self,
         _config: &Config,
         include_unstaged: bool,
     ) -> Result<CommitContext> {
-        // Get data that doesn't cross async boundaries
-        let repo = self.open_repo()?;
-        debug!(
-            "Getting git info for repo path: {}, include_unstaged: {}",
-            repo.path().display(),
-            include_unstaged
-        );
+        let repo_path = self.repo_path.clone();
+        let gitignore_matcher = self.gitignore_matcher.clone();
 
-        let branch = self.get_current_branch()?;
-        let mut staged_files = get_file_statuses(&repo, &self.gitignore_matcher)?;
+        task::spawn_blocking(move || {
+            let repo = Repository::open(&repo_path)?;
+            debug!(
+                "Getting git info for repo path: {}, include_unstaged: {}",
+                repo.path().display(),
+                include_unstaged
+            );
 
-        // Add unstaged files if requested
-        if include_unstaged {
-            let unstaged_files = get_unstaged_file_statuses(&repo, &self.gitignore_matcher)?;
-            staged_files.extend(unstaged_files);
-            debug!("Combined {} files (staged + unstaged)", staged_files.len());
-        }
+            let branch = Self::get_current_branch_sync(&repo)?;
+            let mut staged_files = get_file_statuses(&repo, &gitignore_matcher)?;
 
-        // Get commits that touched the changed files (more relevant than generic recent commits)
-        // Fall back to generic recent commits if no files or no file-specific commits found
-        let file_paths: Vec<String> = staged_files.iter().map(|f| f.path.clone()).collect();
-        let recent_commits = if file_paths.is_empty() {
-            self.get_recent_commits(10)?
-        } else {
-            let file_commits = self.get_commits_for_files(&file_paths, 10)?;
-            if file_commits.is_empty() {
-                self.get_recent_commits(10)?
-            } else {
-                file_commits
+            if include_unstaged {
+                let unstaged_files = get_unstaged_file_statuses(&repo, &gitignore_matcher)?;
+                staged_files.extend(unstaged_files);
+                debug!("Combined {} files (staged + unstaged)", staged_files.len());
             }
-        };
 
-        // Create and return the context
-        let context = self.create_commit_context(branch, recent_commits, staged_files)?;
+            let file_paths: Vec<String> = staged_files.iter().map(|f| f.path.clone()).collect();
+            let recent_commits = if file_paths.is_empty() {
+                Self::get_recent_commits_sync(&repo, 10)?
+            } else {
+                let file_commits = Self::get_commits_for_files_sync(&repo, &file_paths, 10)?;
+                if file_commits.is_empty() {
+                    Self::get_recent_commits_sync(&repo, 10)?
+                } else {
+                    file_commits
+                }
+            };
 
-        Ok(context)
+            let context = Self::create_commit_context_sync(
+                &repo,
+                &repo_path,
+                branch,
+                recent_commits,
+                staged_files,
+            )?;
+
+            Ok(context)
+        })
+        .await?
     }
 
     /// Get Git information for comparing two branches

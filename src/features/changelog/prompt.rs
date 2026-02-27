@@ -46,7 +46,7 @@ pub fn create_changelog_system_prompt(config: &Config) -> String {
         # OUTPUT SPECIFICATION\n\
         Your response MUST be a valid JSON object strictly following this schema:\n\
         \n\
-        ```json\n"
+        ```json\n",
     );
     prompt.push_str(&changelog_schema_str);
     prompt.push_str("\n```\n\n");
@@ -58,7 +58,7 @@ pub fn create_changelog_system_prompt(config: &Config) -> String {
         "\n\n# DATA SOURCE\n\
         You will be provided with detailed information about each change, including file-level \
         analysis and impact scores. Use this to create an insightful changelog. \
-        Adjust the density of the technical narrative based on the requested detail level."
+        Adjust the density of the technical narrative based on the requested detail level.",
     );
 
     prompt
@@ -98,7 +98,7 @@ pub fn create_release_notes_system_prompt(config: &Config) -> String {
         # OUTPUT SPECIFICATION\n\
         Your response MUST be a valid JSON object strictly following this schema:\n\
         \n\
-        ```json\n"
+        ```json\n",
     );
     prompt.push_str(&release_notes_schema_str);
     prompt.push_str("\n```\n\n");
@@ -216,8 +216,12 @@ pub fn create_changelog_user_prompt(
 
     let detail_req = match detail_level {
         DetailLevel::Minimal => "EXIGENCY: Keep it technical and extremely concise.",
-        DetailLevel::Standard => "EXIGENCY: Provide a balanced overview of all significant changes.",
-        DetailLevel::Detailed => "EXIGENCY: Exhaustive technical narrative. Include context for major file changes.",
+        DetailLevel::Standard => {
+            "EXIGENCY: Provide a balanced overview of all significant changes."
+        }
+        DetailLevel::Detailed => {
+            "EXIGENCY: Exhaustive technical narrative. Include context for major file changes."
+        }
     };
 
     write!(
@@ -263,8 +267,12 @@ pub fn create_release_notes_user_prompt(
 
     let detail_req = match detail_level {
         DetailLevel::Minimal => "EXIGENCY: Brief summary focusing only on critical new features.",
-        DetailLevel::Standard => "EXIGENCY: Balanced overview of features, fixes, and improvements.",
-        DetailLevel::Detailed => "EXIGENCY: Comprehensive release narrative including technical context and rationale.",
+        DetailLevel::Standard => {
+            "EXIGENCY: Balanced overview of features, fixes, and improvements."
+        }
+        DetailLevel::Detailed => {
+            "EXIGENCY: Comprehensive release narrative including technical context and rationale."
+        }
     };
 
     write!(

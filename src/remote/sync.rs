@@ -5,17 +5,15 @@ use std::sync::Arc;
 
 use cause::{Cause, cause};
 use fs_extra::{copy_items, dir::CopyOptions, remove_items};
-use futures::future::join_all;
 use log::{debug, info};
-use tokio::sync::Semaphore;
+use tokio::task::JoinSet;
 
 use super::cache::{
     fetcher::RepositoryFetcher, key_generator::CacheKeyGenerator, manager::CacheManager,
 };
 use super::common::{ErrorType, Parsed, Target, TargetConfig, parse};
 use super::models::repo_config::RepositoryConfiguration;
-
-const MAX_CONCURRENT_FETCHES: usize = 4;
+use super::models::wire_operation::WireOperation;
 
 /// Merge CLI-provided Parsed with an existing Parsed from .gitwire.toml
 /// CLI values take precedence (override) when non-empty
@@ -179,22 +177,11 @@ pub async fn sync_with_caching(
     info!("git-wire sync with caching started");
 
     let (root_dir, repo_configs, cli_parsed_for_save) = get_repo_configs(target)?;
+    handle_save_config(target, cli_parsed_for_save.as_ref())?;
 
-    // Handle --save flag if applicable
-    let Target::Declared(config) = target;
-    if config.save_config
-        && let Some(ref parsed) = cli_parsed_for_save
-    {
-        parse::save_to_gitwire_toml(parsed, config.append_config)?;
-    }
-
-    info!("Found {} repository configurations", repo_configs.len());
-
-    // Create components needed for caching
     let cache_manager = CacheManager::new();
     let fetcher = RepositoryFetcher;
 
-    // Plan fetch operations to identify unique repositories
     let (unique_configs, mut wire_operations) = cache_manager
         .plan_fetch_operations(&repo_configs)
         .map_err(|e| cause!(ErrorType::NoItemToOperate).msg(e))?;
@@ -205,52 +192,88 @@ pub async fn sync_with_caching(
         repo_configs.len().saturating_sub(unique_configs.len())
     );
 
-    // Fetch each unique repository to its cache location with concurrency limiting
-    let semaphore = Arc::new(Semaphore::new(MAX_CONCURRENT_FETCHES));
-    let fetch_futures = unique_configs
-        .iter()
-        .map(|config| {
-            let config = config.clone();
-            let fetcher = fetcher.clone();
-            let semaphore = semaphore.clone();
-            async move {
-                let _permit = semaphore.acquire().await.map_err(|e| {
-                    cause!(ErrorType::GitCloneCommand).msg(format!("Semaphore error: {e}"))
-                })?;
+    let fetch_results = fetch_repositories(unique_configs, fetcher).await;
 
-                let cache_key = CacheKeyGenerator::generate_key(&config);
-                let cache_dir = env::temp_dir().join("git-wire-cache").join(cache_key);
-                fs::create_dir_all(&cache_dir)
-                    .map_err(|e| cause!(ErrorType::TempDirCreation).src(e))?;
-                let cache_path = cache_dir.to_string_lossy().to_string();
+    update_wire_operations_with_cache(&mut wire_operations, fetch_results)?;
 
-                debug!(
-                    "Fetching repository {} to cache path {}",
-                    config.url, cache_path
-                );
+    execute_wire_operations(&root_dir, &wire_operations)?;
 
-                fetcher.fetch_repository(&config, &cache_path).await?;
-                debug!("Repository {} successfully cached", config.url);
-                Ok((config, cache_path))
-            }
-        })
-        .collect::<Vec<_>>();
+    info!("git-wire sync with caching completed");
+    Ok(true)
+}
 
-    let fetch_results: Vec<Result<(RepositoryConfiguration, String), Cause<ErrorType>>> =
-        join_all(fetch_futures).await;
+fn handle_save_config(
+    target: &Target,
+    cli_parsed_for_save: Option<&Parsed>,
+) -> Result<(), Cause<ErrorType>> {
+    let Target::Declared(config) = target;
+    if config.save_config
+        && let Some(parsed) = cli_parsed_for_save
+    {
+        parse::save_to_gitwire_toml(parsed, config.append_config)?;
+    }
+    Ok(())
+}
 
-    // Collect successful fetches and update wire operations
+async fn fetch_repositories(
+    unique_configs: Vec<RepositoryConfiguration>,
+    fetcher: RepositoryFetcher,
+) -> Vec<Result<(RepositoryConfiguration, String), Cause<ErrorType>>> {
+    let mut join_set = JoinSet::new();
+    let fetcher = Arc::new(fetcher);
+
+    for config in unique_configs.clone() {
+        let fetcher = fetcher.clone();
+        join_set.spawn(async move {
+            let cache_key = CacheKeyGenerator::generate_key(&config);
+            let cache_dir = env::temp_dir().join("git-wire-cache").join(cache_key);
+            fs::create_dir_all(&cache_dir)
+                .map_err(|e| cause!(ErrorType::TempDirCreation).src(e))?;
+            let cache_path = cache_dir.to_string_lossy().to_string();
+
+            debug!(
+                "Fetching repository {} to cache path {}",
+                config.url, cache_path
+            );
+            fetcher.fetch_repository(&config, &cache_path).await?;
+            debug!("Repository {} successfully cached", config.url);
+            Ok((config, cache_path))
+        });
+    }
+
+    let mut results = Vec::new();
+    while let Some(result) = join_set.join_next().await {
+        match result {
+            Ok(Ok(res)) => results.push(Ok(res)),
+            Ok(Err(e)) => results.push(Err(e)),
+            Err(e) => results.push(Err(
+                cause!(ErrorType::GitCloneCommand).msg(format!("Task join error: {e}"))
+            )),
+        }
+    }
+    results
+}
+
+fn update_wire_operations_with_cache(
+    wire_operations: &mut Vec<WireOperation>,
+    fetch_results: Vec<Result<(RepositoryConfiguration, String), Cause<ErrorType>>>,
+) -> Result<(), Cause<ErrorType>> {
     for result in fetch_results {
         let (config, cache_path) = result?;
-        for op in &mut wire_operations {
+        for op in &mut *wire_operations {
             if op.source_config.url == config.url && op.source_config.branch == config.branch {
                 op.cached_repo_path.clone_from(&cache_path);
             }
         }
     }
+    Ok(())
+}
 
-    // Execute wire operations using cached repositories
-    for wire_op in &wire_operations {
+fn execute_wire_operations(
+    root_dir: &str,
+    wire_operations: &[WireOperation],
+) -> Result<(), Cause<ErrorType>> {
+    for wire_op in wire_operations {
         if wire_op.source_config.filters.is_empty() {
             debug!(
                 "Skipping wire operation with no filters: {}",
@@ -269,9 +292,8 @@ pub async fn sync_with_caching(
             continue;
         }
 
-        let dest_dir = validate_dest_path(&root_dir, &wire_op.source_config.target_path)?;
+        let dest_dir = validate_dest_path(root_dir, &wire_op.source_config.target_path)?;
 
-        // Remove destination if it exists
         if dest_dir.exists() {
             remove_items(&[dest_dir.as_path()]).map_err(|e| {
                 cause!(ErrorType::MoveFromTempToDest)
@@ -280,7 +302,6 @@ pub async fn sync_with_caching(
             })?;
         }
 
-        // Create destination directory
         fs::create_dir_all(&dest_dir).map_err(|e| cause!(ErrorType::MoveFromTempToDest).src(e))?;
 
         let mut opt = CopyOptions::new();
@@ -300,7 +321,5 @@ pub async fn sync_with_caching(
             wire_op.source_config.target_path
         );
     }
-
-    info!("git-wire sync with caching completed");
-    Ok(true)
+    Ok(())
 }

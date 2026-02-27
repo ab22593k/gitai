@@ -67,9 +67,15 @@ pub fn create_user_prompt(context: &CommitContext, detail_level: DetailLevel) ->
     let author_history = format_enhanced_author_history(&context.author_history, context);
 
     let detail_instructions = match detail_level {
-        DetailLevel::Minimal => "EXIGENCY: Keep it technical and concise. A subsystem subject and a single paragraph of technical reasoning.",
-        DetailLevel::Standard => "EXIGENCY: Provide a multi-paragraph technical justification explaining the problem and solution.",
-        DetailLevel::Detailed => "EXIGENCY: Exhaustive technical documentation. Explain the state before/after, the logic flow, and architectural implications.",
+        DetailLevel::Minimal => {
+            "EXIGENCY: Keep it technical and concise. A subsystem subject and a single paragraph of technical reasoning."
+        }
+        DetailLevel::Standard => {
+            "EXIGENCY: Provide a multi-paragraph technical justification explaining the problem and solution."
+        }
+        DetailLevel::Detailed => {
+            "EXIGENCY: Exhaustive technical documentation. Explain the state before/after, the logic flow, and architectural implications."
+        }
     };
 
     format!(
@@ -349,7 +355,8 @@ pub fn create_pr_system_prompt(config: &Config) -> anyhow::Result<String> {
         - Use professional, active language.\n\
         - Ensure logical grouping of features.\n\
         - Focus on the *intent* behind the changeset.\n\
-        ");
+        ",
+    );
 
     prompt.push_str("\n# ADDITIONAL INSTRUCTIONS\n");
     prompt.push_str(get_combined_instructions(config).as_str());
@@ -359,7 +366,7 @@ pub fn create_pr_system_prompt(config: &Config) -> anyhow::Result<String> {
         Output MUST be a valid JSON object matching the following structure and example logic.\n\
         \n\
         ## SCHEMA\n\
-        ```json\n"
+        ```json\n",
     );
     prompt.push_str(&pr_schema_str);
     prompt.push_str("\n```\n\n");
