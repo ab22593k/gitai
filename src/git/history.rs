@@ -11,7 +11,7 @@ use crate::core::context::RecentCommit;
 use anyhow::Result;
 use git2::Repository;
 use log::debug;
-use std::collections::HashSet;
+
 use std::path::Path;
 
 /// Retrieves recent commits from the repository.
@@ -90,7 +90,6 @@ pub fn get_commits_for_files(
     }
 
     let mut relevant_commits = Vec::new();
-    let file_set: HashSet<&str> = file_paths.iter().map(String::as_str).collect();
 
     // Process commits until we have enough or run out
     for oid_result in revwalk {
@@ -101,7 +100,7 @@ pub fn get_commits_for_files(
         let oid = oid_result?;
         let commit = repo.find_commit(oid)?;
 
-        if commit_touches_files(repo, &commit, &file_set)? {
+        if commit_touches_files(repo, &commit, file_paths)? {
             relevant_commits.push(RecentCommit {
                 hash: oid.to_string(),
                 message: commit.message().unwrap_or_default().to_string(),
@@ -119,9 +118,9 @@ pub fn get_commits_for_files(
 
 /// Checks if a commit touches any files in the given file set
 fn commit_touches_files(
-    repo: &Repository,
+    _repo: &Repository,
     commit: &git2::Commit,
-    file_set: &HashSet<&str>,
+    file_paths: &[String],
 ) -> Result<bool> {
     let commit_tree = commit.tree()?;
     let parent_tree = if commit.parent_count() > 0 {
@@ -130,21 +129,20 @@ fn commit_touches_files(
         None
     };
 
-    let diff = repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&commit_tree), None)?;
+    for path_str in file_paths {
+        let path = Path::new(path_str);
 
-    for delta in diff.deltas() {
-        // Check new_file path (for added/modified/renamed-to)
-        if let Some(path) = delta.new_file().path()
-            && let Some(path_str) = path.to_str()
-            && file_set.contains(path_str)
-        {
-            return Ok(true);
-        }
-        // Check old_file path (for deleted/renamed-from)
-        if let Some(path) = delta.old_file().path()
-            && let Some(path_str) = path.to_str()
-            && file_set.contains(path_str)
-        {
+        // Get the entry at this path in the current commit
+        let entry_oid = commit_tree.get_path(path).map(|e| e.id()).ok();
+
+        // Get the entry at this path in the parent commit
+        let parent_entry_oid = match &parent_tree {
+            Some(t) => t.get_path(path).map(|e| e.id()).ok(),
+            None => None,
+        };
+
+        // If the OIDs are different, the file has changed (or was added/deleted)
+        if entry_oid != parent_entry_oid {
             return Ok(true);
         }
     }

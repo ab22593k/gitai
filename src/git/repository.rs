@@ -18,8 +18,6 @@ use log::debug;
 use tempfile::TempDir;
 use url::Url;
 
-use super::ignore_matcher::GitIgnoreMatcher;
-
 /// Represents a Git repository and provides methods for interacting with it.
 pub struct GitRepo {
     repo_path: PathBuf,
@@ -30,8 +28,6 @@ pub struct GitRepo {
     is_remote: bool,
     /// Original remote URL if this is a cloned repository
     remote_url: Option<String>,
-    /// `GitIgnore` matcher for file exclusion
-    gitignore_matcher: GitIgnoreMatcher,
 }
 
 impl GitRepo {
@@ -50,7 +46,6 @@ impl GitRepo {
             temp_dir: None,
             is_remote: false,
             remote_url: None,
-            gitignore_matcher: GitIgnoreMatcher::new(repo_path),
         })
     }
 
@@ -112,7 +107,6 @@ impl GitRepo {
             temp_dir: Some(temp_dir),
             is_remote: true,
             remote_url: Some(url.to_string()),
-            gitignore_matcher: GitIgnoreMatcher::new(&temp_path_buf),
         })
     }
 
@@ -282,7 +276,7 @@ impl GitRepo {
         let recent_commits = self.get_recent_commits(5)?;
 
         // Get staged and unstaged files
-        let mut staged_files = get_file_statuses(&repo, &self.gitignore_matcher)?;
+        let mut staged_files = get_file_statuses(&repo)?;
         if include_unstaged {
             let unstaged_files = self.get_unstaged_files()?;
             staged_files.extend(unstaged_files);
@@ -303,7 +297,7 @@ impl GitRepo {
     /// Gets unstaged file changes from the repository
     pub fn get_unstaged_files(&self) -> Result<Vec<StagedFile>> {
         let repo = self.open_repo()?;
-        get_unstaged_file_statuses(&repo, &self.gitignore_matcher)
+        get_unstaged_file_statuses(&repo)
     }
 
     /// Helper method for creating `CommitContext`
@@ -354,14 +348,13 @@ impl GitRepo {
     /// A Result containing the `CommitContext` or an error.
     pub async fn get_git_info(&self, _config: &Config) -> Result<CommitContext> {
         let repo_path = self.repo_path.clone();
-        let gitignore_matcher = self.gitignore_matcher.clone();
 
         task::spawn_blocking(move || {
             let repo = Repository::open(&repo_path)?;
             debug!("Getting git info for repo path: {}", repo.path().display());
 
             let branch = Self::get_current_branch_sync(&repo)?;
-            let staged_files = get_file_statuses(&repo, &gitignore_matcher)?;
+            let staged_files = get_file_statuses(&repo)?;
 
             let file_paths: Vec<String> = staged_files.iter().map(|f| f.path.clone()).collect();
             let recent_commits = if file_paths.is_empty() {
@@ -481,7 +474,6 @@ impl GitRepo {
         include_unstaged: bool,
     ) -> Result<CommitContext> {
         let repo_path = self.repo_path.clone();
-        let gitignore_matcher = self.gitignore_matcher.clone();
 
         task::spawn_blocking(move || {
             let repo = Repository::open(&repo_path)?;
@@ -492,10 +484,10 @@ impl GitRepo {
             );
 
             let branch = Self::get_current_branch_sync(&repo)?;
-            let mut staged_files = get_file_statuses(&repo, &gitignore_matcher)?;
+            let mut staged_files = get_file_statuses(&repo)?;
 
             if include_unstaged {
-                let unstaged_files = get_unstaged_file_statuses(&repo, &gitignore_matcher)?;
+                let unstaged_files = get_unstaged_file_statuses(&repo)?;
                 staged_files.extend(unstaged_files);
                 debug!("Combined {} files (staged + unstaged)", staged_files.len());
             }
@@ -546,20 +538,11 @@ impl GitRepo {
         let repo = self.open_repo()?;
 
         // Extract branch diff info
-        let (display_branch, recent_commits, _) = commit::extract_branch_diff_info(
-            &repo,
-            base_branch,
-            target_branch,
-            &self.gitignore_matcher,
-        )?;
+        let (display_branch, recent_commits, _) =
+            commit::extract_branch_diff_info(&repo, base_branch, target_branch)?;
 
         // Get the actual file changes
-        let branch_files = commit::get_branch_diff_files(
-            &repo,
-            base_branch,
-            target_branch,
-            &self.gitignore_matcher,
-        )?;
+        let branch_files = commit::get_branch_diff_files(&repo, base_branch, target_branch)?;
 
         // Create and return the context
         self.create_commit_context(display_branch, recent_commits, branch_files)
@@ -587,10 +570,10 @@ impl GitRepo {
 
         // Extract commit range info
         let (display_range, recent_commits, _) =
-            commit::extract_commit_range_info(&repo, from, to, &self.gitignore_matcher)?;
+            commit::extract_commit_range_info(&repo, from, to)?;
 
         // Get the actual file changes
-        let range_files = commit::get_commit_range_files(&repo, from, to, &self.gitignore_matcher)?;
+        let range_files = commit::get_commit_range_files(&repo, from, to)?;
 
         // Create and return the context
         self.create_commit_context(display_range, recent_commits, range_files)
@@ -605,7 +588,7 @@ impl GitRepo {
     /// Get files changed in a commit range
     pub fn get_commit_range_files(&self, from: &str, to: &str) -> Result<Vec<StagedFile>> {
         let repo = self.open_repo()?;
-        commit::get_commit_range_files(&repo, from, to, &self.gitignore_matcher)
+        commit::get_commit_range_files(&repo, from, to)
     }
 
     /// Retrieves recent commits.
@@ -720,7 +703,7 @@ impl GitRepo {
         let commit_info = commit::extract_commit_info(&repo, commit_id, &branch)?;
 
         // Get the files from commit after async boundary
-        let commit_files = commit::get_commit_files(&repo, commit_id, &self.gitignore_matcher)?;
+        let commit_files = commit::get_commit_files(&repo, commit_id)?;
 
         // Create and return the context
         self.create_commit_context(commit_info.branch, vec![commit_info.commit], commit_files)
@@ -775,7 +758,7 @@ impl GitRepo {
     /// Get the files changed in a specific commit
     pub fn get_commit_files(&self, commit_id: &str) -> Result<Vec<StagedFile>> {
         let repo = self.open_repo()?;
-        commit::get_commit_files(&repo, commit_id, &self.gitignore_matcher)
+        commit::get_commit_files(&repo, commit_id)
     }
 
     /// Get just the file paths for a specific commit

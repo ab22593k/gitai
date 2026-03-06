@@ -5,8 +5,6 @@ use chrono;
 use git2::{FileMode, Repository};
 use log::debug;
 
-use super::ignore_matcher::GitIgnoreMatcher;
-
 /// Apply rename/copy detection to a diff
 fn detect_renames(diff: &mut git2::Diff<'_>) -> Result<()> {
     let mut find_options = git2::DiffFindOptions::new();
@@ -23,10 +21,7 @@ fn detect_renames(diff: &mut git2::Diff<'_>) -> Result<()> {
 
 /// Helper to extract files from diff with rename detection
 #[allow(clippy::too_many_lines)]
-fn get_files_from_diff(
-    diff: &mut git2::Diff<'_>,
-    gitignore_matcher: &GitIgnoreMatcher,
-) -> Result<Vec<StagedFile>> {
+fn get_files_from_diff(repo: &Repository, diff: &mut git2::Diff<'_>) -> Result<Vec<StagedFile>> {
     detect_renames(diff)?;
     let mut files = Vec::new();
 
@@ -82,7 +77,7 @@ fn get_files_from_diff(
         };
 
         if let Some(path_str) = &file_path {
-            let should_exclude = gitignore_matcher.should_exclude(path_str);
+            let should_exclude = repo.is_path_ignored(path_str).unwrap_or(false);
             let diff_content;
 
             if should_exclude {
@@ -467,11 +462,7 @@ where
 /// # Returns
 ///
 /// A Result containing a Vec of `StagedFile` objects for the commit or an error.
-pub fn get_commit_files(
-    repo: &Repository,
-    commit_id: &str,
-    gitignore_matcher: &GitIgnoreMatcher,
-) -> Result<Vec<StagedFile>> {
+pub fn get_commit_files(repo: &Repository, commit_id: &str) -> Result<Vec<StagedFile>> {
     debug!("Getting files for commit: {}", commit_id);
 
     // Parse the commit ID
@@ -488,7 +479,7 @@ pub fn get_commit_files(
     let parent_tree = parent_commit.map(|c| c.tree()).transpose()?;
 
     let mut diff = repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&commit_tree), None)?;
-    let commit_files = get_files_from_diff(&mut diff, gitignore_matcher)?;
+    let commit_files = get_files_from_diff(repo, &mut diff)?;
 
     debug!("Found {} files in commit", commit_files.len());
     Ok(commit_files)
@@ -604,7 +595,6 @@ pub fn get_branch_diff_files(
     repo: &Repository,
     base_branch: &str,
     target_branch: &str,
-    gitignore_matcher: &GitIgnoreMatcher,
 ) -> Result<Vec<StagedFile>> {
     debug!(
         "Getting files changed between branches: {} -> {}",
@@ -627,7 +617,7 @@ pub fn get_branch_diff_files(
 
     // Create diff between the merge-base tree and target tree
     let mut diff = repo.diff_tree_to_tree(Some(&base_tree), Some(&target_tree), None)?;
-    let mut branch_files = get_files_from_diff(&mut diff, gitignore_matcher)?;
+    let mut branch_files = get_files_from_diff(repo, &mut diff)?;
 
     // Get file content from target branch if it's a modified or added file
     for file in &mut branch_files {
@@ -654,7 +644,6 @@ pub fn extract_branch_diff_info(
     repo: &Repository,
     base_branch: &str,
     target_branch: &str,
-    gitignore_matcher: &GitIgnoreMatcher,
 ) -> Result<(String, Vec<RecentCommit>, Vec<String>)> {
     // Get the target branch name for display
     let display_branch = format!("{base_branch} -> {target_branch}");
@@ -688,7 +677,7 @@ pub fn extract_branch_diff_info(
     let recent_commits = recent_commits?;
 
     // Get file paths from the diff for metadata
-    let diff_files = get_branch_diff_files(repo, base_branch, target_branch, gitignore_matcher)?;
+    let diff_files = get_branch_diff_files(repo, base_branch, target_branch)?;
     let file_paths: Vec<String> = diff_files.iter().map(|file| file.path.clone()).collect();
 
     Ok((display_branch, recent_commits, file_paths))
@@ -744,12 +733,7 @@ pub fn get_commits_for_pr(repo: &Repository, from: &str, to: &str) -> Result<Vec
 /// # Returns
 ///
 /// A Result containing a Vec of `StagedFile` objects for the commit range or an error.
-pub fn get_commit_range_files(
-    repo: &Repository,
-    from: &str,
-    to: &str,
-    gitignore_matcher: &GitIgnoreMatcher,
-) -> Result<Vec<StagedFile>> {
+pub fn get_commit_range_files(repo: &Repository, from: &str, to: &str) -> Result<Vec<StagedFile>> {
     debug!("Getting files changed in commit range: {} -> {}", from, to);
 
     // Resolve commit references
@@ -761,7 +745,7 @@ pub fn get_commit_range_files(
 
     // Create diff between the from and to trees
     let mut diff = repo.diff_tree_to_tree(Some(&from_tree), Some(&to_tree), None)?;
-    let mut range_files = get_files_from_diff(&mut diff, gitignore_matcher)?;
+    let mut range_files = get_files_from_diff(repo, &mut diff)?;
 
     // Get file content from to commit if it's a modified or added file
     for file in &mut range_files {
@@ -785,7 +769,6 @@ pub fn extract_commit_range_info(
     repo: &Repository,
     from: &str,
     to: &str,
-    gitignore_matcher: &GitIgnoreMatcher,
 ) -> Result<(String, Vec<RecentCommit>, Vec<String>)> {
     // Get the range name for display
     let display_range = format!("{from}..{to}");
@@ -796,7 +779,7 @@ pub fn extract_commit_range_info(
     let recent_commits = recent_commits?;
 
     // Get file paths from the range for metadata
-    let range_files = get_commit_range_files(repo, from, to, gitignore_matcher)?;
+    let range_files = get_commit_range_files(repo, from, to)?;
     let file_paths: Vec<String> = range_files.iter().map(|file| file.path.clone()).collect();
 
     Ok((display_range, recent_commits, file_paths))
