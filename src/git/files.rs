@@ -42,6 +42,8 @@ pub fn get_file_statuses(repo: &Repository) -> Result<Vec<StagedFile>> {
     // Use libgit2's built-in rename detection
     let mut find_options = git2::DiffFindOptions::new();
     find_options.renames(true);
+    find_options.copies(true);
+    find_options.remove_unmodified(true);
     let mut diff = diff; // Make it mutable to detect renames
     diff.find_similar(Some(&mut find_options))?;
 
@@ -65,6 +67,18 @@ pub fn get_file_statuses(repo: &Repository) -> Result<Vec<StagedFile>> {
                     .unwrap_or_default()
                     .to_string();
                 ChangeType::Renamed {
+                    from,
+                    similarity: 0,
+                }
+            }
+            git2::Delta::Copied => {
+                let from = delta
+                    .old_file()
+                    .path()
+                    .and_then(|p| p.to_str())
+                    .unwrap_or_default()
+                    .to_string();
+                ChangeType::Copied {
                     from,
                     similarity: 0,
                 }

@@ -1,6 +1,6 @@
 use crate::config::Config;
 use crate::core::commit_cache::CommitMessageCache;
-use crate::core::context::{CommitContext, RecentCommit, StagedFile};
+use crate::core::context::{ChangeType, CommitContext, RecentCommit, StagedFile};
 
 use crate::git::commit::{self, CommitResult};
 use crate::git::files::{RepoFilesInfo, get_file_statuses, get_unstaged_file_statuses};
@@ -283,8 +283,18 @@ impl GitRepo {
             debug!("Combined {} files (staged + unstaged)", staged_files.len());
         }
 
-        // Extract file paths for metadata
-        let file_paths: Vec<String> = staged_files.iter().map(|file| file.path.clone()).collect();
+        // Extract file paths for metadata, including original paths for renames/copies for better history fidelity
+        let mut file_paths = HashSet::new();
+        for file in &staged_files {
+            file_paths.insert(file.path.clone());
+            if let ChangeType::Renamed { from, .. } = &file.change_type {
+                file_paths.insert(from.clone());
+            }
+            if let ChangeType::Copied { from, .. } = &file.change_type {
+                file_paths.insert(from.clone());
+            }
+        }
+        let file_paths: Vec<String> = file_paths.into_iter().collect();
 
         Ok(RepoFilesInfo {
             branch,
@@ -356,7 +366,18 @@ impl GitRepo {
             let branch = Self::get_current_branch_sync(&repo)?;
             let staged_files = get_file_statuses(&repo)?;
 
-            let file_paths: Vec<String> = staged_files.iter().map(|f| f.path.clone()).collect();
+            let mut file_paths_set = HashSet::new();
+            for f in &staged_files {
+                file_paths_set.insert(f.path.clone());
+                if let ChangeType::Renamed { from, .. } = &f.change_type {
+                    file_paths_set.insert(from.clone());
+                }
+                if let ChangeType::Copied { from, .. } = &f.change_type {
+                    file_paths_set.insert(from.clone());
+                }
+            }
+            let file_paths: Vec<String> = file_paths_set.into_iter().collect();
+
             let recent_commits = if file_paths.is_empty() {
                 Self::get_recent_commits_sync(&repo, 10)?
             } else {
@@ -492,7 +513,18 @@ impl GitRepo {
                 debug!("Combined {} files (staged + unstaged)", staged_files.len());
             }
 
-            let file_paths: Vec<String> = staged_files.iter().map(|f| f.path.clone()).collect();
+            let mut file_paths_set = HashSet::new();
+            for f in &staged_files {
+                file_paths_set.insert(f.path.clone());
+                if let ChangeType::Renamed { from, .. } = &f.change_type {
+                    file_paths_set.insert(from.clone());
+                }
+                if let ChangeType::Copied { from, .. } = &f.change_type {
+                    file_paths_set.insert(from.clone());
+                }
+            }
+            let file_paths: Vec<String> = file_paths_set.into_iter().collect();
+
             let recent_commits = if file_paths.is_empty() {
                 Self::get_recent_commits_sync(&repo, 10)?
             } else {

@@ -38,22 +38,27 @@ pub fn create_system_prompt(config: &Config) -> anyhow::Result<String> {
             - Use full paragraphs for complex logic. Avoid shallow bullet points.\n\
             - **Negative Constraint:** Avoid generic verbs like \"updated\" or \"fixed\" without context.\n\
          \n\
-         4. **Formatting Constraints (STRICT):**\n\
-            - **Subject Line:** Maximum 72 characters.\n\
-            - **Body Content:** Wrap all lines at exactly 82 characters. This is a hard limit \
-            for mailing list compatibility and readability.\n\
-         \n\
-         # USER INSTRUCTIONS\n\
-         {}\n\
-         \n\
-         # OUTPUT SPECIFICATION\n\
-         Your final response MUST be a single, valid JSON object strictly following this schema:\n\
-         \n\
-         ```json\n\
-         {}\n\
-         ```\n\
-         \n\
-         **CRITICAL:** Output ONLY the JSON. No conversational filler.\n",
+          4. **Truth and Reasoning:**\n\
+             - If a diff is marked as [TRUNCATED], acknowledge this in your Reasoning.\n\
+             - Do not speculate on the missing details; focus on the visible hunks and the overall \
+             intent of the patch.\n\
+          \n\
+          5. **Formatting Constraints (STRICT):**\n\
+             - **Subject Line:** Maximum 72 characters.\n\
+             - **Body Content:** Wrap all lines at exactly 82 characters. This is a hard limit \
+             for mailing list compatibility and readability.\n\
+          \n\
+          # USER INSTRUCTIONS\n\
+          {}\n\
+          \n\
+          # OUTPUT SPECIFICATION\n\
+          Your final response MUST be a single, valid JSON object strictly following this schema:\n\
+          \n\
+          ```json\n\
+          {}\n\
+          ```\n\
+          \n\
+          **CRITICAL:** Output ONLY the JSON. No conversational filler.\n",
         combined_instructions, commit_schema_str
     ))
 }
@@ -181,15 +186,7 @@ fn format_detailed_changes(files: &[StagedFile]) -> String {
     let diff_section = displayed_files
         .iter()
         .map(|file| {
-            let truncated_diff = if file.diff.len() > MAX_DIFF_LENGTH {
-                format!(
-                    "{}\n... [TRUNCATED {} bytes]",
-                    &file.diff[..MAX_DIFF_LENGTH],
-                    file.diff.len() - MAX_DIFF_LENGTH
-                )
-            } else {
-                file.diff.clone()
-            };
+            let truncated_diff = truncate_smartly(&file.diff, MAX_DIFF_LENGTH);
 
             format!(
                 "File: {}\nChange Type: {}\n\nDiff:\n{}",
@@ -225,15 +222,7 @@ fn format_detailed_changes(files: &[StagedFile]) -> String {
                 };
 
                 let content = file.content.as_ref().expect("content checked in filter");
-                let truncated_content = if content.len() > MAX_FILE_CONTENT_LENGTH {
-                    format!(
-                        "{}\n... [TRUNCATED {} bytes]",
-                        &content[..MAX_FILE_CONTENT_LENGTH],
-                        content.len() - MAX_FILE_CONTENT_LENGTH
-                    )
-                } else {
-                    content.clone()
-                };
+                let truncated_content = truncate_smartly(content, MAX_FILE_CONTENT_LENGTH);
 
                 format!(
                     "{} File: {}\nFull File Content:\n{}\n\n--- End of File ---",
@@ -351,23 +340,28 @@ pub fn create_pr_system_prompt(config: &Config) -> anyhow::Result<String> {
          3. **Tone & Style:**\n\
             - Professional, objective, and authoritative.\n\
             - Avoid \"shallow\" bullet points for complex logic; use full, technical paragraphs.\n\
-            - Ensure the intent behind the changeset is crystalline.\n\
-         \n\
-         4. **Formatting Constraints:**\n\
-            - Wrap all body text at exactly 82 characters for maximum readability in diff-friendly \
-            environments.\n\
-         \n\
-         # USER INSTRUCTIONS\n\
-         {}\n\
-         \n\
-         # OUTPUT SPECIFICATION\n\
-         Your final response MUST be a single, valid JSON object matching this schema:\n\
-         \n\
-         ```json\n\
-         {}\n\
-         ```\n\
-         \n\
-         **CRITICAL:** Output ONLY the JSON object. No conversational filler.",
+          - Ensure the intent behind the changeset is crystalline.\n\
+          \n\
+          4. **Handling Partial Information:**\n\
+             - If a diff or file content is marked as [TRUNCATED], acknowledge this in your Reasoning.\n\
+             - Do not speculate on the contents of the truncated portions; instead, infer the \
+             overall architectural intent from the visible hunks and the file names.\n\
+          \n\
+          5. **Formatting Constraints:**\n\
+             - Wrap all body text at exactly 82 characters for maximum readability in diff-friendly \
+             environments.\n\
+          \n\
+          # USER INSTRUCTIONS\n\
+          {}\n\
+          \n\
+          # OUTPUT SPECIFICATION\n\
+          Your final response MUST be a single, valid JSON object matching this schema:\n\
+          \n\
+          ```json\n\
+          {}\n\
+          ```\n\
+          \n\
+          **CRITICAL:** Output ONLY the JSON object. No conversational filler.",
         combined_instructions, pr_schema_str
     ))
 }
@@ -489,8 +483,8 @@ pub fn create_completion_user_prompt(
          2. **Pattern Recognition:** Use the author's history to determine the likely completion.\n\
          3. **Final synthesis:** The final message (Prefix + your Completion) must be a high-quality, \
          professional commit message.\n\
-         \n\
-         Generate the JSON completion now.",
+          \n\
+          Generate the JSON completion now.",
         prefix,
         context_ratio * 100.0,
         context.branch,
@@ -499,4 +493,29 @@ pub fn create_completion_user_prompt(
         recent_commits,
         author_history
     )
+}
+
+/// Truncate a string smartly by ensuring we don't cut in the middle of a line.
+/// Returns the truncated string with a [TRUNCATED] indicator.
+fn truncate_smartly(text: &str, max_len: usize) -> String {
+    if text.len() <= max_len {
+        return text.to_string();
+    }
+
+    let mut result = String::with_capacity(max_len + 50);
+    for line in text.lines() {
+        if result.len() + line.len() + 1 > max_len {
+            result.push_str("\n... [TRUNCATED]");
+            break;
+        }
+        result.push_str(line);
+        result.push('\n');
+    }
+
+    if result.is_empty() && !text.is_empty() {
+        // Fallback for cases where a single line is too long
+        return format!("{}\n... [TRUNCATED]", &text[..max_len.min(text.len())]);
+    }
+
+    result
 }
