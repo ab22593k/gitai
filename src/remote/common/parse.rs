@@ -14,7 +14,7 @@ use super::ErrorType::{
     self, DotGitWireFileNameNotUnique, DotGitWireFileOpen, DotGitWireFileParse,
     DotGitWireFileSoundness, DotGitWireFileWrite, PromptError, RepositoryRootPathCommand,
 };
-use super::{Method, Parsed, is_path_sound};
+use super::{MergeStrategy, Method, Parsed, is_path_sound};
 
 const DOT_GIT_WIRE: &str = ".gitwire.toml";
 
@@ -128,104 +128,132 @@ fn parse_entries(entries: &Array) -> Result<Vec<Parsed>, Cause<ErrorType>> {
             )
         })?;
 
-        let name = entry_table
-            .get("name")
-            .and_then(|v| v.as_str())
-            .map(String::from);
-        let dsc = entry_table
-            .get("description")
-            .and_then(|v| v.as_str())
-            .map(String::from);
-        let url = entry_table
-            .get("url")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| cause!(DotGitWireFileParse, format!("Entry {i}: 'url' is required")))?
-            .to_string();
-        let rev = entry_table
-            .get("rev")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| cause!(DotGitWireFileParse, format!("Entry {i}: 'rev' is required")))?
-            .to_string();
-
-        // Handle src as string or array
-        let src = match entry_table.get("src") {
-            Some(toml::Value::String(s)) => vec![s.clone()],
-            Some(toml::Value::Array(arr)) => arr
-                .iter()
-                .filter_map(|v| v.as_str().map(String::from))
-                .collect(),
-            _ => {
-                return Err(cause!(
-                    DotGitWireFileParse,
-                    format!(
-                        "Entry {i}: 'src' is required and must be a string or array of strings"
-                    )
-                ));
-            }
-        };
-
-        if src.is_empty() {
-            return Err(cause!(
-                DotGitWireFileParse,
-                format!("Entry {i}: 'src' must have at least one path")
-            ));
-        }
-
-        let dist = entry_table
-            .get("dst")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| cause!(DotGitWireFileParse, format!("Entry {i}: 'dst' is required")))?
-            .to_string();
-
-        let mtd = match entry_table.get("method").and_then(|v| v.as_str()) {
-            Some("shallow") => Some(Method::Shallow),
-            Some("shallow_no_sparse") => Some(Method::ShallowNoSparse),
-            Some("partial") => Some(Method::Partial),
-            Some(s) => {
-                return Err(cause!(
-                    DotGitWireFileParse,
-                    format!("Entry {i}: unknown method '{s}'")
-                ));
-            }
-            None => None,
-        };
-
-        let item = Parsed {
-            name,
-            dsc,
-            url,
-            rev,
-            src,
-            dst: dist,
-            mtd,
-        };
-
-        // Validate all src paths
-        for s in &item.src {
-            if !is_path_sound(s) {
-                return Err(cause!(
-                    DotGitWireFileSoundness,
-                    format!("Entry {i}: src path '{s}' must not include '.', '..', or '.git'.")
-                ));
-            }
-        }
-
-        if !is_path_sound(&item.dst) {
-            return Err(cause!(
-                DotGitWireFileSoundness,
-                format!(
-                    "Entry {i}: dst path '{}' must not include '.', '..', or '.git'.",
-                    item.dst
-                )
-            ));
-        }
-
+        let item = parse_single_entry(entry_table, i)?;
+        validate_entry_paths(&item, i)?;
         parsed.push(item);
     }
 
     validate_unique_names(&parsed)?;
-
     Ok(parsed)
+}
+
+fn parse_single_entry(
+    entry_table: &toml::map::Map<String, toml::Value>,
+    i: usize,
+) -> Result<Parsed, Cause<ErrorType>> {
+    let name = entry_table
+        .get("name")
+        .and_then(|v| v.as_str())
+        .map(String::from);
+    let dsc = entry_table
+        .get("description")
+        .and_then(|v| v.as_str())
+        .map(String::from);
+    let url = entry_table
+        .get("url")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| cause!(DotGitWireFileParse, format!("Entry {i}: 'url' is required")))?
+        .to_string();
+    let rev = entry_table
+        .get("rev")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| cause!(DotGitWireFileParse, format!("Entry {i}: 'rev' is required")))?
+        .to_string();
+    let src = parse_src_field(entry_table, i)?;
+    let dst = entry_table
+        .get("dst")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| cause!(DotGitWireFileParse, format!("Entry {i}: 'dst' is required")))?
+        .to_string();
+    let mtd = parse_method_field(entry_table, i)?;
+    let last_sync_hash = entry_table
+        .get("last_sync_hash")
+        .and_then(|v| v.as_str())
+        .map(String::from);
+    let merge_strategy = parse_merge_strategy_field(entry_table, i)?;
+
+    Ok(Parsed {
+        name,
+        dsc,
+        url,
+        rev,
+        src,
+        dst,
+        mtd,
+        last_sync_hash,
+        merge_strategy,
+    })
+}
+
+fn parse_src_field(
+    entry_table: &toml::map::Map<String, toml::Value>,
+    i: usize,
+) -> Result<Vec<String>, Cause<ErrorType>> {
+    match entry_table.get("src") {
+        Some(toml::Value::String(s)) => Ok(vec![s.clone()]),
+        Some(toml::Value::Array(arr)) => Ok(arr
+            .iter()
+            .filter_map(|v| v.as_str().map(String::from))
+            .collect()),
+        _ => Err(cause!(
+            DotGitWireFileParse,
+            format!("Entry {i}: 'src' is required and must be a string or array of strings")
+        )),
+    }
+}
+
+fn parse_method_field(
+    entry_table: &toml::map::Map<String, toml::Value>,
+    i: usize,
+) -> Result<Option<Method>, Cause<ErrorType>> {
+    match entry_table.get("method").and_then(|v| v.as_str()) {
+        Some("shallow") => Ok(Some(Method::Shallow)),
+        Some("shallow_no_sparse") => Ok(Some(Method::ShallowNoSparse)),
+        Some("partial") => Ok(Some(Method::Partial)),
+        Some(s) => Err(cause!(
+            DotGitWireFileParse,
+            format!("Entry {i}: unknown method '{s}'")
+        )),
+        None => Ok(None),
+    }
+}
+
+fn parse_merge_strategy_field(
+    entry_table: &toml::map::Map<String, toml::Value>,
+    i: usize,
+) -> Result<Option<MergeStrategy>, Cause<ErrorType>> {
+    match entry_table.get("merge_strategy").and_then(|v| v.as_str()) {
+        Some("overwrite") => Ok(Some(MergeStrategy::Overwrite)),
+        Some("auto") => Ok(Some(MergeStrategy::Auto)),
+        Some("manual") => Ok(Some(MergeStrategy::Manual)),
+        Some("ai") => Ok(Some(MergeStrategy::Ai)),
+        Some(s) => Err(cause!(
+            DotGitWireFileParse,
+            format!("Entry {i}: unknown merge_strategy '{s}'")
+        )),
+        None => Ok(None),
+    }
+}
+
+fn validate_entry_paths(item: &Parsed, i: usize) -> Result<(), Cause<ErrorType>> {
+    for s in &item.src {
+        if !is_path_sound(s) {
+            return Err(cause!(
+                DotGitWireFileSoundness,
+                format!("Entry {i}: src path '{s}' must not include '.', '..', or '.git'.")
+            ));
+        }
+    }
+    if !is_path_sound(&item.dst) {
+        return Err(cause!(
+            DotGitWireFileSoundness,
+            format!(
+                "Entry {i}: dst path '{}' must not include '.', '..', or '.git'.",
+                item.dst
+            )
+        ));
+    }
+    Ok(())
 }
 
 fn validate_unique_names(parsed: &[Parsed]) -> Result<(), Cause<ErrorType>> {
@@ -352,6 +380,20 @@ fn format_entry(entry: &Parsed) -> String {
         parts.push(format!("method = \"{method_str}\""));
     }
 
+    if let Some(hash) = &entry.last_sync_hash {
+        parts.push(format!("last_sync_hash = \"{}\"", escape_toml_string(hash)));
+    }
+
+    if let Some(strategy) = &entry.merge_strategy {
+        let strategy_str = match strategy {
+            MergeStrategy::Overwrite => "overwrite",
+            MergeStrategy::Auto => "auto",
+            MergeStrategy::Manual => "manual",
+            MergeStrategy::Ai => "ai",
+        };
+        parts.push(format!("merge_strategy = \"{strategy_str}\""));
+    }
+
     format!("    {{ {} }},\n", parts.join(", "))
 }
 
@@ -394,6 +436,26 @@ fn parsed_to_toml_value(entry: &Parsed) -> toml::Value {
         map.insert(
             "method".to_string(),
             toml::Value::String(method_str.to_string()),
+        );
+    }
+
+    if let Some(ref hash) = entry.last_sync_hash {
+        map.insert(
+            "last_sync_hash".to_string(),
+            toml::Value::String(hash.clone()),
+        );
+    }
+
+    if let Some(ref strategy) = entry.merge_strategy {
+        let strategy_str = match strategy {
+            MergeStrategy::Overwrite => "overwrite",
+            MergeStrategy::Auto => "auto",
+            MergeStrategy::Manual => "manual",
+            MergeStrategy::Ai => "ai",
+        };
+        map.insert(
+            "merge_strategy".to_string(),
+            toml::Value::String(strategy_str.to_string()),
         );
     }
 
@@ -470,6 +532,8 @@ pub fn prompt_create_gitwire() -> Result<Option<Parsed>, Cause<ErrorType>> {
         src,
         dst,
         mtd: None,
+        last_sync_hash: None,
+        merge_strategy: None,
     };
 
     // Validate
@@ -517,6 +581,8 @@ entries = [
         assert_eq!(parsed[0].dst, "vendor/repo");
         assert!(parsed[0].dsc.is_none());
         assert!(parsed[0].mtd.is_none());
+        assert!(parsed[0].last_sync_hash.is_none());
+        assert!(parsed[0].merge_strategy.is_none());
     }
 
     #[test]
@@ -734,6 +800,8 @@ entries = [
             src: vec!["src".to_string()],
             dst: "vendor".to_string(),
             mtd: None,
+            last_sync_hash: None,
+            merge_strategy: None,
         };
 
         let formatted = format_entry(&entry);
@@ -751,6 +819,8 @@ entries = [
             src: vec!["lib".to_string(), "tools".to_string()],
             dst: "vendor".to_string(),
             mtd: None,
+            last_sync_hash: None,
+            merge_strategy: None,
         };
 
         let formatted = format_entry(&entry);
@@ -767,6 +837,8 @@ entries = [
             src: vec!["src".to_string()],
             dst: "vendor".to_string(),
             mtd: None,
+            last_sync_hash: None,
+            merge_strategy: None,
         };
 
         assert!(parsed.validate().is_ok());
@@ -782,6 +854,8 @@ entries = [
             src: vec!["src".to_string()],
             dst: "vendor".to_string(),
             mtd: None,
+            last_sync_hash: None,
+            merge_strategy: None,
         };
 
         assert!(parsed.validate().is_err());
@@ -797,6 +871,8 @@ entries = [
             src: vec![],
             dst: "vendor".to_string(),
             mtd: None,
+            last_sync_hash: None,
+            merge_strategy: None,
         };
 
         assert!(parsed.validate().is_err());
@@ -812,6 +888,8 @@ entries = [
             src: vec!["../escape".to_string()],
             dst: "vendor".to_string(),
             mtd: None,
+            last_sync_hash: None,
+            merge_strategy: None,
         };
 
         assert!(parsed.validate().is_err());
@@ -828,6 +906,8 @@ entries = [
                 src: vec!["src".to_string()],
                 dst: "vendor/lib1".to_string(),
                 mtd: None,
+                last_sync_hash: None,
+                merge_strategy: None,
             },
             Parsed {
                 name: Some("lib2".to_string()),
@@ -837,6 +917,19 @@ entries = [
                 src: vec!["src".to_string()],
                 dst: "vendor/lib2".to_string(),
                 mtd: None,
+                last_sync_hash: None,
+                merge_strategy: None,
+            },
+            Parsed {
+                name: Some("lib3".to_string()),
+                dsc: None,
+                url: "https://github.com/example/lib3.git".to_string(),
+                rev: "main".to_string(),
+                src: vec!["src".to_string()],
+                dst: "vendor/lib3".to_string(),
+                mtd: None,
+                last_sync_hash: None,
+                merge_strategy: None,
             },
         ];
         assert!(validate_unique_names(&parsed).is_ok());
@@ -853,6 +946,8 @@ entries = [
                 src: vec!["src".to_string()],
                 dst: "vendor/lib1".to_string(),
                 mtd: None,
+                last_sync_hash: None,
+                merge_strategy: None,
             },
             Parsed {
                 name: Some("lib".to_string()),
@@ -862,6 +957,19 @@ entries = [
                 src: vec!["src".to_string()],
                 dst: "vendor/lib2".to_string(),
                 mtd: None,
+                last_sync_hash: None,
+                merge_strategy: None,
+            },
+            Parsed {
+                name: Some("lib".to_string()),
+                dsc: None,
+                url: "https://github.com/example/lib2.git".to_string(),
+                rev: "main".to_string(),
+                src: vec!["src".to_string()],
+                dst: "vendor/lib2".to_string(),
+                mtd: None,
+                last_sync_hash: None,
+                merge_strategy: None,
             },
         ];
         assert!(validate_unique_names(&parsed).is_err());
@@ -878,6 +986,8 @@ entries = [
                 src: vec!["src".to_string()],
                 dst: "vendor/lib1".to_string(),
                 mtd: None,
+                last_sync_hash: None,
+                merge_strategy: None,
             },
             Parsed {
                 name: None,
@@ -887,6 +997,19 @@ entries = [
                 src: vec!["src".to_string()],
                 dst: "vendor/lib2".to_string(),
                 mtd: None,
+                last_sync_hash: None,
+                merge_strategy: None,
+            },
+            Parsed {
+                name: None,
+                dsc: None,
+                url: "https://github.com/example/lib2.git".to_string(),
+                rev: "main".to_string(),
+                src: vec!["src".to_string()],
+                dst: "vendor/lib2".to_string(),
+                mtd: None,
+                last_sync_hash: None,
+                merge_strategy: None,
             },
         ];
         assert!(validate_unique_names(&parsed).is_ok());

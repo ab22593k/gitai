@@ -6,28 +6,37 @@ fn test_repository_deduplication_logic() {
     // Simulate a configuration with multiple entries for the same repository
     let configs = vec![
         RepositoryConfiguration {
+            name_filter: None,
             url: "https://github.com/example/repo.git".to_string(),
             branch: "main".to_string(),
             target_path: "./src/module1".to_string(),
             filters: vec!["src/".to_string(), "lib/".to_string()],
             commit_hash: None,
             mtd: None,
+            last_sync_hash: None,
+            merge_strategy: None,
         },
         RepositoryConfiguration {
+            name_filter: None,
             url: "https://github.com/example/repo.git".to_string(), // Same repo
             branch: "main".to_string(),
             target_path: "./src/module2".to_string(),
             filters: vec!["utils/".to_string()],
             commit_hash: None,
             mtd: None,
+            last_sync_hash: None,
+            merge_strategy: None,
         },
         RepositoryConfiguration {
+            name_filter: None,
             url: "https://github.com/other/repo.git".to_string(), // Different repo
             branch: "main".to_string(),
             target_path: "./src/module3".to_string(),
             filters: vec!["docs/".to_string()],
             commit_hash: None,
             mtd: None,
+            last_sync_hash: None,
+            merge_strategy: None,
         },
     ];
 
@@ -75,21 +84,27 @@ fn test_cached_repository_usage() {
 
     // Create wire operations that would use this cached repository
     let config1 = RepositoryConfiguration {
+        name_filter: None,
         url: "https://github.com/example/repo.git".to_string(),
         branch: "main".to_string(),
         target_path: "./src/module1".to_string(),
         filters: vec!["src/".to_string()],
         commit_hash: None,
         mtd: None,
+        last_sync_hash: None,
+        merge_strategy: None,
     };
 
     let config2 = RepositoryConfiguration {
+        name_filter: None,
         url: "https://github.com/example/repo.git".to_string(),
         branch: "main".to_string(),
         target_path: "./src/module2".to_string(),
         filters: vec!["utils/".to_string()],
         commit_hash: None,
         mtd: None,
+        last_sync_hash: None,
+        merge_strategy: None,
     };
 
     let op1 = WireOperation::new(config1, cached_repo.local_cache_path.clone());

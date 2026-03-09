@@ -33,12 +33,15 @@ fn test_concurrent_access_to_same_repository() {
 
             // Create a configuration specific to this thread
             let config = RepositoryConfiguration {
+                name_filter: None,
                 url: repo.url.clone(),
                 branch: repo.branch.clone(),
                 target_path: format!("./src/module{thread_id}"),
                 filters: vec![format!("src{thread_id}")],
                 commit_hash: None,
                 mtd: None,
+                last_sync_hash: None,
+                merge_strategy: None,
             };
 
             // Create a wire operation (unused but simulates the operation creation)

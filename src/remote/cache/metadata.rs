@@ -202,10 +202,13 @@ mod tests {
     #[test]
     fn test_cache_metadata_creation() {
         let config = RepositoryConfiguration::new(
+            None,
             "https://github.com/example/repo.git".to_string(),
             "main".to_string(),
             "./src/module1".to_string(),
             vec!["src/".to_string()],
+            None,
+            None,
             None,
             None,
         );
@@ -238,10 +241,13 @@ mod tests {
 
         // Create test metadata
         let config = RepositoryConfiguration::new(
+            None,
             "https://github.com/example/repo.git".to_string(),
             "main".to_string(),
             "./src/module1".to_string(),
             vec!["src/".to_string()],
+            None,
+            None,
             None,
             None,
         );

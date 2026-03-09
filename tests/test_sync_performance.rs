@@ -15,12 +15,15 @@ fn test_repository_deduplication_performance() {
 
     for i in 0..10 {
         configs.push(RepositoryConfiguration {
+            name_filter: None,
             url: "https://github.com/example/repo.git".to_string(), // Same repo
             branch: "main".to_string(),
             target_path: format!("./src/module{i}"),
             filters: vec![format!("src{i}")],
             commit_hash: None,
             mtd: None,
+            last_sync_hash: None,
+            merge_strategy: None,
         });
     }
 

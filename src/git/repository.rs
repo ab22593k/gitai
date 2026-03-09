@@ -30,6 +30,60 @@ pub struct GitRepo {
     remote_url: Option<String>,
 }
 
+/// Manages hidden "ghost" references for git-wire entries
+pub struct GhostRefManager<'a> {
+    repo: &'a Repository,
+}
+
+impl<'a> GhostRefManager<'a> {
+    pub fn new(repo: &'a Repository) -> Self {
+        Self { repo }
+    }
+
+    /// Update a ghost reference for a specific wire entry
+    pub fn update_ghost_ref(&self, entry_name: &str, commit_hash: &str) -> Result<()> {
+        let ref_name = format!("refs/gitai/wire/{}", entry_name);
+        let oid = git2::Oid::from_str(commit_hash)
+            .map_err(|e| anyhow!("Invalid commit hash '{}': {}", commit_hash, e))?;
+
+        self.repo
+            .reference(&ref_name, oid, true, "Update git-wire ghost ref")?;
+        debug!("Updated ghost ref {} to {}", ref_name, commit_hash);
+        Ok(())
+    }
+
+    /// Get the commit hash stored in a ghost reference
+    pub fn get_ghost_hash(&self, entry_name: &str) -> Result<Option<String>> {
+        let ref_name = format!("refs/gitai/wire/{}", entry_name);
+        match self.repo.find_reference(&ref_name) {
+            Ok(reference) => {
+                let oid = reference
+                    .target()
+                    .ok_or_else(|| anyhow!("Reference has no target"))?;
+                Ok(Some(oid.to_string()))
+            }
+            Err(e) if e.code() == git2::ErrorCode::NotFound => Ok(None),
+            Err(e) => Err(anyhow!("Failed to find ghost ref {}: {}", ref_name, e)),
+        }
+    }
+
+    /// Check if a directory has local modifications compared to a base commit
+    pub fn is_dirty(&self, base_commit_hash: &str, target_dir: &Path) -> Result<bool> {
+        let oid = git2::Oid::from_str(base_commit_hash)?;
+        let commit = self.repo.find_commit(oid)?;
+        let tree = commit.tree()?;
+
+        let mut opts = git2::DiffOptions::new();
+        // Only look at the specific target directory
+        opts.pathspec(target_dir);
+
+        let diff = self
+            .repo
+            .diff_tree_to_workdir_with_index(Some(&tree), Some(&mut opts))?;
+        Ok(diff.deltas().len() > 0)
+    }
+}
+
 impl GitRepo {
     /// Creates a new `GitRepo` instance from a local path.
     ///
@@ -113,6 +167,11 @@ impl GitRepo {
     /// Open the repository at the stored path
     pub fn open_repo(&self) -> Result<Repository, git2::Error> {
         Repository::open(&self.repo_path)
+    }
+
+    /// Open the repository in the current working directory
+    pub fn open_local() -> Result<Repository, git2::Error> {
+        Repository::discover(".")
     }
 
     /// Returns whether this `GitRepo` instance is working with a remote repository

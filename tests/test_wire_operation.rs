@@ -5,12 +5,15 @@ use gitai::{
 #[test]
 fn test_wire_operation_creation() {
     let config = RepositoryConfiguration {
+        name_filter: None,
         url: "https://github.com/example/repo.git".to_string(),
         branch: "main".to_string(),
         target_path: "./src/module1".to_string(),
         filters: vec!["src/".to_string(), "lib/".to_string()],
         commit_hash: None,
         mtd: None,
+        last_sync_hash: None,
+        merge_strategy: None,
     };
 
     let wire_op = WireOperation::new(config, "/tmp/cache/repo1".to_string());
@@ -34,12 +37,15 @@ fn test_wire_operation_creation() {
 #[test]
 fn test_wire_operation_with_commit_hash() {
     let config = RepositoryConfiguration {
+        name_filter: None,
         url: "https://github.com/example/repo.git".to_string(),
         branch: "develop".to_string(),
         target_path: "./src/module2".to_string(),
         filters: vec!["utils/".to_string()],
         commit_hash: Some("abc123".to_string()),
         mtd: None,
+        last_sync_hash: None,
+        merge_strategy: None,
     };
 
     let wire_op = WireOperation::new(config, "/tmp/cache/repo2".to_string());
@@ -54,10 +60,13 @@ fn test_wire_operation_with_commit_hash() {
 #[test]
 fn test_generate_key() {
     let config = RepositoryConfiguration::new(
+        None,
         "https://github.com/example/repo.git".to_string(),
         "main".to_string(),
         "./src/module1".to_string(),
         vec!["src/".to_string()],
+        None,
+        None,
         None,
         None,
     );
@@ -72,19 +81,25 @@ fn test_generate_key() {
 #[test]
 fn test_generate_different_keys_for_different_repos() {
     let config1 = RepositoryConfiguration::new(
+        None,
         "https://github.com/example/repo1.git".to_string(),
         "main".to_string(),
         "./src/module1".to_string(),
         vec!["src/".to_string()],
         None,
         None,
+        None,
+        None,
     );
 
     let config2 = RepositoryConfiguration::new(
+        None,
         "https://github.com/example/repo2.git".to_string(), // Different repo
         "main".to_string(),
         "./src/module1".to_string(),
         vec!["src/".to_string()],
+        None,
+        None,
         None,
         None,
     );
@@ -99,19 +114,25 @@ fn test_generate_different_keys_for_different_repos() {
 #[test]
 fn test_generate_different_keys_for_different_branches() {
     let config1 = RepositoryConfiguration::new(
+        None,
         "https://github.com/example/repo.git".to_string(),
         "main".to_string(), // Main branch
         "./src/module1".to_string(),
         vec!["src/".to_string()],
         None,
         None,
+        None,
+        None,
     );
 
     let config2 = RepositoryConfiguration::new(
+        None,
         "https://github.com/example/repo.git".to_string(), // Same repo
         "develop".to_string(),                             // Different branch
         "./src/module1".to_string(),
         vec!["src/".to_string()],
+        None,
+        None,
         None,
         None,
     );

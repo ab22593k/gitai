@@ -152,6 +152,8 @@ fn build_parsed_from_cli(
         src: src_paths,
         dst: dst.unwrap_or_default(),
         mtd,
+        last_sync_hash: None,
+        merge_strategy: None,
     })
 }
 

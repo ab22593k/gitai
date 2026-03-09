@@ -3,12 +3,15 @@ use gitai::RepositoryConfiguration;
 #[test]
 fn test_repository_configuration_creation() {
     let config = RepositoryConfiguration {
+        name_filter: None,
         url: "https://github.com/example/repo.git".to_string(),
         branch: "main".to_string(),
         target_path: "./src/module1".to_string(),
         filters: vec!["src/".to_string(), "lib/".to_string()],
         commit_hash: None,
         mtd: None,
+        last_sync_hash: None,
+        merge_strategy: None,
     };
 
     assert_eq!(config.url, "https://github.com/example/repo.git");
@@ -21,12 +24,15 @@ fn test_repository_configuration_creation() {
 #[test]
 fn test_repository_configuration_with_commit_hash() {
     let config = RepositoryConfiguration {
+        name_filter: None,
         url: "https://github.com/example/repo.git".to_string(),
         branch: "main".to_string(),
         target_path: "./src/module2".to_string(),
         filters: vec!["utils/".to_string()],
         commit_hash: Some("abc123def456".to_string()),
         mtd: None,
+        last_sync_hash: None,
+        merge_strategy: None,
     };
 
     assert_eq!(config.commit_hash, Some("abc123def456".to_string()));
@@ -35,12 +41,15 @@ fn test_repository_configuration_with_commit_hash() {
 #[test]
 fn test_repository_configuration_default_branch() {
     let config = RepositoryConfiguration {
+        name_filter: None,
         url: "https://github.com/example/repo.git".to_string(),
         branch: "main".to_string(), // default branch
         target_path: "./src/module1".to_string(),
         filters: vec![],
         commit_hash: None,
         mtd: None,
+        last_sync_hash: None,
+        merge_strategy: None,
     };
 
     assert_eq!(config.branch, "main");

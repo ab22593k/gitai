@@ -43,6 +43,15 @@ pub enum Method {
     Partial,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+pub enum MergeStrategy {
+    Overwrite,
+    #[default]
+    Auto,
+    Manual,
+    Ai,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Parsed {
     pub name: Option<String>,
@@ -52,6 +61,8 @@ pub struct Parsed {
     pub src: Vec<String>,
     pub dst: String,
     pub mtd: Option<Method>,
+    pub last_sync_hash: Option<String>,
+    pub merge_strategy: Option<MergeStrategy>,
 }
 
 impl Parsed {

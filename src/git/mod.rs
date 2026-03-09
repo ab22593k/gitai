@@ -13,6 +13,7 @@ mod utils;
 // Re-export primary types for public use
 pub use commit::CommitInfo;
 pub use commit::CommitResult;
+pub use repository::GhostRefManager;
 pub use repository::GitRepo;
 
 // Re-export utility functions

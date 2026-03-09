@@ -210,10 +210,13 @@ mod tests {
     #[test]
     fn test_is_cache_valid_with_nonexistent_path() {
         let config = RepositoryConfiguration::new(
+            None,
             "https://github.com/example/repo.git".to_string(),
             "main".to_string(),
             "./src/module1".to_string(),
             vec!["src/".to_string()],
+            None,
+            None,
             None,
             None,
         );

@@ -126,10 +126,13 @@ mod tests {
     fn test_get_or_schedule_fetch_new_repo() {
         let cache_manager = CacheManager::new();
         let config = RepositoryConfiguration::new(
+            None,
             "https://github.com/example/repo.git".to_string(),
             "main".to_string(),
             "./src/module1".to_string(),
             vec!["src/".to_string(), "lib/".to_string()],
+            None,
+            None,
             None,
             None,
         );
@@ -153,26 +156,35 @@ mod tests {
         // Create configs with duplicate repositories (same URL and branch)
         let configs = vec![
             RepositoryConfiguration::new(
+                None,
                 "https://github.com/example/repo.git".to_string(),
                 "main".to_string(),
                 "./src/module1".to_string(),
                 vec!["src/".to_string(), "lib/".to_string()],
                 None,
                 None,
+                None,
+                None,
             ),
             RepositoryConfiguration::new(
+                None,
                 "https://github.com/example/repo.git".to_string(), // Same repo and branch
                 "main".to_string(),
                 "./src/module2".to_string(),
                 vec!["utils/".to_string()],
                 None,
                 None,
+                None,
+                None,
             ),
             RepositoryConfiguration::new(
+                None,
                 "https://github.com/other/repo.git".to_string(), // Different repo
                 "main".to_string(),
                 "./src/module3".to_string(),
                 vec!["docs/".to_string()],
+                None,
+                None,
                 None,
                 None,
             ),
