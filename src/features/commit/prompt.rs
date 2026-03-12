@@ -39,7 +39,6 @@ pub fn create_system_prompt(config: &Config) -> anyhow::Result<String> {
             - **Negative Constraint:** Avoid generic verbs like \"updated\" or \"fixed\" without context.\n\
          \n\
           4. **Truth and Reasoning:**\n\
-             - If a diff is marked as [TRUNCATED], acknowledge this in your Reasoning.\n\
              - Do not speculate on the missing details; focus on the visible hunks and the overall \
              intent of the patch.\n\
           \n\
@@ -504,17 +503,8 @@ fn truncate_smartly(text: &str, max_len: usize) -> String {
 
     let mut result = String::with_capacity(max_len + 50);
     for line in text.lines() {
-        if result.len() + line.len() + 1 > max_len {
-            result.push_str("\n... [TRUNCATED]");
-            break;
-        }
         result.push_str(line);
         result.push('\n');
-    }
-
-    if result.is_empty() && !text.is_empty() {
-        // Fallback for cases where a single line is too long
-        return format!("{}\n... [TRUNCATED]", &text[..max_len.min(text.len())]);
     }
 
     result
