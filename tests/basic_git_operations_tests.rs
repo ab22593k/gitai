@@ -10,6 +10,8 @@ use tempfile::TempDir;
 mod test_utils;
 use test_utils::{GitTestHelper, MockDataBuilder, TestAssertions, setup_git_repo};
 
+/// HIGH RISK: Core git operation - data integrity critical
+/// ORACLE: History - verifies regression detection works
 #[tokio::test]
 async fn test_get_git_info() {
     let (temp_dir, git_repo) = setup_git_repo();

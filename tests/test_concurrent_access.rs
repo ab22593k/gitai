@@ -6,6 +6,10 @@ use std::sync::{
 use std::thread;
 use std::time::Duration;
 
+// HIGH RISK: Concurrent access can cause data corruption if not handled properly
+// SIGNALS-BASED: Tests thread safety signals
+
+/// HIGH RISK: Data corruption potential if concurrent access not thread-safe
 #[test]
 fn test_concurrent_access_to_same_repository() {
     const NUM_THREADS: usize = 5;

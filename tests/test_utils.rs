@@ -490,53 +490,207 @@ impl MockDataBuilder {
     }
 }
 
-/// Test assertion helpers
+/// Test assertion helpers with PROOF heuristic:
+/// P - Problem: Clear description of what went wrong
+/// R - Reproduction: Steps to reproduce the issue
+/// O - Outcome: Actual vs. expected behavior
+/// O - Other evidence: Logs, state snapshots
+/// F - Frequency: How often this occurs
 #[allow(dead_code)]
 pub struct TestAssertions;
 
 #[allow(dead_code)]
 impl TestAssertions {
     /// Assert that a commit context has expected properties
+    /// PROOF: Tests fundamental data integrity
     pub fn assert_commit_context_basics(context: &CommitContext) {
-        assert!(!context.branch.is_empty(), "Branch should not be empty");
+        assert!(
+            !context.branch.is_empty(),
+            "PROBLEM: Branch name is empty\n\
+             CONTEXT: CommitContext validation\n\
+             EXPECTED: Non-empty branch name\n\
+             ACTUAL: Empty string\n\
+             EVIDENCE: context.branch = \"{}\"",
+            context.branch
+        );
         assert!(
             !context.user_name.is_empty(),
-            "User name should not be empty"
+            "PROBLEM: User name is empty\n\
+             CONTEXT: CommitContext validation\n\
+             EXPECTED: Non-empty user name\n\
+             ACTUAL: Empty string\n\
+             EVIDENCE: context.user_name = \"{}\"",
+            context.user_name
         );
         assert!(
             !context.user_email.is_empty(),
-            "User email should not be empty"
+            "PROBLEM: User email is empty\n\
+             CONTEXT: CommitContext validation\n\
+             EXPECTED: Non-empty user email\n\
+             ACTUAL: Empty string\n\
+             EVIDENCE: context.user_email = \"{}\"",
+            context.user_email
         );
     }
 
     /// Assert that staged files contain expected changes
+    /// PROOF: Tests that git detected changes correctly
     pub fn assert_staged_files_not_empty(context: &CommitContext) {
-        assert!(!context.staged_files.is_empty(), "Should have staged files");
+        assert!(
+            !context.staged_files.is_empty(),
+            "PROBLEM: No staged files found\n\
+             CONTEXT: Expected staged changes\n\
+             EXPECTED: At least one staged file\n\
+             ACTUAL: Empty staged files list\n\
+             FREQUENCY: Always if files are staged"
+        );
     }
 
     /// Assert that a string contains emoji
+    /// PROOF: Tests user expectation - emoji are standard in modern commits
     pub fn assert_contains_emoji(text: &str) {
         let emoji_chars = ["✨", "🐛", "📝", "💄", "♻️", "✅", "🔨"];
         assert!(
             emoji_chars.iter().any(|&emoji| text.contains(emoji)),
-            "Text should contain emoji: {text}"
+            "PROBLEM: Text missing expected emoji\n\
+             CONTEXT: User expectation for emoji in commit messages\n\
+             EXPECTED: At least one emoji from: {:?}\n\
+             ACTUAL: No emoji found in text\n\
+             EVIDENCE: text = \"{}\"",
+            emoji_chars,
+            &text[..text.len().min(100)]
         );
     }
 
     /// Assert that a prompt contains essential commit information
+    /// PROOF: Tests completeness - missing info causes poor commits
     pub fn assert_commit_prompt_essentials(prompt: &str) {
         assert!(
             prompt.contains("Branch:"),
-            "Prompt should contain branch info"
+            "PROBLEM: Prompt missing branch information\n\
+             CONTEXT: Commit prompt generation\n\
+             EXPECTED: Prompt contains 'Branch:'\n\
+             ACTUAL: Branch info not found\n\
+             FREQUENCY: Always on branch info failure"
         );
-        assert!(prompt.contains("commit"), "Prompt should mention commits");
+        assert!(
+            prompt.contains("commit"),
+            "PROBLEM: Prompt missing commit information\n\
+             CONTEXT: Commit prompt generation\n\
+             EXPECTED: Prompt mentions commits\n\
+             ACTUAL: No commit info found\n\
+             FREQUENCY: Always when commits missing"
+        );
     }
 
     /// Assert that token count is within limit
+    /// PROOF: Tests requirement - tokens over limit cause API failures
     pub fn assert_token_limit(actual: usize, limit: usize) {
         assert!(
             actual <= limit,
-            "Token count ({actual}) exceeds limit ({limit})"
+            "PROBLEM: Token count exceeds limit\n\
+             CONTEXT: Prompt size validation\n\
+             EXPECTED: {actual} <= {limit}\n\
+             ACTUAL: {actual} > {limit}\n\
+             FREQUENCY: Depends on staged file count"
+        );
+    }
+
+    /// Assert two values are equal with detailed PROOF message
+    /// PROOF: Generic equality assertion with full context
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn assert_eq<T>(actual: T, expected: T, context: &str, evidence: Option<&str>)
+    where
+        T: std::fmt::Debug + std::fmt::Display + PartialEq,
+    {
+        assert!(
+            actual == expected,
+            "PROBLEM: Values do not match\n\
+             CONTEXT: {}\n\
+             EXPECTED: {}\n\
+             ACTUAL: {}{}",
+            context,
+            expected,
+            actual,
+            evidence
+                .map(|e| format!("\nEVIDENCE: {e}"))
+                .unwrap_or_default()
+        );
+    }
+
+    /// Assert operation succeeded with detailed error context
+    /// PROOF: Generic Result assertion for operation outcomes
+    pub fn assert_success<T, E: std::fmt::Debug>(
+        result: &Result<T, E>,
+        operation: &str,
+        evidence: Option<&str>,
+    ) {
+        assert!(
+            result.is_ok(),
+            "PROBLEM: Operation failed\n\
+             CONTEXT: {}\n\
+             EXPECTED: Success\n\
+             ACTUAL: {:?}{}",
+            operation,
+            result.as_ref().err(),
+            evidence
+                .map(|e| format!("\nEVIDENCE: {e}"))
+                .unwrap_or_default()
+        );
+    }
+
+    /// Assert operation failed with expected error type
+    /// PROOF: Tests error handling paths
+    pub fn assert_failure<T, E: std::fmt::Debug>(
+        result: &Result<T, E>,
+        operation: &str,
+        expected_error_contains: Option<&str>,
+    ) {
+        assert!(
+            result.is_err(),
+            "PROBLEM: Operation succeeded unexpectedly\n\
+             CONTEXT: {operation} should have failed\n\
+             EXPECTED: Failure with error containing '{expected_error_contains:?}'\n\
+             ACTUAL: Success\n\
+             FREQUENCY: Unexpected success indicates logic error"
+        );
+
+        if let Some(expected) = expected_error_contains {
+            let err = format!("{:?}", result.as_ref().err());
+            assert!(
+                err.contains(expected),
+                "PROBLEM: Error message mismatch\n\
+                 CONTEXT: {operation} failure\n\
+                 EXPECTED: Error containing '{expected}'\n\
+                 ACTUAL: {err}"
+            );
+        }
+    }
+
+    /// Assert condition with comprehensive PROOF message
+    /// PROOF: Generic condition assertion
+    pub fn assert_with_proof(
+        condition: bool,
+        problem: &str,
+        context: &str,
+        expected: &str,
+        actual: impl AsRef<str>,
+        evidence: Option<&str>,
+    ) {
+        let actual_str = actual.as_ref();
+        assert!(
+            condition,
+            "PROBLEM: {}\n\
+             CONTEXT: {}\n\
+             EXPECTED: {}\n\
+             ACTUAL: {}{}",
+            problem,
+            context,
+            expected,
+            actual_str,
+            evidence
+                .map(|e| format!("\nEVIDENCE: {e}"))
+                .unwrap_or_default()
         );
     }
 }
@@ -604,5 +758,278 @@ impl TestEnvironment {
     /// Setup for tests that need API keys
     pub fn setup_api_test_env() -> Option<String> {
         std::env::var("GOOGLE_API_KEY").ok()
+    }
+}
+
+/// Risk-based test categorization markers
+/// High Risk: Core operations that can cause data loss or corruption
+#[allow(dead_code)]
+pub mod risk {
+    pub const HIGH: &str = "high_risk";
+    pub const MEDIUM: &str = "medium_risk";
+    pub const LOW: &str = "low_risk";
+}
+
+/// Test oracle categories following FEW HICCUPS heuristic
+#[allow(dead_code)]
+pub mod oracle {
+    /// Familiarity: How you expect it to work based on experience
+    pub const FAMILIARITY: &str = "Familiarity oracle";
+    /// Explainability: If you can't explain why, it might be a bug
+    pub const EXPLAINABILITY: &str = "Explainability oracle";
+    /// World: How things work in the real world
+    pub const WORLD: &str = "World oracle";
+    /// History: How the product used to work (regression detection)
+    pub const HISTORY: &str = "History oracle";
+    /// Image: Brand, style, reputation
+    pub const IMAGE: &str = "Image oracle";
+    /// Comparable Products: How similar products work
+    pub const COMPARABLE: &str = "Comparable Products oracle";
+    /// Claims: What documentation says
+    pub const CLAIMS: &str = "Claims oracle";
+    /// User Expectations: What users find intuitive
+    pub const USER_EXPECTATIONS: &str = "User Expectations oracle";
+    /// Purpose: Stated or implied goals
+    pub const PURPOSE: &str = "Purpose oracle";
+    /// Standards: Industry or regulatory standards
+    pub const STANDARDS: &str = "Standards oracle";
+}
+
+/// Complex repository builder for exploratory testing
+/// PROOF: Enables testing edge cases and recovery scenarios
+#[allow(dead_code)]
+#[allow(clippy::struct_excessive_bools)]
+pub struct ComplexRepoBuilder {
+    num_commits: usize,
+    num_branches: usize,
+    has_tags: bool,
+    has_remote: bool,
+    include_binary_files: bool,
+    special_characters: bool,
+    corrupt_config: bool,
+}
+
+#[allow(dead_code)]
+impl ComplexRepoBuilder {
+    pub fn new() -> Self {
+        Self {
+            num_commits: 1,
+            num_branches: 0,
+            has_tags: false,
+            has_remote: false,
+            include_binary_files: false,
+            special_characters: false,
+            corrupt_config: false,
+        }
+    }
+
+    #[must_use]
+    pub fn with_commits(mut self, n: usize) -> Self {
+        self.num_commits = n;
+        self
+    }
+
+    #[must_use]
+    pub fn with_branches(mut self, n: usize) -> Self {
+        self.num_branches = n;
+        self
+    }
+
+    #[must_use]
+    pub fn with_tags(mut self) -> Self {
+        self.has_tags = true;
+        self
+    }
+
+    #[must_use]
+    pub fn with_remote(mut self) -> Self {
+        self.has_remote = true;
+        self
+    }
+
+    #[must_use]
+    pub fn with_binary_files(mut self) -> Self {
+        self.include_binary_files = true;
+        self
+    }
+
+    #[must_use]
+    pub fn with_special_characters(mut self) -> Self {
+        self.special_characters = true;
+        self
+    }
+
+    #[must_use]
+    pub fn with_corrupted_config(mut self) -> Self {
+        self.corrupt_config = true;
+        self
+    }
+
+    pub fn build(self) -> Result<(TempDir, GitRepo), Box<dyn std::error::Error>> {
+        let temp_dir = TempDir::new()?;
+        let repo = Repository::init(temp_dir.path())?;
+
+        let mut config = repo.config()?;
+        config.set_str("user.name", "Test User")?;
+        config.set_str("user.email", "test@example.com")?;
+
+        let signature = git2::Signature::now("Test User", "test@example.com")?;
+
+        // Create initial commit
+        let mut index = repo.index()?;
+        fs::write(temp_dir.path().join("README.md"), "# Test Project")?;
+        index.add_path(Path::new("README.md"))?;
+        index.write()?;
+
+        let mut parent_commit: Option<git2::Commit> = None;
+
+        for i in 0..self.num_commits {
+            let file_path = temp_dir.path().join(format!("file_{i}.txt"));
+            fs::write(&file_path, format!("Content {i}"))?;
+            index.add_path(Path::new(format!("file_{i}.txt").as_str()))?;
+            index.write()?;
+
+            let tree_id = index.write_tree()?;
+            let tree = repo.find_tree(tree_id)?;
+
+            let parents: Vec<&git2::Commit> = parent_commit.iter().collect();
+            let commit = repo.commit(
+                Some("HEAD"),
+                &signature,
+                &signature,
+                &format!("Commit {i}"),
+                &tree,
+                &parents,
+            )?;
+            parent_commit = Some(repo.find_commit(commit)?);
+        }
+
+        // Add branches
+        if let Some(ref parent) = parent_commit {
+            for i in 0..self.num_branches {
+                repo.branch(&format!("branch_{i}"), parent, false)?;
+            }
+        }
+
+        // Add tags
+        if self.has_tags
+            && let Some(ref parent) = parent_commit
+        {
+            let parent_oid = parent.id();
+            let obj = repo.find_object(parent_oid, None)?;
+            repo.tag("v1.0.0", &obj, &signature, "Version 1.0.0", false)?;
+        }
+
+        // Add binary files
+        if self.include_binary_files {
+            let binary = MockDataBuilder::mock_binary_content();
+            fs::write(temp_dir.path().join("image.png"), binary)?;
+            index.add_path(Path::new("image.png"))?;
+            index.write()?;
+        }
+
+        // Add files with special characters
+        if self.special_characters {
+            let special_dir = temp_dir.path().join("特殊字符");
+            fs::create_dir_all(&special_dir)?;
+            fs::write(special_dir.join("file with spaces.txt"), "content")?;
+            fs::write(special_dir.join("file-with-dashes.txt"), "content")?;
+            index.add_path(Path::new("特殊字符/file with spaces.txt").as_ref())?;
+            index.add_path(Path::new("特殊字符/file-with-dashes.txt").as_ref())?;
+            index.write()?;
+        }
+
+        // Corrupt config if requested
+        if self.corrupt_config {
+            let git_dir = temp_dir.path().join(".git");
+            let config_path = git_dir.join("config");
+            if config_path.exists() {
+                let corrupted = fs::read_to_string(&config_path)?;
+                fs::write(&config_path, corrupted.replace("true", "INVALID"))?;
+            }
+        }
+
+        let git_repo = GitRepo::new(temp_dir.path())?;
+        Ok((temp_dir, git_repo))
+    }
+}
+
+impl Default for ComplexRepoBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Builder for testing error conditions
+#[allow(dead_code)]
+pub struct ErrorScenarioBuilder {
+    scenario: String,
+}
+
+#[allow(dead_code)]
+impl ErrorScenarioBuilder {
+    pub fn invalid_repo_path() -> Self {
+        Self {
+            scenario: "invalid_repo_path".to_string(),
+        }
+    }
+
+    pub fn corrupted_index() -> Self {
+        Self {
+            scenario: "corrupted_index".to_string(),
+        }
+    }
+
+    pub fn missing_user_config() -> Self {
+        Self {
+            scenario: "missing_user_config".to_string(),
+        }
+    }
+
+    pub fn build(self) -> Result<GitRepo, Box<dyn std::error::Error>> {
+        match self.scenario.as_str() {
+            "invalid_repo_path" => {
+                let temp_dir = TempDir::new()?;
+                // Don't initialize repo - path doesn't exist
+                GitRepo::new(temp_dir.path()).map_err(std::convert::Into::into)
+            }
+            "missing_user_config" => {
+                let temp_dir = TempDir::new()?;
+                let _repo = Repository::init(temp_dir.path())?;
+                // Don't set user config
+                GitRepo::new(temp_dir.path()).map_err(std::convert::Into::into)
+            }
+            _ => Err("Unknown error scenario".into()),
+        }
+    }
+}
+
+/// Session-based test management (SBTM) test session info
+/// PROOF: Documents testing mission and findings
+#[allow(dead_code)]
+pub struct TestSession {
+    pub charter: String,
+    pub mission: String,
+    pub findings: Vec<String>,
+    pub risks_identified: Vec<String>,
+}
+
+#[allow(dead_code)]
+impl TestSession {
+    pub fn new(charter: &str, mission: &str) -> Self {
+        Self {
+            charter: charter.to_string(),
+            mission: mission.to_string(),
+            findings: Vec::new(),
+            risks_identified: Vec::new(),
+        }
+    }
+
+    pub fn add_finding(&mut self, finding: &str) {
+        self.findings.push(finding.to_string());
+    }
+
+    pub fn add_risk(&mut self, risk: &str) {
+        self.risks_identified.push(risk.to_string());
     }
 }
