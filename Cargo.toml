@@ -1,5 +1,5 @@
 [package]
-name = "gitai-wf"
+name = "gitai"
 description = "AI-powered toolkit that enhances `Git` workflow"
 version = "0.1.5"
 edition = "2024"

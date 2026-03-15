@@ -295,6 +295,147 @@ impl<'a> GitTestHelper<'a> {
             .tag(name, &head.into_object(), &signature, message, false)?;
         Ok(())
     }
+
+    /// Add a remote to the repository
+    pub fn add_remote(&self, name: &str, url: &str) -> Result<()> {
+        self.repo.remote(name, url)?;
+        Ok(())
+    }
+
+    /// Fetch from a remote to populate remote tracking branches
+    pub fn fetch_remote(&self, name: &str) -> Result<()> {
+        let mut remote = self.repo.find_remote(name)?;
+        remote.fetch(<&[&str]>::default(), None, None)?;
+        Ok(())
+    }
+
+    /// Create a remote tracking branch by setting up a regular remote and fetching
+    /// This creates an actual refs/remotes/origin/branch structure
+    pub fn create_remote_tracking_branch(
+        &self,
+        remote_name: &str,
+        branch_name: &str,
+    ) -> Result<()> {
+        // Create a regular (non-bare) remote repository
+        let remote_dir = TempDir::new()?;
+        let remote_repo = Repository::init(remote_dir.path())?;
+
+        // Configure git user in remote repo
+        let mut config = remote_repo.config()?;
+        config.set_str("user.name", "Test User")?;
+        config.set_str("user.email", "test@example.com")?;
+
+        // Create a commit in the remote repo
+        let signature = remote_repo.signature()?;
+
+        // Create a file and stage it
+        let file_path = remote_dir.path().join(format!("{branch_name}.txt"));
+        std::fs::write(&file_path, format!("Content for {branch_name}"))?;
+
+        let mut index = remote_repo.index()?;
+        index.add_path(std::path::Path::new(format!("{branch_name}.txt").as_str()))?;
+        index.write()?;
+        let tree_id = index.write_tree()?;
+        let tree = remote_repo.find_tree(tree_id)?;
+        remote_repo.commit(
+            Some("HEAD"),
+            &signature,
+            &signature,
+            &format!("Initial commit for {branch_name}"),
+            &tree,
+            &[],
+        )?;
+
+        // Add the remote to our test repo
+        let fetch_spec = format!("+refs/heads/*:refs/remotes/{remote_name}/*");
+        self.repo.remote_with_fetch(
+            remote_name,
+            remote_dir
+                .path()
+                .to_str()
+                .expect("Path should be valid UTF-8"),
+            &fetch_spec,
+        )?;
+
+        // Fetch to populate remote tracking branch
+        let mut remote = self.repo.find_remote(remote_name)?;
+        remote.fetch(<&[&str]>::default(), None, None)?;
+
+        Ok(())
+    }
+
+    /// Create multiple remote tracking branches from a single remote
+    pub fn create_multiple_remote_tracking_branches(
+        &self,
+        remote_name: &str,
+        branches: &[&str],
+    ) -> Result<()> {
+        // Create a regular (non-bare) remote repository
+        let remote_dir = TempDir::new()?;
+        let remote_repo = Repository::init(remote_dir.path())?;
+
+        let mut config = remote_repo.config()?;
+        config.set_str("user.name", "Test User")?;
+        config.set_str("user.email", "test@example.com")?;
+
+        let signature = remote_repo.signature()?;
+
+        for (i, branch_name) in branches.iter().enumerate() {
+            // Create a new branch for each iteration
+            let branch_ref = format!("refs/heads/{branch_name}");
+
+            // Create file and stage it
+            let file_path = remote_dir.path().join(format!("{branch_name}_{i}.txt"));
+            std::fs::write(&file_path, format!("Content for {branch_name} commit {i}"))?;
+
+            let mut index = remote_repo.index()?;
+            index.add_path(std::path::Path::new(
+                format!("{branch_name}_{i}.txt").as_str(),
+            ))?;
+            index.write()?;
+            let tree_id = index.write_tree()?;
+            let tree = remote_repo.find_tree(tree_id)?;
+
+            // Get parent commit if not first
+            let parent = if i > 0 {
+                Some(remote_repo.head()?.peel_to_commit()?)
+            } else {
+                None
+            };
+            let parents: Vec<&git2::Commit> = parent.iter().collect();
+
+            let _commit_oid = remote_repo.commit(
+                Some(&branch_ref),
+                &signature,
+                &signature,
+                &format!("Commit {i} for {branch_name}"),
+                &tree,
+                &parents,
+            )?;
+
+            // If first branch, also update HEAD
+            if i == 0 {
+                remote_repo.set_head(&branch_ref)?;
+            }
+        }
+
+        // Add the remote
+        let fetch_spec = format!("+refs/heads/*:refs/remotes/{remote_name}/*");
+        self.repo.remote_with_fetch(
+            remote_name,
+            remote_dir
+                .path()
+                .to_str()
+                .expect("Path should be valid UTF-8"),
+            &fetch_spec,
+        )?;
+
+        // Fetch
+        let mut remote = self.repo.find_remote(remote_name)?;
+        remote.fetch(<&[&str]>::default(), None, None)?;
+
+        Ok(())
+    }
 }
 
 // Mock data creators
