@@ -1,44 +1,61 @@
 use anyhow::Result;
-use clap::Parser;
-use gitai::{app, common::CommonParams};
+use clap::{Parser, crate_authors, crate_version};
+use gitai::{
+    app::{self, ReleaseNotesParams},
+    common::CommonParams,
+    init_logger, init_tracing_to_file,
+    ui::print_error,
+};
 
 #[derive(Parser)]
-#[command(name = "gitai-release-notes", about = "Generate release notes")]
+#[command(
+    name = "git-release-notes",
+    author = crate_authors!(),
+    version = crate_version!(),
+    about = "Generate release notes",
+    after_help = app::get_dynamic_help(),
+    styles = app::get_styles(),
+)]
 struct ReleaseNotesArgs {
     #[command(flatten)]
     common: CommonParams,
-    /// Starting Git reference (commit hash, tag, or branch name)
-    #[arg(long, required = true)]
-    from: String,
-    /// Ending Git reference (commit hash, tag, or branch name). Defaults to HEAD if not specified.
-    #[arg(long)]
-    to: Option<String>,
-    /// Explicit version name to use in the release notes instead of getting it from Git
-    #[arg(long, help = "Explicit version name to use in the release notes")]
-    version_name: Option<String>,
+
+    #[command(flatten)]
+    params: ReleaseNotesParams,
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    env_logger::init();
+    init_logger();
+    init_tracing_to_file();
 
     let args = ReleaseNotesArgs::parse();
 
     let repository_url = args.common.repository_url.clone();
 
-    match app::handle_release_notes(
+    if let Err(e) = app::handle_release_notes(
         args.common,
-        args.from,
-        args.to,
+        args.params.from,
+        args.params.to,
         repository_url,
-        args.version_name,
+        args.params.version_name,
     )
     .await
     {
-        Ok(()) => Ok(()),
-        Err(e) => {
-            eprintln!("Error: {e}");
-            std::process::exit(1);
-        }
+        print_error(&format!("Error: {e}"));
+        std::process::exit(1);
+    }
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::CommandFactory;
+
+    #[test]
+    fn verify_cli() {
+        ReleaseNotesArgs::command().debug_assert();
     }
 }

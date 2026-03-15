@@ -3,7 +3,7 @@ use crate::core::llm::get_available_provider_names;
 use crate::features::changelog::{handle_changelog_command, handle_release_notes_command};
 use crate::features::commit;
 use clap::builder::{Styles, styling::AnsiColor};
-use clap::{Parser, Subcommand, crate_version};
+use clap::{Args, Parser, Subcommand, crate_version};
 use colored::Colorize;
 use log::debug;
 
@@ -67,6 +67,117 @@ pub struct Cli {
     pub repository_url: Option<String>,
 }
 
+/// Arguments for the message generation command
+#[derive(Args, Clone, Debug)]
+pub struct MessageParams {
+    /// Print the generated message to stdout and exit
+    #[arg(short, long, help = "Print the generated message to stdout and exit")]
+    pub print: bool,
+
+    /// Dry run mode: do not make real HTTP requests, for UI testing
+    #[arg(
+        long,
+        help = "Dry run mode: do not make real HTTP requests, for UI testing"
+    )]
+    pub dry_run: bool,
+
+    /// Complete a commit message instead of generating from scratch
+    #[arg(
+        long,
+        help = "Complete a commit message instead of generating from scratch"
+    )]
+    pub complete: bool,
+
+    /// Prefix text to complete (required when using --complete)
+    #[arg(
+        long,
+        help = "Prefix text to complete (required when using --complete)",
+        requires = "complete"
+    )]
+    pub prefix: Option<String>,
+
+    /// Context ratio for completion (0.0 to 1.0, default: 0.5)
+    #[arg(
+        long,
+        help = "Context ratio for completion (0.0 to 1.0, default: 0.5). Higher values use more of the original message as context.",
+        requires = "complete"
+    )]
+    pub context_ratio: Option<f32>,
+}
+
+/// Arguments for the PR generation command
+#[derive(Args, Clone, Debug)]
+pub struct PrParams {
+    /// Print the generated PR description to stdout and exit
+    #[arg(
+        short,
+        long,
+        help = "Print the generated PR description to stdout and exit"
+    )]
+    pub print: bool,
+
+    /// Starting branch, commit, or commitish for comparison
+    #[arg(
+        long,
+        help = "Starting branch, commit, or commitish for comparison. For single commit analysis, specify just this parameter with a commit hash (e.g., --from abc1234). For reviewing multiple commits, use commitish syntax (e.g., --from HEAD~3 to review last 3 commits)"
+    )]
+    pub from: Option<String>,
+
+    /// Target branch, commit, or commitish for comparison
+    #[arg(
+        long,
+        help = "Target branch, commit, or commitish for comparison. For single commit analysis, specify just this parameter with a commit hash or commitish (e.g., --to HEAD~2)"
+    )]
+    pub to: Option<String>,
+}
+
+/// Arguments for the changelog generation command
+#[derive(Args, Clone, Debug)]
+pub struct ChangelogParams {
+    /// Starting Git reference (commit hash, tag, or branch name)
+    /// If not specified, defaults to the latest tag (or first commit if no tags exist)
+    /// when using --save
+    #[arg(long)]
+    pub from: Option<String>,
+
+    /// Ending Git reference (commit hash, tag, or branch name). Defaults to HEAD if not specified.
+    #[arg(long)]
+    pub to: Option<String>,
+
+    /// Update the changelog file with the new changes
+    #[arg(long, help = "Update the changelog file with the new changes")]
+    pub update: bool,
+
+    /// Save: automatically detect the starting reference (latest tag or first commit)
+    /// and update CHANGELOG.md
+    #[arg(long, help = "Auto-detect starting point and save to CHANGELOG.md")]
+    pub save: bool,
+
+    /// Path to the changelog file
+    #[arg(long, help = "Path to the changelog file (defaults to CHANGELOG.md)")]
+    pub file: Option<String>,
+
+    /// Explicit version name to use in the changelog instead of getting it from Git
+    #[arg(long, help = "Explicit version name to use in the changelog")]
+    pub version_name: Option<String>,
+}
+
+/// Arguments for the release notes generation command
+#[derive(Args, Clone, Debug)]
+pub struct ReleaseNotesParams {
+    /// Starting Git reference (commit hash, tag, or branch name)
+    #[arg(long, required = true)]
+    pub from: String,
+
+    /// Ending Git reference (commit hash, tag, or branch name). Defaults to HEAD if not specified.
+    #[arg(long)]
+    pub to: Option<String>,
+
+    /// Explicit version name to use in the release notes instead of getting it from Git
+    #[arg(long, help = "Explicit version name to use in the release notes")]
+    pub version_name: Option<String>,
+}
+
 /// Enumeration of available subcommands
 #[derive(Subcommand)]
 #[command(subcommand_negates_reqs = true)]
@@ -82,39 +193,8 @@ pub enum Gitai {
         #[command(flatten)]
         common: CommonParams,
 
-        /// Print the generated message to stdout and exit
-        #[arg(short, long, help = "Print the generated message to stdout and exit")]
-        print: bool,
-
-        /// Dry run mode: do not make real HTTP requests, for UI testing
-        #[arg(
-            long,
-            help = "Dry run mode: do not make real HTTP requests, for UI testing"
-        )]
-        dry_run: bool,
-
-        /// Complete a commit message instead of generating from scratch
-        #[arg(
-            long,
-            help = "Complete a commit message instead of generating from scratch"
-        )]
-        complete: bool,
-
-        /// Prefix text to complete (required when using --complete)
-        #[arg(
-            long,
-            help = "Prefix text to complete (required when using --complete)",
-            requires = "complete"
-        )]
-        prefix: Option<String>,
-
-        /// Context ratio for completion (0.0 to 1.0, default: 0.5)
-        #[arg(
-            long,
-            help = "Context ratio for completion (0.0 to 1.0, default: 0.5). Higher values use more of the original message as context.",
-            requires = "complete"
-        )]
-        context_ratio: Option<f32>,
+        #[command(flatten)]
+        params: MessageParams,
     },
 
     /// Generate a pull request description
@@ -136,27 +216,8 @@ Supported commitish syntax: HEAD~2, HEAD^, @~3, main~1, origin/main^, etc."
         #[command(flatten)]
         common: CommonParams,
 
-        /// Print the generated PR description to stdout and exit
-        #[arg(
-            short,
-            long,
-            help = "Print the generated PR description to stdout and exit"
-        )]
-        print: bool,
-
-        /// Starting branch, commit, or commitish for comparison
-        #[arg(
-            long,
-            help = "Starting branch, commit, or commitish for comparison. For single commit analysis, specify just this parameter with a commit hash (e.g., --from abc1234). For reviewing multiple commits, use commitish syntax (e.g., --from HEAD~3 to review last 3 commits)"
-        )]
-        from: Option<String>,
-
-        /// Target branch, commit, or commitish for comparison
-        #[arg(
-            long,
-            help = "Target branch, commit, or commitish for comparison. For single commit analysis, specify just this parameter with a commit hash or commitish (e.g., --to HEAD~2)"
-        )]
-        to: Option<String>,
+        #[command(flatten)]
+        params: PrParams,
     },
 
     /// Generate a changelog
@@ -168,32 +229,8 @@ Supported commitish syntax: HEAD~2, HEAD^, @~3, main~1, origin/main^, etc."
         #[command(flatten)]
         common: CommonParams,
 
-        /// Starting Git reference (commit hash, tag, or branch name)
-        /// If not specified, defaults to the latest tag (or first commit if no tags exist)
-        /// when using --save
-        #[arg(long)]
-        from: Option<String>,
-
-        /// Ending Git reference (commit hash, tag, or branch name). Defaults to HEAD if not specified.
-        #[arg(long)]
-        to: Option<String>,
-
-        /// Update the changelog file with the new changes
-        #[arg(long, help = "Update the changelog file with the new changes")]
-        update: bool,
-
-        /// Save: automatically detect the starting reference (latest tag or first commit)
-        /// and update CHANGELOG.md
-        #[arg(long, help = "Auto-detect starting point and save to CHANGELOG.md")]
-        save: bool,
-
-        /// Path to the changelog file
-        #[arg(long, help = "Path to the changelog file (defaults to CHANGELOG.md)")]
-        file: Option<String>,
-
-        /// Explicit version name to use in the changelog instead of getting it from Git
-        #[arg(long, help = "Explicit version name to use in the changelog")]
-        version_name: Option<String>,
+        #[command(flatten)]
+        params: ChangelogParams,
     },
 
     /// Generate release notes
@@ -205,22 +242,13 @@ Supported commitish syntax: HEAD~2, HEAD^, @~3, main~1, origin/main^, etc."
         #[command(flatten)]
         common: CommonParams,
 
-        /// Starting Git reference (commit hash, tag, or branch name)
-        #[arg(long, required = true)]
-        from: String,
-
-        /// Ending Git reference (commit hash, tag, or branch name). Defaults to HEAD if not specified.
-        #[arg(long)]
-        to: Option<String>,
-
-        /// Explicit version name to use in the release notes instead of getting it from Git
-        #[arg(long, help = "Explicit version name to use in the release notes")]
-        version_name: Option<String>,
+        #[command(flatten)]
+        params: ReleaseNotesParams,
     },
 }
 
 /// Define custom styles for Clap
-fn get_styles() -> Styles {
+pub fn get_styles() -> Styles {
     Styles::styled()
         .header(AnsiColor::Magenta.on_default().bold())
         .usage(AnsiColor::Cyan.on_default().bold())
@@ -237,7 +265,7 @@ pub fn parse_args() -> Cli {
 }
 
 /// Generate dynamic help including available LLM providers
-fn get_dynamic_help() -> String {
+pub fn get_dynamic_help() -> String {
     let mut providers = get_available_provider_names();
     providers.sort();
 
@@ -247,10 +275,7 @@ fn get_dynamic_help() -> String {
         .collect::<Vec<_>>()
         .join(" • ");
 
-    format!(
-        "\\
-Available LLM Providers: {providers_list}"
-    )
+    format!("\nAvailable LLM Providers: {providers_list}")
 }
 
 /// Configuration for the cmsg command
@@ -344,60 +369,46 @@ pub async fn handle_command(command: Gitai, repository_url: Option<String>) -> a
     crate::core::llm::init_tracing_to_file();
 
     match command {
-        Gitai::Message {
-            common,
-            print,
-            dry_run,
-            complete,
-            prefix,
-            context_ratio,
-        } => {
+        Gitai::Message { common, params } => {
             handle_message(
                 common,
                 CmsgConfig {
-                    print_only: print,
-                    dry_run,
+                    print_only: params.print,
+                    dry_run: params.dry_run,
                 },
                 repository_url,
-                complete,
-                prefix,
-                context_ratio,
+                params.complete,
+                params.prefix,
+                params.context_ratio,
             )
             .await
         }
-        Gitai::Changelog {
-            common,
-            from,
-            to,
-            update,
-            save,
-            file,
-            version_name,
-        } => {
+        Gitai::Changelog { common, params } => {
             handle_changelog(
                 common,
-                from,
-                to,
+                params.from,
+                params.to,
                 repository_url,
-                update,
-                save,
-                file,
-                version_name,
+                params.update,
+                params.save,
+                params.file,
+                params.version_name,
             )
             .await
         }
-        Gitai::ReleaseNotes {
-            common,
-            from,
-            to,
-            version_name,
-        } => handle_release_notes(common, from, to, repository_url, version_name).await,
-        Gitai::Pr {
-            common,
-            print,
-            from,
-            to,
-        } => handle_pr_command(common, print, from, to, repository_url).await,
+        Gitai::ReleaseNotes { common, params } => {
+            handle_release_notes(
+                common,
+                params.from,
+                params.to,
+                repository_url,
+                params.version_name,
+            )
+            .await
+        }
+        Gitai::Pr { common, params } => {
+            handle_pr_command(common, params.print, params.from, params.to, repository_url).await
+        }
     }
 }
 

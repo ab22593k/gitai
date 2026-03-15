@@ -1,56 +1,64 @@
 use anyhow::Result;
-use clap::Parser;
-use gitai::{app, common::CommonParams};
+use clap::{Parser, crate_authors, crate_version};
+use gitai::{
+    app::{self, ChangelogParams},
+    common::CommonParams,
+    init_logger, init_tracing_to_file,
+    ui::print_error,
+};
 
 #[derive(Parser)]
-#[command(name = "gitai-changelog", about = "Generate a changelog")]
+#[command(
+    name = "git-changelog",
+    author = crate_authors!(),
+    version = crate_version!(),
+    about = "Generate a changelog",
+    after_help = app::get_dynamic_help(),
+    styles = app::get_styles(),
+)]
 struct ChangelogArgs {
     #[command(flatten)]
     common: CommonParams,
-    /// Starting Git reference (commit hash, tag, or branch name)
-    #[arg(long)]
-    from: Option<String>,
-    /// Ending Git reference (commit hash, tag, or branch name). Defaults to HEAD if not specified.
-    #[arg(long)]
-    to: Option<String>,
-    /// Update the changelog file with the new changes
-    #[arg(long, help = "Update the changelog file with the new changes")]
-    update: bool,
-    /// Save: automatically detect the starting reference and update CHANGELOG.md
-    #[arg(long, help = "Auto-detect starting point and save to CHANGELOG.md")]
-    save: bool,
-    /// Path to the changelog file
-    #[arg(long, help = "Path to the changelog file (defaults to CHANGELOG.md)")]
-    file: Option<String>,
-    /// Explicit version name to use in the changelog instead of getting it from Git
-    #[arg(long, help = "Explicit version name to use in the changelog")]
-    version_name: Option<String>,
+
+    #[command(flatten)]
+    params: ChangelogParams,
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    env_logger::init();
+    init_logger();
+    init_tracing_to_file();
 
     let args = ChangelogArgs::parse();
 
     let repository_url = args.common.repository_url.clone();
 
-    match app::handle_changelog(
+    if let Err(e) = app::handle_changelog(
         args.common,
-        args.from,
-        args.to,
+        args.params.from,
+        args.params.to,
         repository_url,
-        args.update,
-        args.save,
-        args.file,
-        args.version_name,
+        args.params.update,
+        args.params.save,
+        args.params.file,
+        args.params.version_name,
     )
     .await
     {
-        Ok(()) => Ok(()),
-        Err(e) => {
-            eprintln!("Error: {e}");
-            std::process::exit(1);
-        }
+        print_error(&format!("Error: {e}"));
+        std::process::exit(1);
+    }
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::CommandFactory;
+
+    #[test]
+    fn verify_cli() {
+        ChangelogArgs::command().debug_assert();
     }
 }

@@ -39,12 +39,12 @@ static PROVIDER_DEFAULTS: std::sync::LazyLock<
 /// Initialize tracing to a rolling file in target/debug
 pub fn init_tracing_to_file() {
     let file_appender = RollingFileAppender::new(Rotation::DAILY, "target/debug", "llm-debug.log");
-    tracing_subscriber::fmt()
+    let _ = tracing_subscriber::fmt()
         .with_writer(file_appender)
         .with_max_level(Level::INFO)
         .with_span_events(FmtSpan::CLOSE)
         .json()
-        .init();
+        .try_init();
 }
 
 /// Generates a message using the given configuration

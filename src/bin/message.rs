@@ -1,71 +1,68 @@
 use anyhow::Result;
-use clap::Parser;
+use clap::{Parser, crate_authors, crate_version};
 use gitai::{
-    app::{self, CmsgConfig},
+    app::{self, CmsgConfig, MessageParams},
     common::CommonParams,
+    init_logger, init_tracing_to_file,
+    ui::print_error,
 };
 
 #[derive(Parser)]
-#[command(name = "gitai-message", about = "Generate a commit message using AI")]
-#[allow(clippy::struct_excessive_bools)]
+#[command(
+    name = "git-message",
+    author = crate_authors!(),
+    version = crate_version!(),
+    about = "Generate a commit message using AI",
+    after_help = app::get_dynamic_help(),
+    styles = app::get_styles(),
+)]
 struct MessageArgs {
     #[command(flatten)]
     common: CommonParams,
-    /// Print the generated message to stdout and exit
-    #[arg(short, long, help = "Print message to stdout and exit")]
-    print: bool,
-    /// Dry run mode: do not make real HTTP requests, for UI testing
-    #[arg(
-        long,
-        help = "Dry run mode: do not make real HTTP requests, for UI testing"
-    )]
-    dry_run: bool,
-    /// Complete a commit message instead of generating from scratch
-    #[arg(
-        long,
-        help = "Complete a commit message instead of generating from scratch"
-    )]
-    complete: bool,
-    /// Prefix text to complete (required when using --complete)
-    #[arg(
-        long,
-        help = "Prefix text to complete (required when using --complete)",
-        requires = "complete"
-    )]
-    prefix: Option<String>,
-    /// Context ratio for completion (0.0 to 1.0, default: 0.5)
-    #[arg(
-        long,
-        help = "Context ratio for completion (0.0 to 1.0, default: 0.5). Higher values use more of the original message as context.",
-        requires = "complete"
-    )]
-    context_ratio: Option<f32>,
+
+    #[command(flatten)]
+    params: MessageParams,
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    env_logger::init();
+    // Standard initialization
+    init_logger();
+    init_tracing_to_file();
 
     let args = MessageArgs::parse();
+
+    // repository_url is already in common.repository_url, but handle_message
+    // expects it separately for consistency with handle_command
     let repository_url = args.common.repository_url.clone();
 
-    match app::handle_message(
+    if let Err(e) = app::handle_message(
         args.common,
         CmsgConfig {
-            print_only: args.print,
-            dry_run: args.dry_run,
+            print_only: args.params.print,
+            dry_run: args.params.dry_run,
         },
         repository_url,
-        args.complete,
-        args.prefix,
-        args.context_ratio,
+        args.params.complete,
+        args.params.prefix,
+        args.params.context_ratio,
     )
     .await
     {
-        Ok(()) => Ok(()),
-        Err(e) => {
-            eprintln!("Error: {e}");
-            std::process::exit(1);
-        }
+        print_error(&format!("Error: {e}"));
+        std::process::exit(1);
+    }
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::CommandFactory;
+
+    #[test]
+    fn verify_cli() {
+        MessageArgs::command().debug_assert();
     }
 }

@@ -1,19 +1,26 @@
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 use gitai::{
-    init_logger,
+    app, init_logger, init_tracing_to_file,
     remote::{
         check,
         common::{Method, Parsed, Target, TargetConfig, sequence},
         sync,
     },
+    ui::print_error,
 };
 use std::process::exit;
 
 pub use gitai::{CachedRepository, RepositoryConfiguration, WireOperation};
 
 #[derive(Parser)]
-#[command(version, author, about, long_about = None)]
+#[command(
+    name = "git-wire",
+    version,
+    author,
+    about = "Synchronize code from remote repositories",
+    styles = app::get_styles(),
+)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -160,6 +167,7 @@ fn build_parsed_from_cli(
 #[tokio::main]
 async fn main() {
     init_logger();
+    init_tracing_to_file();
 
     let cli = Cli::parse();
 
@@ -190,7 +198,7 @@ async fn main() {
             if let Some(ref parsed) = cli_override
                 && let Err(e) = parsed.validate()
             {
-                eprintln!("{}", format!("Invalid arguments: {e}").red().bold());
+                print_error(&format!("Invalid arguments: {e}"));
                 exit(1);
             }
 
@@ -222,7 +230,7 @@ async fn main() {
             if let Some(ref parsed) = cli_override
                 && let Err(e) = parsed.validate()
             {
-                eprintln!("{}", format!("Invalid arguments: {e}").red().bold());
+                print_error(&format!("Invalid arguments: {e}"));
                 exit(1);
             }
 
@@ -240,7 +248,7 @@ async fn main() {
     match result.as_ref() {
         Ok(true) => println!("{}", "Success".green().bold()),
         Ok(false) => println!("{}", "Failure".red().bold()),
-        Err(e) => eprintln!("{}", e.to_string().red().bold()),
+        Err(e) => print_error(&e.to_string()),
     }
 
     match result {
@@ -249,8 +257,13 @@ async fn main() {
     }
 }
 
-#[test]
-fn verify_cli() {
+#[cfg(test)]
+mod tests {
+    use super::*;
     use clap::CommandFactory;
-    Cli::command().debug_assert();
+
+    #[test]
+    fn verify_cli() {
+        Cli::command().debug_assert();
+    }
 }
