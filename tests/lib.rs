@@ -5,4 +5,4 @@
 // - Test assertion helpers
 // - Environment utilities
 // - Git operation helpers
-pub mod test_utils;
+mod test_utils;

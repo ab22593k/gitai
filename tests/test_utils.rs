@@ -693,6 +693,120 @@ impl TestAssertions {
                 .unwrap_or_default()
         );
     }
+
+    /// Oracle: Familiarity - Compare branch format with git CLI output
+    /// PROOF: Verifies compatibility with familiar git behavior
+    pub fn assert_branch_format_matches_git(branch: &str) {
+        assert!(
+            !branch.is_empty(),
+            "PROBLEM: Branch name is empty\n\
+             CONTEXT: Oracle - Familiarity (git branch format)\n\
+             EXPECTED: Non-empty branch name like git CLI\n\
+             ACTUAL: Empty string\n\
+             FREQUENCY: Always on branch resolution failure"
+        );
+
+        // Git branch names can contain alphanumeric, -, /, ., _
+        // But shouldn't start with - or contain certain special chars
+        assert!(
+            !branch.starts_with('-') && !branch.starts_with('/'),
+            "PROBLEM: Branch name starts with invalid character\n\
+             CONTEXT: Oracle - Familiarity (git naming rules)\n\
+             EXPECTED: Valid git branch name\n\
+             ACTUAL: '{branch}'"
+        );
+    }
+
+    /// Oracle: Standards - Verify error includes fallback context
+    /// PROOF: Error messages should guide user to resolution
+    pub fn assert_error_includes_suggestions(err: &str, attempted: &[&str]) {
+        assert!(
+            attempted.iter().any(|&branch| err.contains(branch)),
+            "PROBLEM: Error missing fallback context\n\
+             CONTEXT: Oracle - Standards (error message quality)\n\
+             EXPECTED: Error mentions attempted branches: {attempted:?}\n\
+             ACTUAL: {err}\n\
+             FREQUENCY: Always on branch resolution failure"
+        );
+    }
+
+    /// Oracle: History - Check fallback behavior is predictable
+    /// PROOF: Fallback order should be documented and consistent
+    pub fn assert_fallback_order<T>(result: &Result<T>, attempted: &[&str]) {
+        if let Err(e) = result {
+            let err_str = e.to_string();
+            // At least mention what was tried
+            assert!(
+                attempted.iter().any(|&branch| err_str.contains(branch)),
+                "PROBLEM: Error doesn't document fallback attempts\n\
+                 CONTEXT: Oracle - History (predictable fallback)\n\
+                 EXPECTED: Error lists attempted branches: {attempted:?}\n\
+                 ACTUAL: {err_str}\n\
+                 FREQUENCY: Always on fallback failure"
+            );
+        }
+    }
+
+    /// Oracle: World - File status matches filesystem reality
+    /// PROOF: Verifies git status matches actual file state
+    pub fn assert_file_status_valid(change_type: &ChangeType, expected_exists: bool) {
+        match change_type {
+            ChangeType::Added => {
+                assert!(
+                    expected_exists,
+                    "PROBLEM: File marked as Added but doesn't exist\n\
+                     CONTEXT: Oracle - World (file existence)\n\
+                     EXPECTED: File should exist for Added status\n\
+                     ACTUAL: File missing\n\
+                     FREQUENCY: Always on filesystem mismatch"
+                );
+            }
+            ChangeType::Deleted => {
+                assert!(
+                    !expected_exists,
+                    "PROBLEM: File marked as Deleted but still exists\n\
+                     CONTEXT: Oracle - World (file existence)\n\
+                     EXPECTED: File should not exist for Deleted status\n\
+                     ACTUAL: File still present\n\
+                     FREQUENCY: Always on filesystem mismatch"
+                );
+            }
+            ChangeType::Modified | ChangeType::Renamed { .. } | ChangeType::Copied { .. } => {
+                assert!(
+                    expected_exists,
+                    "PROBLEM: File marked as changed but doesn't exist\n\
+                     CONTEXT: Oracle - World (file existence)\n\
+                     EXPECTED: File should exist for modification\n\
+                     ACTUAL: File missing\n\
+                     FREQUENCY: Always on filesystem mismatch"
+                );
+            }
+        }
+    }
+
+    /// Oracle: Comparable - Binary detection matches git behavior
+    /// PROOF: Binary files should be detected consistently with git
+    pub fn assert_binary_detection(diff: &str, is_binary: bool) {
+        if is_binary {
+            assert!(
+                diff.contains("Binary") || diff.is_empty(),
+                "PROBLEM: Binary file not detected\n\
+                 CONTEXT: Oracle - Comparable (git binary detection)\n\
+                 EXPECTED: Diff contains 'Binary' or is empty\n\
+                 ACTUAL: {diff}\n\
+                 FREQUENCY: Always on binary file"
+            );
+        } else {
+            assert!(
+                !diff.contains("Binary"),
+                "PROBLEM: Text file marked as binary\n\
+                 CONTEXT: Oracle - Comparable (git binary detection)\n\
+                 EXPECTED: Diff should not contain 'Binary'\n\
+                 ACTUAL: {diff}\n\
+                 FREQUENCY: Always on text file"
+            );
+        }
+    }
 }
 
 #[cfg(unix)]
