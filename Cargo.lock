@@ -1082,8 +1082,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "gitai"
-version = "0.1.4"
+name = "gitai-wf"
+version = "0.1.5"
 dependencies = [
  "anyhow",
  "async-trait",
