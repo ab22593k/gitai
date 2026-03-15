@@ -2,6 +2,11 @@ use crate::common::CommonParams;
 use crate::core::llm::get_available_provider_names;
 use crate::features::changelog::{handle_changelog_command, handle_release_notes_command};
 use crate::features::commit;
+use crate::remote::{
+    check,
+    common::{Method, Parsed, Target, TargetConfig, sequence},
+    sync,
+};
 use clap::builder::{Styles, styling::AnsiColor};
 use clap::{Args, Parser, Subcommand, crate_version};
 use colored::Colorize;
@@ -178,6 +183,106 @@ pub struct ReleaseNotesParams {
     pub version_name: Option<String>,
 }
 
+/// Arguments for the wire command
+#[derive(Args, Clone, Debug)]
+pub struct WireArgs {
+    #[command(subcommand)]
+    pub command: WireCommand,
+    /// Narrow down the scope of commands targets by its name
+    #[arg(global = true, short, long)]
+    pub name: Option<String>,
+    /// Narrow down the scope of commands targets by its name (same as `-n` and `--name`)
+    #[arg(global = true, short, long)]
+    pub target: Option<String>,
+    /// Execute the command with single thread (slow, easy-to-read output, low resource consumption)
+    #[arg(global = true, short, long)]
+    pub singlethread: bool,
+}
+
+#[derive(Subcommand, Clone, Debug)]
+pub enum WireCommand {
+    /// Synchronizes code depending on a file '.gitwire.toml' definition or CLI arguments.
+    Sync {
+        /// Repository URL
+        #[arg(long)]
+        url: Option<String>,
+
+        /// Git revision (branch, tag, or commit hash)
+        #[arg(long)]
+        rev: Option<String>,
+
+        /// Source path(s) in the repository. Can be:
+        /// - Single value: --src "lib"
+        /// - Multiple flags: --src lib --src tools
+        /// - JSON array: `--src '["lib", "tools", "src"]'`
+        #[arg(long, num_args = 1..)]
+        src: Vec<String>,
+
+        /// Destination path in the local repository
+        #[arg(long)]
+        dst: Option<String>,
+
+        /// Optional name for this wire entry
+        #[arg(long)]
+        entry_name: Option<String>,
+
+        /// Optional description for this wire entry
+        #[arg(long)]
+        description: Option<String>,
+
+        /// Clone method (shallow, `shallow_no_sparse`, or partial)
+        #[arg(long, value_parser = ["shallow", "shallow_no_sparse", "partial"])]
+        method: Option<String>,
+
+        /// Save this configuration to .gitwire.toml after syncing
+        #[arg(long)]
+        save: bool,
+
+        /// Append to existing .gitwire.toml instead of creating new (requires --save)
+        #[arg(long, requires = "save")]
+        append: bool,
+    },
+
+    /// Checks if the synchronized code identical to the original.
+    Check {
+        /// Repository URL
+        #[arg(long)]
+        url: Option<String>,
+
+        /// Git revision (branch, tag, or commit hash)
+        #[arg(long)]
+        rev: Option<String>,
+
+        /// Source path(s) in the repository
+        #[arg(long, num_args = 1..)]
+        src: Vec<String>,
+
+        /// Destination path in the local repository
+        #[arg(long)]
+        dst: Option<String>,
+
+        /// Optional name for this wire entry
+        #[arg(long)]
+        entry_name: Option<String>,
+
+        /// Optional description for this wire entry
+        #[arg(long)]
+        description: Option<String>,
+
+        /// Clone method (shallow, `shallow_no_sparse`, or partial)
+        #[arg(long, value_parser = ["shallow", "shallow_no_sparse", "partial"])]
+        method: Option<String>,
+
+        /// Save this configuration to .gitwire.toml after checking
+        #[arg(long)]
+        save: bool,
+
+        /// Append to existing .gitwire.toml instead of creating new (requires --save)
+        #[arg(long, requires = "save")]
+        append: bool,
+    },
+}
+
 /// Enumeration of available subcommands
 #[derive(Subcommand)]
 #[command(subcommand_negates_reqs = true)]
@@ -245,6 +350,13 @@ Supported commitish syntax: HEAD~2, HEAD^, @~3, main~1, origin/main^, etc."
         #[command(flatten)]
         params: ReleaseNotesParams,
     },
+
+    /// Wire operations (syncing, checking)
+    #[command(
+        about = "Synchronize code from remote repositories",
+        long_about = "Synchronize code from remote repositories based on a .gitwire.toml file or command-line arguments."
+    )]
+    Wire(WireArgs),
 }
 
 /// Define custom styles for Clap
@@ -363,6 +475,137 @@ pub async fn handle_release_notes(
     handle_release_notes_command(common, from, to, repository_url, version_name).await
 }
 
+/// Handle the `Wire` command
+pub async fn handle_wire(args: WireArgs) -> anyhow::Result<()> {
+    let target_name = args.target.or(args.name);
+
+    let mode = if args.singlethread {
+        sequence::Mode::Single
+    } else {
+        sequence::Mode::Parallel
+    };
+
+    let result = match args.command {
+        WireCommand::Sync {
+            url,
+            rev,
+            src,
+            dst,
+            entry_name,
+            description,
+            method,
+            save,
+            append,
+        } => {
+            let cli_override =
+                build_parsed_from_cli(url, rev, src, dst, entry_name, description, method.as_ref());
+
+            // Validate CLI override if provided
+            if let Some(ref parsed) = cli_override {
+                parsed
+                    .validate()
+                    .map_err(|e| anyhow::anyhow!("Invalid arguments: {e}"))?;
+            }
+
+            let target_config = TargetConfig {
+                name_filter: target_name,
+                cli_override,
+                save_config: save,
+                append_config: append,
+            };
+
+            sync::sync_with_caching(&Target::Declared(target_config), mode).await
+        }
+
+        WireCommand::Check {
+            url,
+            rev,
+            src,
+            dst,
+            entry_name,
+            description,
+            method,
+            save,
+            append,
+        } => {
+            let cli_override =
+                build_parsed_from_cli(url, rev, src, dst, entry_name, description, method.as_ref());
+
+            // Validate CLI override if provided
+            if let Some(ref parsed) = cli_override {
+                parsed
+                    .validate()
+                    .map_err(|e| anyhow::anyhow!("Invalid arguments: {e}"))?;
+            }
+
+            let target_config = TargetConfig {
+                name_filter: target_name,
+                cli_override,
+                save_config: save,
+                append_config: append,
+            };
+
+            check::check(&Target::Declared(target_config), &mode)
+        }
+    };
+
+    match result {
+        Ok(true) => {
+            println!("{}", "Success".green().bold());
+            Ok(())
+        }
+        Ok(false) => {
+            println!("{}", "Failure".red().bold());
+            Err(anyhow::anyhow!("Wire operation failed"))
+        }
+        Err(e) => Err(anyhow::anyhow!("{e}")),
+    }
+}
+
+/// Build a Parsed struct from CLI arguments
+fn build_parsed_from_cli(
+    url: Option<String>,
+    rev: Option<String>,
+    src: Vec<String>,
+    dst: Option<String>,
+    entry_name: Option<String>,
+    description: Option<String>,
+    method: Option<&String>,
+) -> Option<Parsed> {
+    // If no required fields are provided, return None
+    if url.is_none() && rev.is_none() && src.is_empty() && dst.is_none() {
+        return None;
+    }
+
+    // Parse src - handle JSON array if provided as single argument
+    let src_paths = if src.len() == 1 && src[0].trim().starts_with('[') {
+        // Try to parse as JSON array
+        serde_json::from_str::<Vec<String>>(&src[0]).unwrap_or(src)
+    } else {
+        src
+    };
+
+    // Parse method
+    let mtd = method.and_then(|m| match m.as_str() {
+        "shallow" => Some(Method::Shallow),
+        "shallow_no_sparse" => Some(Method::ShallowNoSparse),
+        "partial" => Some(Method::Partial),
+        _ => None,
+    });
+
+    Some(Parsed {
+        name: entry_name,
+        dsc: description,
+        url: url.unwrap_or_default(),
+        rev: rev.unwrap_or_default(),
+        src: src_paths,
+        dst: dst.unwrap_or_default(),
+        mtd,
+        last_sync_hash: None,
+        merge_strategy: None,
+    })
+}
+
 /// Handle the command based on parsed arguments
 pub async fn handle_command(command: Gitai, repository_url: Option<String>) -> anyhow::Result<()> {
     // Initialize tracing to file
@@ -409,6 +652,7 @@ pub async fn handle_command(command: Gitai, repository_url: Option<String>) -> a
         Gitai::Pr { common, params } => {
             handle_pr_command(common, params.print, params.from, params.to, repository_url).await
         }
+        Gitai::Wire(args) => handle_wire(args).await,
     }
 }
 

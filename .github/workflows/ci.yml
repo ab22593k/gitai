@@ -133,11 +133,11 @@ jobs:
         with:
           name: gitai-${{ matrix.build }}
           path: |
-            ./target/${{ matrix.target }}/release/gitai-changelog${{ matrix.os == 'windows-latest' && '.exe' || '' }}
-            ./target/${{ matrix.target }}/release/gitai-message${{ matrix.os == 'windows-latest' && '.exe' || '' }}
-            ./target/${{ matrix.target }}/release/gitai-pr${{ matrix.os == 'windows-latest' && '.exe' || '' }}
-            ./target/${{ matrix.target }}/release/gitai-release-notes${{ matrix.os == 'windows-latest' && '.exe' || '' }}
-            ./target/${{ matrix.target }}/release/gitai-wire${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+            ./target/${{ matrix.target }}/release/git-changelog${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+            ./target/${{ matrix.target }}/release/git-message${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+            ./target/${{ matrix.target }}/release/git-pr${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+            ./target/${{ matrix.target }}/release/git-release-notes${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+            ./target/${{ matrix.target }}/release/git-wire${{ matrix.os == 'windows-latest' && '.exe' || '' }}
           if-no-files-found: error
           retention-days: 1
 

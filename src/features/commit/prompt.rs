@@ -342,7 +342,6 @@ pub fn create_pr_system_prompt(config: &Config) -> anyhow::Result<String> {
           - Ensure the intent behind the changeset is crystalline.\n\
           \n\
           4. **Handling Partial Information:**\n\
-             - If a diff or file content is marked as [TRUNCATED], acknowledge this in your Reasoning.\n\
              - Do not speculate on the contents of the truncated portions; instead, infer the \
              overall architectural intent from the visible hunks and the file names.\n\
           \n\
@@ -495,7 +494,6 @@ pub fn create_completion_user_prompt(
 }
 
 /// Truncate a string smartly by ensuring we don't cut in the middle of a line.
-/// Returns the truncated string with a [TRUNCATED] indicator.
 fn truncate_smartly(text: &str, max_len: usize) -> String {
     if text.len() <= max_len {
         return text.to_string();

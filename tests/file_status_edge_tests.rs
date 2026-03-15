@@ -168,21 +168,22 @@ async fn test_unicode_paths() {
 }
 
 #[tokio::test]
-/// FILE STATUS: Very long paths should be handled
-/// Oracle: World - paths can be long but within `PATH_MAX`
+/// FILE STATUS: Long paths (within limits) should be handled
+/// Oracle: World - paths can be long but within system limits
+/// Note: Windows has `MAX_PATH=260` by default, so we use a reasonable length
 async fn test_very_long_paths() {
     let (temp_dir, git_repo) = setup_git_repo();
     let _helper = GitTestHelper::new(&temp_dir).expect("Failed to create helper");
 
-    // Create a deeply nested path
+    // Create a moderately nested path (5 levels to stay under Windows MAX_PATH)
     let mut current_path = temp_dir.path().to_path_buf();
-    for i in 0..10 {
+    for i in 0..5 {
         current_path = current_path.join(format!("level_{i}"));
         fs::create_dir_all(&current_path).expect("Failed to create directory");
     }
 
-    // Create a file with a long name at the deepest level
-    let long_name = "a".repeat(200); // 200 character filename
+    // Create a file with a moderately long name (50 chars to stay well under limits)
+    let long_name = "a".repeat(50);
     let file_path = current_path.join(format!("{long_name}.txt"));
     fs::write(&file_path, "long path content").expect("Failed to write long path file");
 
@@ -210,7 +211,7 @@ async fn test_very_long_paths() {
     let long_file = context
         .staged_files
         .iter()
-        .find(|f| f.path.ends_with(&long_name) || f.path.contains("level_9"));
+        .find(|f| f.path.contains("level_4") && f.path.contains(&long_name));
 
     assert!(long_file.is_some(), "Long path file should be detected");
 }
