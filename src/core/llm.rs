@@ -9,7 +9,6 @@ use log::debug;
 use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
 use std::collections::HashMap;
-use std::time::Duration;
 use tokio_retry::Retry;
 use tokio_retry::strategy::ExponentialBackoff;
 use tracing::Level;
@@ -19,7 +18,6 @@ use tracing_subscriber::fmt::format::FmtSpan;
 #[derive(Debug)]
 struct ProviderDefault {
     model: &'static str,
-    token_limit: usize,
 }
 
 static PROVIDER_DEFAULTS: std::sync::LazyLock<
@@ -29,8 +27,7 @@ static PROVIDER_DEFAULTS: std::sync::LazyLock<
     m.insert(
         "google",
         ProviderDefault {
-            model: "gemini-2.5-flash-lite",
-            token_limit: 1_000_000,
+            model: "gemini-2.0-flash",
         },
     );
     m
@@ -96,16 +93,14 @@ where
         builder = builder.temperature(temp_val);
     }
 
-    // Set max tokens if specified in additional params, otherwise use provider default
+    // Set max tokens if specified in additional params, otherwise use a safe default
     if let Some(max_tokens) = provider_config.additional_params.get("max_tokens") {
         if let Ok(mt_val) = max_tokens.parse::<u32>() {
             builder = builder.max_tokens(mt_val);
         }
     } else {
-        let default_max = get_default_token_limit_for_provider(provider_name)
-            .try_into()
-            .map_err(|e| anyhow!("Token limit too large for u32: {e}"))?;
-        builder = builder.max_tokens(default_max);
+        // Safe default for response generation
+        builder = builder.max_tokens(4096);
     }
 
     // Set top_p if specified in additional params
@@ -151,7 +146,7 @@ where
         // Create chat message with user prompt
         let messages = vec![ChatMessage::user().content(enhanced_prompt.clone()).build()];
 
-        match tokio::time::timeout(Duration::from_secs(60), provider.chat(&messages)).await {
+        match tokio::time::timeout(std::time::Duration::from_mins(1), provider.chat(&messages)).await {
             Ok(Ok(response)) => {
                 let response_text = response.text().unwrap_or_default();
                 debug!("Received response from provider");
@@ -217,14 +212,7 @@ pub fn get_available_provider_names() -> Vec<String> {
 pub fn get_default_model_for_provider(provider_type: &str) -> &'static str {
     PROVIDER_DEFAULTS
         .get(provider_type.to_lowercase().as_str())
-        .map_or("gemini-2.5-flash-lite", |def| def.model)
-}
-
-/// Returns the default token limit for a given provider
-pub fn get_default_token_limit_for_provider(provider_type: &str) -> usize {
-    PROVIDER_DEFAULTS
-        .get(provider_type.to_lowercase().as_str())
-        .map_or(1_000_000, |def| def.token_limit)
+        .map_or("gemini-2.0-flash", |def| def.model)
 }
 
 /// Checks if a provider requires an API key

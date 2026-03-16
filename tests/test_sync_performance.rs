@@ -36,7 +36,7 @@ fn test_repository_deduplication_performance() {
     // Simulate time without deduplication (10 separate git pulls)
     let start_time_no_dedup = Instant::now();
     // Simulate 10 separate operations (each taking 100ms)
-    std::thread::sleep(std::time::Duration::from_millis(100 * 10));
+    std::thread::sleep(std::time::Duration::from_secs(1));
     let duration_no_dedup = start_time_no_dedup.elapsed();
 
     // Simulate time with deduplication (1 git pull used for all)

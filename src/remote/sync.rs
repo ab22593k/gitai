@@ -406,17 +406,10 @@ fn perform_integrated_sync(
         .map_err(|e| cause!(ErrorType::NoItemToOperate).msg(format!("Base tree not found: {e}")))?;
 
     // 2. Get the "theirs" tree (from the cached source)
-    // For simplicity, we assume the source_content directory reflects THEIRS
-    // A more robust way would be to create a temporary tree from source_content
-
     // 3. Get the "ours" state (from the destination directory)
-
-    // For now, let's focus on the AI fallback logic if standard merge fails.
-    // We'll simulate a conflict for demonstration or handle it if we can detect it.
 
     if matches!(strategy, MergeStrategy::Ai) {
         info!("AI strategy selected. Attempting AI-driven reconstruction.");
-        // Implementation of AI reconstruction would go here
     }
 
     Ok(())

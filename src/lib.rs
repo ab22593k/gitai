@@ -1,8 +1,5 @@
 pub mod app;
 #[allow(
-    clippy::uninlined_format_args,
-    clippy::cast_possible_truncation,
-    clippy::as_conversions,
     clippy::must_use_candidate,
     clippy::missing_errors_doc,
     clippy::missing_panics_doc

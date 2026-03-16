@@ -2,8 +2,7 @@
 #[path = "test_utils.rs"]
 mod test_utils;
 use gitai::core::llm::{
-    get_available_provider_names, get_default_model_for_provider,
-    get_default_token_limit_for_provider, validate_provider_config,
+    get_available_provider_names, get_default_model_for_provider, validate_provider_config,
 };
 use test_utils::MockDataBuilder;
 
@@ -17,25 +16,13 @@ fn test_get_available_providers() {
 #[test]
 fn test_get_default_model_for_provider() {
     // Test google provider
-    assert_eq!(
-        get_default_model_for_provider("google"),
-        "gemini-2.5-flash-lite"
-    );
+    assert_eq!(get_default_model_for_provider("google"), "gemini-2.0-flash");
 
     // Test fallback for unknown provider
     assert_eq!(
         get_default_model_for_provider("unknown"),
-        "gemini-2.5-flash-lite"
+        "gemini-2.0-flash"
     );
-}
-
-#[test]
-fn test_get_default_token_limit_for_provider() {
-    // Test google provider
-    assert_eq!(get_default_token_limit_for_provider("google"), 1_000_000);
-
-    // Test fallback for unknown provider
-    assert_eq!(get_default_token_limit_for_provider("unknown"), 1_000_000);
 }
 
 #[test]

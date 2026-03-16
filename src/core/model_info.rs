@@ -65,7 +65,7 @@ impl ModelInfoService {
     /// 1. Valid cached value
     /// 2. API fetch (provider-specific)
     /// 3. Hardcoded fallback
-    pub async fn get_token_limit(&self, provider: &str, model: &str, api_key: &str) -> usize {
+    pub async fn get_context_length(&self, provider: &str, model: &str, api_key: &str) -> usize {
         let cache_key = format!("{provider}:{model}");
 
         // Check cache first

@@ -724,19 +724,6 @@ impl TestAssertions {
         );
     }
 
-    /// Assert that token count is within limit
-    /// PROOF: Tests requirement - tokens over limit cause API failures
-    pub fn assert_token_limit(actual: usize, limit: usize) {
-        assert!(
-            actual <= limit,
-            "PROBLEM: Token count exceeds limit\n\
-             CONTEXT: Prompt size validation\n\
-             EXPECTED: {actual} <= {limit}\n\
-             ACTUAL: {actual} > {limit}\n\
-             FREQUENCY: Depends on staged file count"
-        );
-    }
-
     /// Assert two values are equal with detailed PROOF message
     /// PROOF: Generic equality assertion with full context
     #[allow(clippy::needless_pass_by_value)]

@@ -39,15 +39,13 @@ impl CacheManager {
             // Repository is already cached, return its path
             Ok(cached_repo.local_cache_path.clone())
         } else {
-            // Repository is not cached yet, create a simulated cache entry
-            // In a real implementation, this would involve fetching the repo
             let cache_path = Self::get_cache_path(&key)?;
 
             let new_cached_repo = CachedRepository::new(
                 config.url.clone(),
                 config.branch.clone(),
                 cache_path.clone(),
-                "placeholder_commit_hash".to_string(), // This would be obtained from the actual fetch
+                "placeholder_commit_hash".to_string(),
             );
 
             drop(cache); // Release lock before inserting
@@ -112,14 +110,7 @@ mod tests {
     #[test]
     fn test_cache_manager_creation() {
         let cache_manager = CacheManager::new();
-        assert_eq!(
-            cache_manager
-                .cache
-                .lock()
-                .map(|guard| guard.len())
-                .unwrap_or(0),
-            0
-        );
+        assert_eq!(cache_manager.cache.lock().map_or(0, |guard| guard.len()), 0);
     }
 
     #[test]

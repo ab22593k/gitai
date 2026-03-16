@@ -1,7 +1,7 @@
 use crate::core::llm::{get_available_provider_names, get_default_model_for_provider};
 use crate::git::GitRepo;
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Result, anyhow};
 use git2::Config as GitConfig;
 use log::debug;
 use serde::{Deserialize, Serialize};
@@ -38,25 +38,34 @@ fn get_layered_value(
     None
 }
 
-/// Get the environment variable name for a provider's API key
-fn get_api_key_env_var(provider: &str) -> Option<&'static str> {
-    match provider {
-        "openai" => Some("OPENAI_API_KEY"),
-        "anthropic" => Some("ANTHROPIC_API_KEY"),
-        "google" => Some("GOOGLE_API_KEY"),
-        "groq" => Some("GROQ_API_KEY"),
-        "xai" => Some("XAI_API_KEY"),
-        "deepseek" => Some("DEEPSEEK_API_KEY"),
-        "openrouter" => Some("OPENROUTER_API_KEY"),
-        "cerebras" => Some("CEREBRAS_API_KEY"),
-        _ => None,
+/// Load additional parameters for a provider from Git config
+fn load_additional_params(
+    config: &GitConfig,
+    provider: &str,
+    additional_params: &mut HashMap<String, String>,
+) {
+    let prefix = format!("gitai.{provider}-additional");
+    if let Ok(mut entries) = config.entries(Some(&prefix)) {
+        while let Some(Ok(entry)) = entries.next() {
+            if let Some(name) = entry.name()
+                && let Some(value) = entry.value()
+                && name.starts_with(&prefix)
+            {
+                let key = name[prefix.len()..].to_string();
+                if !key.is_empty() {
+                    additional_params.insert(key, value.to_string());
+                }
+            }
+        }
     }
 }
 
-/// Get API key for a provider from environment variables
-fn get_api_key_for_provider(provider: &str) -> Option<String> {
-    // Check environment variable
-    get_api_key_env_var(provider).and_then(|env_var| std::env::var(env_var).ok())
+/// Get the environment variable name for a provider's API key
+fn get_api_key_env_var(provider: &str) -> Option<&'static str> {
+    match provider {
+        "google" => Some("GOOGLE_API_KEY"),
+        _ => None,
+    }
 }
 
 /// Configuration structure
@@ -85,8 +94,6 @@ pub struct ProviderConfig {
     /// Additional parameters for the provider
     #[serde(default)]
     pub additional_params: HashMap<String, String>,
-    /// Token limit, if set by the user
-    pub token_limit: Option<usize>,
 }
 
 impl Config {
@@ -108,7 +115,13 @@ impl Config {
 
         let mut providers = HashMap::new();
         for provider in get_available_provider_names() {
-            let api_key = get_api_key_for_provider(&provider).unwrap_or_default();
+            let api_key = get_layered_value(
+                &format!("gitai.{provider}-apikey"),
+                get_api_key_env_var(&provider),
+                local_config.as_ref(),
+                global_config.as_ref(),
+            )
+            .unwrap_or_default();
 
             let default_model = get_default_model_for_provider(&provider).to_string();
             let model = get_layered_value(
@@ -119,16 +132,14 @@ impl Config {
             )
             .unwrap_or(default_model);
 
-            let token_limit = get_layered_value(
-                &format!("gitai.{provider}-tokenlimit"),
-                None,
-                local_config.as_ref(),
-                global_config.as_ref(),
-            )
-            .and_then(|s| s.parse::<i64>().ok())
-            .and_then(|v| usize::try_from(v).ok());
-
-            let additional_params = HashMap::new(); // TODO: handle additional params if needed
+            let mut additional_params = HashMap::new();
+            // Load from global first, then local to allow local to override
+            if let Some(ref config) = global_config {
+                load_additional_params(config, &provider, &mut additional_params);
+            }
+            if let Some(ref config) = local_config {
+                load_additional_params(config, &provider, &mut additional_params);
+            }
 
             providers.insert(
                 #[allow(clippy::implicit_clone)]
@@ -137,7 +148,6 @@ impl Config {
                     api_key,
                     model_name: model,
                     additional_params,
-                    token_limit,
                 },
             );
         }
@@ -173,11 +183,6 @@ impl Config {
             entry
                 .additional_params
                 .extend(proj_provider_config.additional_params);
-
-            // Override token limit if set in project config
-            if proj_provider_config.token_limit.is_some() {
-                entry.token_limit = proj_provider_config.token_limit;
-            }
         }
 
         // Always override instructions field if set in project config
@@ -209,13 +214,6 @@ impl Config {
                 &format!("{prefix}.{provider}-model"),
                 &provider_config.model_name,
             )?;
-
-            if let Some(token_limit) = provider_config.token_limit {
-                config.set_i64(
-                    &format!("{prefix}.{provider}-tokenlimit"),
-                    i64::try_from(token_limit).context("Token limit exceeds i64 range")?,
-                )?;
-            }
 
             for (key, value) in &provider_config.additional_params {
                 config.set_str(&format!("{prefix}.{provider}-additional{key}"), value)?;
@@ -281,7 +279,6 @@ impl Config {
         model: Option<String>,
         additional_params: Option<HashMap<String, String>>,
         instructions: Option<String>,
-        token_limit: Option<usize>,
     ) -> Result<()> {
         let provider_name = "google".to_string();
 
@@ -303,11 +300,6 @@ impl Config {
 
         if let Some(instr) = instructions {
             self.instructions = instr;
-        }
-        if let Some(limit) = token_limit
-            && let Some(provider_config) = self.providers.get_mut(&provider_name)
-        {
-            provider_config.token_limit = Some(limit);
         }
 
         debug!("Configuration updated: {self:?}");
@@ -368,14 +360,6 @@ impl ProviderConfig {
             api_key: String::new(),
             model_name: get_default_model_for_provider(provider).to_string(),
             additional_params: HashMap::new(),
-            token_limit: None, // Will use the default from get_default_token_limit_for_provider
         }
-    }
-
-    /// Get the token limit for this provider configuration
-    #[inline]
-    #[must_use]
-    pub const fn get_token_limit(&self) -> Option<usize> {
-        self.token_limit
     }
 }
