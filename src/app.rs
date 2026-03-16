@@ -360,6 +360,7 @@ Supported commitish syntax: HEAD~2, HEAD^, @~3, main~1, origin/main^, etc."
 }
 
 /// Define custom styles for Clap
+#[must_use]
 pub fn get_styles() -> Styles {
     Styles::styled()
         .header(AnsiColor::Magenta.on_default().bold())
@@ -372,11 +373,13 @@ pub fn get_styles() -> Styles {
 }
 
 /// Parse the command-line arguments
+#[must_use]
 pub fn parse_args() -> Cli {
     Cli::parse()
 }
 
 /// Generate dynamic help including available LLM providers
+#[must_use]
 pub fn get_dynamic_help() -> String {
     let mut providers = get_available_provider_names();
     providers.sort();
@@ -397,6 +400,12 @@ pub struct CmsgConfig {
     pub dry_run: bool,
 }
 
+/// Handle the message command
+///
+/// # Errors
+///
+/// Returns an error if the git repository is inaccessible, LLM provider configuration is missing,
+/// or if message generation fails.
 #[allow(clippy::too_many_arguments)]
 pub async fn handle_message(
     common: CommonParams,
@@ -434,6 +443,10 @@ pub async fn handle_message(
 }
 
 /// Handle the `Changelog` command
+///
+/// # Errors
+///
+/// Returns an error if git operations fail or LLM generation fails.
 #[allow(clippy::too_many_arguments)]
 pub async fn handle_changelog(
     common: CommonParams,
@@ -462,6 +475,10 @@ pub async fn handle_changelog(
 }
 
 /// Handle the `ReleaseNotes` command
+///
+/// # Errors
+///
+/// Returns an error if git operations fail or LLM generation fails.
 pub async fn handle_release_notes(
     common: CommonParams,
     from: String,
@@ -476,6 +493,10 @@ pub async fn handle_release_notes(
 }
 
 /// Handle the `Wire` command
+///
+/// # Errors
+///
+/// Returns an error if wire operations fail.
 pub async fn handle_wire(args: WireArgs) -> anyhow::Result<()> {
     let target_name = args.target.or(args.name);
 
@@ -607,6 +628,10 @@ fn build_parsed_from_cli(
 }
 
 /// Handle the command based on parsed arguments
+///
+/// # Errors
+///
+/// Returns an error if the subcommand execution fails.
 pub async fn handle_command(command: Gitai, repository_url: Option<String>) -> anyhow::Result<()> {
     // Initialize tracing to file
     crate::core::llm::init_tracing_to_file();
@@ -657,6 +682,10 @@ pub async fn handle_command(command: Gitai, repository_url: Option<String>) -> a
 }
 
 /// Handle the `Pr` command
+///
+/// # Errors
+///
+/// Returns an error if PR description generation fails.
 pub async fn handle_pr_command(
     common: CommonParams,
     print: bool,

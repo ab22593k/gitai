@@ -98,6 +98,10 @@ pub struct ProviderConfig {
 
 impl Config {
     /// Load the configuration with layered priority: env > local git > global git
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the git configuration cannot be accessed.
     pub fn load() -> Result<Self> {
         // Open git configs
         let global_config = GitConfig::open_default().ok();
@@ -190,6 +194,10 @@ impl Config {
     }
 
     /// Save the configuration to git config
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the git configuration cannot be written.
     pub fn save(&self) -> Result<()> {
         // Don't save project configs to personal config file
         if self.is_local {

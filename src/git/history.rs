@@ -5,7 +5,6 @@
 //! - File-specific commit history
 //! - Author commit history
 
-use crate::core::commit_cache::{CachedCommitMessage, CommitMessageCache};
 use crate::core::context::RecentCommit;
 
 use anyhow::Result;
@@ -150,12 +149,11 @@ fn commit_touches_files(
     Ok(false)
 }
 
-/// Retrieves the author's recent commit messages with caching.
+/// Retrieves the author's recent commit messages.
 ///
 /// # Arguments
 ///
 /// * `repo` - Reference to an open git2 Repository
-/// * `repo_path` - Path to the repository (for caching)
 /// * `author_email` - The email of the author to filter by
 /// * `count` - The number of recent commits to retrieve
 ///
@@ -164,7 +162,6 @@ fn commit_touches_files(
 /// A Result containing a Vec of commit message strings or an error.
 pub fn get_author_commit_history(
     repo: &Repository,
-    repo_path: &Path,
     author_email: &str,
     count: usize,
 ) -> Result<Vec<String>> {
@@ -177,7 +174,6 @@ pub fn get_author_commit_history(
         return Ok(Vec::new());
     }
 
-    let mut cached_messages = Vec::new();
     let mut commit_messages = Vec::new();
 
     for oid_result in revwalk.take(count) {
@@ -188,24 +184,8 @@ pub fn get_author_commit_history(
         // Filter by author email
         if author.email() == Some(author_email) {
             let message = commit.message().unwrap_or_default().to_string();
-            let timestamp = commit.time().seconds().to_string();
-            let hash = format!("{oid}");
-
-            // Store for caching
-            cached_messages.push(CachedCommitMessage {
-                message: message.clone(),
-                timestamp,
-                hash,
-            });
-
-            // Store for return
             commit_messages.push(message);
         }
-    }
-
-    // Cache the retrieved messages
-    if !cached_messages.is_empty() {
-        cache_commit_messages(repo_path, author_email, cached_messages)?;
     }
 
     debug!(
@@ -213,17 +193,4 @@ pub fn get_author_commit_history(
         commit_messages.len()
     );
     Ok(commit_messages)
-}
-
-/// Caches commit messages for future use
-fn cache_commit_messages(
-    repo_path: &Path,
-    author_email: &str,
-    messages: Vec<CachedCommitMessage>,
-) -> Result<()> {
-    let mut cache = CommitMessageCache::new()?;
-    let repo_path_str = repo_path.to_string_lossy().to_string();
-    cache.add_commit_messages(author_email, &repo_path_str, messages);
-    cache.save()?;
-    Ok(())
 }

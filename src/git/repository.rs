@@ -1,5 +1,4 @@
 use crate::config::Config;
-use crate::core::commit_cache::CommitMessageCache;
 use crate::core::context::{ChangeType, CommitContext, RecentCommit, StagedFile};
 
 use crate::git::commit::{self, CommitResult};
@@ -448,15 +447,8 @@ impl GitRepo {
                 }
             };
 
-            let mut context = Self::create_commit_context_sync(
-                &repo,
-                &repo_path,
-                branch,
-                recent_commits,
-                staged_files,
-            )?;
-
-            Self::enhance_context_with_cache_sync(&repo_path, &mut context)?;
+            let context =
+                Self::create_commit_context_sync(&repo, branch, recent_commits, staged_files)?;
 
             Ok(context)
         })
@@ -489,14 +481,13 @@ impl GitRepo {
 
     fn create_commit_context_sync(
         repo: &Repository,
-        repo_path: &Path,
         branch: String,
         recent_commits: Vec<RecentCommit>,
         staged_files: Vec<StagedFile>,
     ) -> Result<CommitContext> {
         let user_name = repo.config()?.get_string("user.name").unwrap_or_default();
         let user_email = repo.config()?.get_string("user.email").unwrap_or_default();
-        let author_history = history::get_author_commit_history(repo, repo_path, &user_email, 10)?;
+        let author_history = history::get_author_commit_history(repo, &user_email, 10)?;
 
         Ok(CommitContext::new(
             branch,
@@ -506,36 +497,6 @@ impl GitRepo {
             user_email,
             author_history,
         ))
-    }
-
-    fn enhance_context_with_cache_sync(
-        repo_path: &Path,
-        context: &mut CommitContext,
-    ) -> Result<()> {
-        let cache = CommitMessageCache::new()?;
-        let cached_messages =
-            cache.get_commit_messages(&context.user_email, &repo_path.to_string_lossy());
-
-        let cached_history: Vec<String> =
-            cached_messages.into_iter().map(|msg| msg.message).collect();
-
-        let mut enhanced_history = context.author_history.clone();
-        enhanced_history.extend(cached_history);
-
-        let mut unique_history = Vec::new();
-        let mut seen = HashSet::new();
-        for msg in enhanced_history {
-            if seen.insert(msg.clone()) {
-                unique_history.push(msg);
-            }
-        }
-
-        if unique_history.len() > 100 {
-            unique_history = unique_history.into_iter().take(100).collect();
-        }
-
-        context.author_history = unique_history;
-        Ok(())
     }
 
     /// Get Git information including unstaged changes
@@ -595,13 +556,8 @@ impl GitRepo {
                 }
             };
 
-            let context = Self::create_commit_context_sync(
-                &repo,
-                &repo_path,
-                branch,
-                recent_commits,
-                staged_files,
-            )?;
+            let context =
+                Self::create_commit_context_sync(&repo, branch, recent_commits, staged_files)?;
 
             Ok(context)
         })
@@ -735,7 +691,7 @@ impl GitRepo {
         count: usize,
     ) -> Result<Vec<String>> {
         let repo = self.open_repo()?;
-        history::get_author_commit_history(&repo, &self.repo_path, author_email, count)
+        history::get_author_commit_history(&repo, author_email, count)
     }
 
     /// Commits changes and verifies the commit.
