@@ -92,6 +92,8 @@ walkdir = "2.5.0"
 [lints.rust]
 unsafe_code = "forbid"
 missing_docs = { level = "allow", priority = 1 }
+mismatched_lifetime_syntaxes = "warn"
+unused_visibilities = "warn"
 
 [lints.clippy]
 # Base lint groups

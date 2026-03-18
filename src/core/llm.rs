@@ -133,7 +133,7 @@ where
 
     let retry_strategy = ExponentialBackoff::from_millis(50).factor(2).take(3); // 3 attempts total: initial + 2 retries
 
-    let result = Retry::spawn(retry_strategy, || async {
+    let result = Retry::spawn(retry_strategy, async || {
         debug!("Attempting to generate message");
 
         // Enhanced prompt that requests specifically formatted JSON output

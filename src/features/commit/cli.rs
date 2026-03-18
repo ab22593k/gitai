@@ -23,13 +23,9 @@ use std::{
 use tokio::time;
 
 /// Run an async operation with a CLI spinner display
-async fn run_with_spinner<F, Fut, T>(
-    mut spinner: SpinnerState,
-    operation: F,
-) -> Result<T, anyhow::Error>
+async fn run_with_spinner<F, T>(mut spinner: SpinnerState, operation: F) -> Result<T, anyhow::Error>
 where
-    F: FnOnce() -> Fut,
-    Fut: std::future::Future<Output = Result<T, anyhow::Error>>,
+    F: AsyncFnOnce() -> Result<T, anyhow::Error>,
 {
     let (tx, mut rx) = tokio::sync::mpsc::channel(1);
 
@@ -112,8 +108,8 @@ pub async fn handle_message_command(
             message: "Updated the layout to properly handle dynamic constraints and improve user experience.".to_string(),
         }
     } else {
-        run_with_spinner(spinner, || {
-            service.generate_message(&effective_instructions)
+        run_with_spinner(spinner, async || {
+            service.generate_message(&effective_instructions).await
         })
         .await?
     };
@@ -240,7 +236,10 @@ pub async fn handle_completion_command(
             message: "Add comprehensive error handling and improve code documentation.".to_string(),
         }
     } else {
-        run_with_spinner(spinner, || service.complete_message(&prefix, context_ratio)).await?
+        run_with_spinner(spinner, async || {
+            service.complete_message(&prefix, context_ratio).await
+        })
+        .await?
     };
 
     if print {
@@ -298,34 +297,26 @@ async fn generate_pr_based_on_parameters(
     );
 
     // Generate PR description with spinner display
-    let pr_description = run_with_spinner(spinner, || async {
-        match (from, to) {
-            (Some(from_ref), Some(to_ref)) => {
-                handle_from_and_to_parameters(
-                    service,
-                    &effective_instructions,
-                    from_ref,
-                    to_ref,
-                    random_message,
-                )
+    let pr_description = run_with_spinner(spinner, async || match (from, to) {
+        (Some(from_ref), Some(to_ref)) => {
+            handle_from_and_to_parameters(
+                service,
+                &effective_instructions,
+                from_ref,
+                to_ref,
+                random_message,
+            )
+            .await
+        }
+        (None, Some(to_ref)) => {
+            handle_to_only_parameter(service, &effective_instructions, to_ref, random_message).await
+        }
+        (Some(from_ref), None) => {
+            handle_from_only_parameter(service, &effective_instructions, from_ref, random_message)
                 .await
-            }
-            (None, Some(to_ref)) => {
-                handle_to_only_parameter(service, &effective_instructions, to_ref, random_message)
-                    .await
-            }
-            (Some(from_ref), None) => {
-                handle_from_only_parameter(
-                    service,
-                    &effective_instructions,
-                    from_ref,
-                    random_message,
-                )
-                .await
-            }
-            (None, None) => {
-                handle_no_parameters(service, &effective_instructions, random_message).await
-            }
+        }
+        (None, None) => {
+            handle_no_parameters(service, &effective_instructions, random_message).await
         }
     })
     .await?;
