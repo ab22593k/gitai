@@ -12,7 +12,9 @@ pub mod service;
 #[allow(clippy::uninlined_format_args)]
 pub mod strategy;
 
-pub use cli::{handle_completion_command, handle_message_command, handle_pr_command};
+pub use cli::{
+    MessageConfig, handle_completion_command, handle_message_command, handle_pr_command,
+};
 use git2::FileMode;
 pub use service::CommitService;
 pub use types::{

@@ -375,7 +375,6 @@ pub fn get_dynamic_help() -> String {
 }
 
 /// Configuration for the cmsg command
-#[allow(clippy::struct_excessive_bools)]
 pub struct CmsgConfig {
     pub print_only: bool,
     pub dry_run: bool,
@@ -402,7 +401,6 @@ pub async fn handle_message(
     );
 
     if complete {
-        // Handle completion mode
         let prefix_text =
             prefix.ok_or_else(|| anyhow::anyhow!("Prefix is required for completion mode"))?;
         let context_ratio_val = context_ratio.unwrap_or(0.5);
@@ -411,15 +409,23 @@ pub async fn handle_message(
             common,
             prefix_text,
             Some(context_ratio_val),
-            config.print_only,
-            config.dry_run,
+            commit::MessageConfig {
+                print: config.print_only,
+                dry_run: config.dry_run,
+            },
             repository_url,
         )
         .await
     } else {
-        // Handle generation mode
-        commit::handle_message_command(common, config.print_only, config.dry_run, repository_url)
-            .await
+        commit::handle_message_command(
+            common,
+            commit::MessageConfig {
+                print: config.print_only,
+                dry_run: config.dry_run,
+            },
+            repository_url,
+        )
+        .await
     }
 }
 

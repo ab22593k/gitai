@@ -137,7 +137,6 @@ fn get_patch_content(
 }
 
 /// Helper to extract files from diff with rename detection
-#[allow(clippy::too_many_lines)]
 fn get_files_from_diff(repo: &Repository, diff: &mut git2::Diff<'_>) -> Result<Vec<StagedFile>> {
     detect_renames(diff)?;
     let mut files = Vec::new();

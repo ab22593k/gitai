@@ -3,6 +3,7 @@ use super::service::CommitService;
 use super::types::{format_commit_message, format_pull_request};
 use crate::common::{CommonParams, DetailLevel};
 use crate::config::Config;
+use crate::core::context::CommitContext;
 use crate::core::messages;
 use crate::features::commit::types;
 use crate::git::GitRepo;
@@ -58,25 +59,50 @@ where
     result
 }
 
-#[allow(clippy::fn_params_excessive_bools)]
-#[allow(clippy::too_many_lines)]
-#[allow(clippy::too_many_arguments)]
+fn validate_staged_files(git_info: &CommitContext, dry_run: bool) {
+    if git_info.staged_files.is_empty() && !dry_run {
+        ui::print_warning(
+            "No staged changes. Please stage your changes before generating a commit message.",
+        );
+        ui::print_info("You can stage changes using 'git add <file>' or 'git add .'");
+    }
+}
+
+async fn generate_initial_message(
+    service: &CommitService,
+    instructions: &str,
+    dry_run: bool,
+) -> Result<types::GeneratedMessage> {
+    if dry_run {
+        return Ok(types::GeneratedMessage {
+            title: "Fix bug in UI rendering".to_string(),
+            message: "Updated the layout to properly handle dynamic constraints and improve user experience.".to_string(),
+        });
+    }
+
+    let random_message = messages::get_waiting_message();
+    let spinner = ui::create_tui_spinner(&random_message.text);
+    run_with_spinner(spinner, async || {
+        service.generate_message(instructions).await
+    })
+    .await
+}
+
 pub async fn handle_message_command(
     common: CommonParams,
-    print: bool,
-    dry_run: bool,
+    config: MessageConfig,
     repository_url: Option<String>,
 ) -> Result<()> {
+    let print = config.print;
+    let dry_run = config.dry_run;
     let mut config = Config::load()?;
     common.apply_to_config(&mut config)?;
 
-    // Create the service using the common function
     let service = create_commit_service(&common, repository_url.clone(), &config).map_err(|e| {
         ui::print_error(&format!("Error: {e}"));
         e
     })?;
 
-    // Create the completion service
     let completion_service =
         create_completion_service(&common, repository_url, &config).map_err(|e| {
             ui::print_error(&format!("Error: {e}"));
@@ -86,10 +112,7 @@ pub async fn handle_message_command(
     let git_info = service.get_git_info().await?;
 
     if git_info.staged_files.is_empty() && !dry_run {
-        ui::print_warning(
-            "No staged changes. Please stage your changes before generating a commit message.",
-        );
-        ui::print_info("You can stage changes using 'git add <file>' or 'git add .'");
+        validate_staged_files(&git_info, dry_run);
         return Ok(());
     }
 
@@ -97,29 +120,14 @@ pub async fn handle_message_command(
         .instructions
         .unwrap_or_else(|| config.instructions.clone());
 
-    // Create spinner for message generation
-    let random_message = messages::get_waiting_message();
-    let spinner = ui::create_tui_spinner(&random_message.text);
-
-    // Generate an initial message with spinner display
-    let initial_message = if dry_run {
-        types::GeneratedMessage {
-            title: "Fix bug in UI rendering".to_string(),
-            message: "Updated the layout to properly handle dynamic constraints and improve user experience.".to_string(),
-        }
-    } else {
-        run_with_spinner(spinner, async || {
-            service.generate_message(&effective_instructions).await
-        })
-        .await?
-    };
+    let initial_message =
+        generate_initial_message(&service, &effective_instructions, dry_run).await?;
 
     if print {
         println!("{}", format_commit_message(&initial_message));
         return Ok(());
     }
 
-    // Only allow interactive commit for local repositories
     if service.is_remote_repository() {
         ui::print_warning(
             "Interactive commit not available for remote repositories. Using print mode instead.",
@@ -163,17 +171,21 @@ pub async fn handle_pr_command(
     Ok(())
 }
 
+pub struct MessageConfig {
+    pub print: bool,
+    pub dry_run: bool,
+}
+
 /// Handles the commit message completion command
-#[allow(clippy::too_many_arguments)]
-#[allow(clippy::fn_params_excessive_bools)]
 pub async fn handle_completion_command(
     common: CommonParams,
     prefix: String,
     context_ratio: Option<f32>,
-    print: bool,
-    dry_run: bool,
+    config: MessageConfig,
     repository_url: Option<String>,
 ) -> Result<()> {
+    let print = config.print;
+    let dry_run = config.dry_run;
     let mut config = Config::load()?;
     common.apply_to_config(&mut config)?;
 
