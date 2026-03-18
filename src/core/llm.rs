@@ -237,7 +237,10 @@ fn extract_and_parse_json<T: DeserializeOwned>(text: &str) -> Result<T> {
 }
 
 pub fn get_available_provider_names() -> Vec<String> {
-    let mut names: Vec<String> = PROVIDER_DEFAULTS.keys().map(std::string::ToString::to_string).collect();
+    let mut names: Vec<String> = PROVIDER_DEFAULTS
+        .keys()
+        .map(std::string::ToString::to_string)
+        .collect();
     names.sort();
     names
 }
