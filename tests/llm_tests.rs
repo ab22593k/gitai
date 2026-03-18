@@ -9,14 +9,22 @@ use test_utils::MockDataBuilder;
 #[test]
 fn test_get_available_providers() {
     let providers = get_available_provider_names();
-    assert_eq!(providers.len(), 1);
-    assert_eq!(providers[0], "google");
+    assert!(providers.len() >= 5);
+    assert!(providers.contains(&"google".to_string()));
+    assert!(providers.contains(&"groq".to_string()));
+    assert!(providers.contains(&"openai".to_string()));
 }
 
 #[test]
 fn test_get_default_model_for_provider() {
     // Test google provider
     assert_eq!(get_default_model_for_provider("google"), "gemini-2.0-flash");
+
+    // Test groq provider
+    assert_eq!(
+        get_default_model_for_provider("groq"),
+        "llama-3.3-70b-versatile"
+    );
 
     // Test fallback for unknown provider
     assert_eq!(

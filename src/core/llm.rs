@@ -18,6 +18,7 @@ use tracing_subscriber::fmt::format::FmtSpan;
 #[derive(Debug)]
 struct ProviderDefault {
     model: &'static str,
+    backend: LLMBackend,
 }
 
 static PROVIDER_DEFAULTS: std::sync::LazyLock<
@@ -28,6 +29,35 @@ static PROVIDER_DEFAULTS: std::sync::LazyLock<
         "google",
         ProviderDefault {
             model: "gemini-2.0-flash",
+            backend: LLMBackend::Google,
+        },
+    );
+    m.insert(
+        "groq",
+        ProviderDefault {
+            model: "llama-3.3-70b-versatile",
+            backend: LLMBackend::Groq,
+        },
+    );
+    m.insert(
+        "openrouter",
+        ProviderDefault {
+            model: "google/gemini-2.0-flash-001",
+            backend: LLMBackend::OpenRouter,
+        },
+    );
+    m.insert(
+        "openai",
+        ProviderDefault {
+            model: "gpt-4o",
+            backend: LLMBackend::OpenAI,
+        },
+    );
+    m.insert(
+        "anthropic",
+        ProviderDefault {
+            model: "claude-3-5-sonnet-latest",
+            backend: LLMBackend::Anthropic,
         },
     );
     m
@@ -58,12 +88,12 @@ where
     debug!("System prompt: {system_prompt}");
     debug!("User prompt: {user_prompt}");
 
-    // Only Google is supported
-    if provider_name.to_lowercase() != "google" {
-        return Err(anyhow!("Only Google provider is supported"));
-    }
+    let provider_key = provider_name.to_lowercase();
+    let provider_default = PROVIDER_DEFAULTS
+        .get(provider_key.as_str())
+        .ok_or_else(|| anyhow!("Provider '{provider_name}' is not supported"))?;
 
-    let backend = LLMBackend::Google;
+    let backend = provider_default.backend.clone();
 
     // Get provider configuration
     let provider_config = config
@@ -71,10 +101,12 @@ where
         .ok_or_else(|| anyhow!("Provider '{provider_name}' not found in configuration"))?;
 
     // Build the provider
-    let mut builder = LLMBuilder::new().backend(backend.clone());
+    let mut builder = LLMBuilder::new().backend(backend);
 
     // Set model
-    if !provider_config.model_name.is_empty() {
+    if provider_config.model_name.is_empty() {
+        builder = builder.model(provider_default.model.to_string());
+    } else {
         builder = builder.model(provider_config.model_name.clone());
     }
 
@@ -205,7 +237,9 @@ fn extract_and_parse_json<T: DeserializeOwned>(text: &str) -> Result<T> {
 }
 
 pub fn get_available_provider_names() -> Vec<String> {
-    vec!["google".to_string()]
+    let mut names: Vec<String> = PROVIDER_DEFAULTS.keys().map(std::string::ToString::to_string).collect();
+    names.sort();
+    names
 }
 
 /// Returns the default model for a given provider
