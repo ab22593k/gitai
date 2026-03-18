@@ -10,28 +10,20 @@ fn test_end_to_end_caching_scenario() {
     // Simulate the scenario from quickstart.md:
     // Create a configuration with multiple entries for the same repository
     let configs = vec![
-        RepositoryConfiguration::new(
-            None,
-            "https://github.com/example/repo.git".to_string(),
-            "main".to_string(),
-            "./src/module1".to_string(),
-            vec!["src/".to_string(), "lib/".to_string()],
-            None,
-            None,
-            None,
-            None,
-        ),
-        RepositoryConfiguration::new(
-            None,
-            "https://github.com/example/repo.git".to_string(), // Same repo
-            "main".to_string(),
-            "./src/module2".to_string(),
-            vec!["utils/".to_string()],
-            None,
-            None,
-            None,
-            None,
-        ),
+        RepositoryConfiguration {
+            url: "https://github.com/example/repo.git".to_string(),
+            branch: "main".to_string(),
+            target_path: "./src/module1".to_string(),
+            filters: vec!["src/".to_string(), "lib/".to_string()],
+            ..Default::default()
+        },
+        RepositoryConfiguration {
+            url: "https://github.com/example/repo.git".to_string(),
+            branch: "main".to_string(),
+            target_path: "./src/module2".to_string(),
+            filters: vec!["utils/".to_string()],
+            ..Default::default()
+        },
     ];
 
     // Create a cache manager
@@ -86,17 +78,13 @@ fn test_cache_performance_improvement_simulation() {
     // Create many configurations that reference the same repository
     let mut configs = Vec::new();
     for i in 0..10 {
-        configs.push(RepositoryConfiguration::new(
-            None,
-            "https://github.com/example/repo.git".to_string(), // Same repo
-            "main".to_string(),
-            format!("./src/module{i}"),
-            vec![format!("src{i}")],
-            None,
-            None,
-            None,
-            None,
-        ));
+        configs.push(RepositoryConfiguration {
+            url: "https://github.com/example/repo.git".to_string(),
+            branch: "main".to_string(),
+            target_path: format!("./src/module{i}"),
+            filters: vec![format!("src{i}")],
+            ..Default::default()
+        });
     }
 
     // Create a cache manager

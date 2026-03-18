@@ -116,17 +116,13 @@ mod tests {
     #[test]
     fn test_get_or_schedule_fetch_new_repo() {
         let cache_manager = CacheManager::new();
-        let config = RepositoryConfiguration::new(
-            None,
-            "https://github.com/example/repo.git".to_string(),
-            "main".to_string(),
-            "./src/module1".to_string(),
-            vec!["src/".to_string(), "lib/".to_string()],
-            None,
-            None,
-            None,
-            None,
-        );
+        let config = RepositoryConfiguration {
+            url: "https://github.com/example/repo.git".to_string(),
+            branch: "main".to_string(),
+            target_path: "./src/module1".to_string(),
+            filters: vec!["src/".to_string(), "lib/".to_string()],
+            ..Default::default()
+        };
 
         let result = cache_manager.get_or_schedule_fetch(&config);
         assert!(result.is_ok());
@@ -146,39 +142,27 @@ mod tests {
 
         // Create configs with duplicate repositories (same URL and branch)
         let configs = vec![
-            RepositoryConfiguration::new(
-                None,
-                "https://github.com/example/repo.git".to_string(),
-                "main".to_string(),
-                "./src/module1".to_string(),
-                vec!["src/".to_string(), "lib/".to_string()],
-                None,
-                None,
-                None,
-                None,
-            ),
-            RepositoryConfiguration::new(
-                None,
-                "https://github.com/example/repo.git".to_string(), // Same repo and branch
-                "main".to_string(),
-                "./src/module2".to_string(),
-                vec!["utils/".to_string()],
-                None,
-                None,
-                None,
-                None,
-            ),
-            RepositoryConfiguration::new(
-                None,
-                "https://github.com/other/repo.git".to_string(), // Different repo
-                "main".to_string(),
-                "./src/module3".to_string(),
-                vec!["docs/".to_string()],
-                None,
-                None,
-                None,
-                None,
-            ),
+            RepositoryConfiguration {
+                url: "https://github.com/example/repo.git".to_string(),
+                branch: "main".to_string(),
+                target_path: "./src/module1".to_string(),
+                filters: vec!["src/".to_string(), "lib/".to_string()],
+                ..Default::default()
+            },
+            RepositoryConfiguration {
+                url: "https://github.com/example/repo.git".to_string(),
+                branch: "main".to_string(),
+                target_path: "./src/module2".to_string(),
+                filters: vec!["utils/".to_string()],
+                ..Default::default()
+            },
+            RepositoryConfiguration {
+                url: "https://github.com/other/repo.git".to_string(),
+                branch: "main".to_string(),
+                target_path: "./src/module3".to_string(),
+                filters: vec!["docs/".to_string()],
+                ..Default::default()
+            },
         ];
 
         let (unique_configs, operations) = cache_manager

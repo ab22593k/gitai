@@ -59,17 +59,13 @@ fn test_wire_operation_with_commit_hash() {
 
 #[test]
 fn test_generate_key() {
-    let config = RepositoryConfiguration::new(
-        None,
-        "https://github.com/example/repo.git".to_string(),
-        "main".to_string(),
-        "./src/module1".to_string(),
-        vec!["src/".to_string()],
-        None,
-        None,
-        None,
-        None,
-    );
+    let config = RepositoryConfiguration {
+        url: "https://github.com/example/repo.git".to_string(),
+        branch: "main".to_string(),
+        target_path: "./src/module1".to_string(),
+        filters: vec!["src/".to_string()],
+        ..Default::default()
+    };
 
     let key1 = CacheKeyGenerator::generate_key(&config);
     let key2 = CacheKeyGenerator::generate_key(&config);
@@ -80,29 +76,21 @@ fn test_generate_key() {
 
 #[test]
 fn test_generate_different_keys_for_different_repos() {
-    let config1 = RepositoryConfiguration::new(
-        None,
-        "https://github.com/example/repo1.git".to_string(),
-        "main".to_string(),
-        "./src/module1".to_string(),
-        vec!["src/".to_string()],
-        None,
-        None,
-        None,
-        None,
-    );
+    let config1 = RepositoryConfiguration {
+        url: "https://github.com/example/repo1.git".to_string(),
+        branch: "main".to_string(),
+        target_path: "./src/module1".to_string(),
+        filters: vec!["src/".to_string()],
+        ..Default::default()
+    };
 
-    let config2 = RepositoryConfiguration::new(
-        None,
-        "https://github.com/example/repo2.git".to_string(), // Different repo
-        "main".to_string(),
-        "./src/module1".to_string(),
-        vec!["src/".to_string()],
-        None,
-        None,
-        None,
-        None,
-    );
+    let config2 = RepositoryConfiguration {
+        url: "https://github.com/example/repo2.git".to_string(),
+        branch: "main".to_string(),
+        target_path: "./src/module1".to_string(),
+        filters: vec!["src/".to_string()],
+        ..Default::default()
+    };
 
     let key1 = CacheKeyGenerator::generate_key(&config1);
     let key2 = CacheKeyGenerator::generate_key(&config2);
@@ -113,29 +101,21 @@ fn test_generate_different_keys_for_different_repos() {
 
 #[test]
 fn test_generate_different_keys_for_different_branches() {
-    let config1 = RepositoryConfiguration::new(
-        None,
-        "https://github.com/example/repo.git".to_string(),
-        "main".to_string(), // Main branch
-        "./src/module1".to_string(),
-        vec!["src/".to_string()],
-        None,
-        None,
-        None,
-        None,
-    );
+    let config1 = RepositoryConfiguration {
+        url: "https://github.com/example/repo.git".to_string(),
+        branch: "main".to_string(),
+        target_path: "./src/module1".to_string(),
+        filters: vec!["src/".to_string()],
+        ..Default::default()
+    };
 
-    let config2 = RepositoryConfiguration::new(
-        None,
-        "https://github.com/example/repo.git".to_string(), // Same repo
-        "develop".to_string(),                             // Different branch
-        "./src/module1".to_string(),
-        vec!["src/".to_string()],
-        None,
-        None,
-        None,
-        None,
-    );
+    let config2 = RepositoryConfiguration {
+        url: "https://github.com/example/repo.git".to_string(),
+        branch: "develop".to_string(),
+        target_path: "./src/module1".to_string(),
+        filters: vec!["src/".to_string()],
+        ..Default::default()
+    };
 
     let key1 = CacheKeyGenerator::generate_key(&config1);
     let key2 = CacheKeyGenerator::generate_key(&config2);

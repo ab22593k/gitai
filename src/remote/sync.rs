@@ -61,17 +61,17 @@ fn merge_parsed(target: &mut Parsed, source: &Parsed) {
 
 /// Convert Parsed items to `RepositoryConfiguration`
 fn parsed_to_config(parsed: Parsed) -> RepositoryConfiguration {
-    RepositoryConfiguration::new(
-        parsed.name,
-        parsed.url,
-        parsed.rev,
-        parsed.dst,
-        parsed.src,
-        None,
-        parsed.mtd,
-        parsed.last_sync_hash,
-        parsed.merge_strategy,
-    )
+    RepositoryConfiguration {
+        name_filter: parsed.name,
+        url: parsed.url,
+        branch: parsed.rev,
+        target_path: parsed.dst,
+        filters: parsed.src,
+        commit_hash: None,
+        mtd: parsed.mtd,
+        last_sync_hash: parsed.last_sync_hash,
+        merge_strategy: parsed.merge_strategy,
+    }
 }
 
 fn get_repo_configs(

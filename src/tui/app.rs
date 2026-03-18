@@ -119,7 +119,6 @@ impl TuiCommit {
         Ok(())
     }
 
-    #[allow(clippy::too_many_lines)]
     async fn main_loop(
         &mut self,
         terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
@@ -134,128 +133,180 @@ impl TuiCommit {
         let mut ticker = tokio::time::interval(Duration::from_millis(100));
 
         loop {
-            // Redraw only if dirty
             if self.state.is_dirty() {
                 terminal.draw(|f| draw_ui(f, &mut self.state))?;
-                self.state.set_dirty(false); // Reset dirty flag after redraw
+                self.state.set_dirty(false);
             }
 
-            // Spawn the task only once when entering the Generating mode
-            if self.state.mode() == Mode::Generating && !task_spawned {
-                let service = self.service.clone();
-                let instructions = self.state.custom_instructions().to_string();
-                let filtered_context = self.state.get_filtered_context();
-                let tx = tx.clone();
+            self.spawn_generation_task_if_needed(&tx, &mut task_spawned);
+            self.spawn_completion_task_if_needed(&completion_tx, &mut completion_task_spawned);
 
-                tokio::spawn(async move {
-                    let result = if let Some(context) = filtered_context {
-                        service
-                            .generate_message_with_context(&instructions, context)
-                            .await
-                    } else {
-                        service.generate_message(&instructions).await
-                    };
-                    let _ = tx.send(result).await;
-                });
-
-                task_spawned = true;
-            }
-
-            // Spawn completion task if there's a pending completion request
-            if let Some(prefix) = self.state.pending_completion_prefix().cloned()
-                && !completion_task_spawned
+            match self
+                .wait_for_events(&mut rx, &mut completion_rx, &mut events, &mut ticker)
+                .await?
             {
-                let completion_service = self.completion_service.clone();
-                let prefix = prefix.clone();
-                let completion_tx = completion_tx.clone();
-
-                tokio::spawn(async move {
-                    match completion_service.complete_message(&prefix, 0.5).await {
-                        Ok(completed_message) => {
-                            let _ = completion_tx.send(Ok(vec![completed_message.title])).await;
-                        }
-                        Err(_e) => {
-                            let suggestions = vec![
-                                format!("{}: add new feature", prefix),
-                                format!("{}: fix bug", prefix),
-                                format!("{}: update documentation", prefix),
-                            ];
-                            let _ = completion_tx.send(Ok(suggestions)).await;
-                        }
-                    }
-                });
-
-                completion_task_spawned = true;
-                self.state.set_pending_completion_prefix(None);
-            }
-
-            tokio::select! {
-                _ = ticker.tick() => {
-                    if self.state.mode() == Mode::Generating
-                        && let Some(spinner) = self.state.spinner_mut() {
-                            spinner.tick();
-                            self.state.set_dirty(true);
-                        }
-                }
-                Some(result) = rx.recv() => {
-                    match result {
-                        Ok(new_message) => {
-                            self.state.add_message(new_message);
-                            self.state.set_mode(Mode::Normal);
-                            self.state.set_spinner(None);
-                            self.state.set_status(format!(
-                                "New message generated! Viewing {}/{}",
-                                self.state.current_index() + 1,
-                                self.state.messages().len()
-                            ));
-                        }
-                        Err(e) => {
-                            self.state.set_mode(Mode::Normal);
-                            self.state.set_spinner(None);
-                            self.state.set_status(format!(
-                                "Generation failed: {e}. Press 'R' to retry or 'Esc' to exit."
-                            ));
-                        }
-                    }
-                    task_spawned = false;
-                }
-                Some(result) = completion_rx.recv() => {
-                    match result {
-                        Ok(suggestions) => {
-                            self.state.set_completion_suggestions(suggestions);
-                        }
-                        Err(e) => {
-                            self.state.set_status(format!(
-                                "Completion failed: {e}. Press Tab to retry or continue editing."
-                            ));
-                            self.state.set_mode(Mode::EditingMessage);
-                        }
-                    }
-                    completion_task_spawned = false;
-                }
-                maybe_event = events.next() => {
-                    if let Some(Ok(Event::Key(key))) = maybe_event
-                        && key.kind == crossterm::event::KeyEventKind::Press {
-                            let input_result = handle_input(self, key).await;
-                            match input_result {
-                                InputResult::Exit => return Ok(ExitStatus::Cancelled),
-                                InputResult::Commit(message) => match self.perform_commit(&message) {
-                                    Ok(status) => return Ok(status),
-                                    Err(e) => {
-                                        self.state.set_status(format!(
-                                            "Commit failed: {e}. Check your staged changes and try again."
-                                        ));
-                                        self.state.set_dirty(true);
-                                    }
-                                },
-                                InputResult::Continue => self.state.set_dirty(true),
-                            }
-                        }
-                }
+                LoopResult::Continue => {}
+                LoopResult::Exit(status) => return Ok(status),
             }
         }
     }
 
+    fn spawn_generation_task_if_needed(
+        &mut self,
+        tx: &tokio::sync::mpsc::Sender<Result<GeneratedMessage, anyhow::Error>>,
+        task_spawned: &mut bool,
+    ) {
+        if self.state.mode() == Mode::Generating && !*task_spawned {
+            let service = self.service.clone();
+            let instructions = self.state.custom_instructions().to_string();
+            let filtered_context = self.state.get_filtered_context();
+            let tx = tx.clone();
+
+            tokio::spawn(async move {
+                let result = if let Some(context) = filtered_context {
+                    service
+                        .generate_message_with_context(&instructions, context)
+                        .await
+                } else {
+                    service.generate_message(&instructions).await
+                };
+                let _ = tx.send(result).await;
+            });
+
+            *task_spawned = true;
+        }
+    }
+
+    fn spawn_completion_task_if_needed(
+        &mut self,
+        completion_tx: &tokio::sync::mpsc::Sender<Result<Vec<String>, anyhow::Error>>,
+        completion_task_spawned: &mut bool,
+    ) {
+        if let Some(prefix) = self.state.pending_completion_prefix().cloned()
+            && !*completion_task_spawned
+        {
+            let completion_service = self.completion_service.clone();
+            let prefix = prefix.clone();
+            let completion_tx = completion_tx.clone();
+
+            tokio::spawn(async move {
+                match completion_service.complete_message(&prefix, 0.5).await {
+                    Ok(completed_message) => {
+                        let _ = completion_tx.send(Ok(vec![completed_message.title])).await;
+                    }
+                    Err(_e) => {
+                        let suggestions = vec![
+                            format!("{}: add new feature", prefix),
+                            format!("{}: fix bug", prefix),
+                            format!("{}: update documentation", prefix),
+                        ];
+                        let _ = completion_tx.send(Ok(suggestions)).await;
+                    }
+                }
+            });
+
+            *completion_task_spawned = true;
+            self.state.set_pending_completion_prefix(None);
+        }
+    }
+
+    async fn wait_for_events(
+        &mut self,
+        rx: &mut tokio::sync::mpsc::Receiver<Result<GeneratedMessage, anyhow::Error>>,
+        completion_rx: &mut tokio::sync::mpsc::Receiver<Result<Vec<String>, anyhow::Error>>,
+        events: &mut EventStream,
+        ticker: &mut tokio::time::Interval,
+    ) -> anyhow::Result<LoopResult> {
+        tokio::select! {
+            biased;
+
+            _ = ticker.tick() => {
+                if self.state.mode() == Mode::Generating
+                    && let Some(spinner) = self.state.spinner_mut() {
+                        spinner.tick();
+                        self.state.set_dirty(true);
+                    }
+                Ok(LoopResult::Continue)
+            }
+            Some(result) = rx.recv() => {
+                self.handle_generation_result(result);
+                Ok(LoopResult::Continue)
+            }
+            Some(result) = completion_rx.recv() => {
+                self.handle_completion_result(result);
+                Ok(LoopResult::Continue)
+            }
+            maybe_event = events.next() => {
+                if let Some(Ok(Event::Key(key))) = maybe_event
+                    && key.kind == crossterm::event::KeyEventKind::Press {
+                        let input_result = handle_input(self, key).await;
+                        match input_result {
+                            InputResult::Exit => Ok(LoopResult::Exit(ExitStatus::Cancelled)),
+                            InputResult::Commit(message) => match self.perform_commit(&message) {
+                                Ok(status) => Ok(LoopResult::Exit(status)),
+                                Err(e) => {
+                                    self.state.set_status(format!(
+                                        "Commit failed: {e}. Check your staged changes and try again."
+                                    ));
+                                    self.state.set_dirty(true);
+                                    Ok(LoopResult::Continue)
+                                }
+                            },
+                            InputResult::Continue => {
+                                self.state.set_dirty(true);
+                                Ok(LoopResult::Continue)
+                            }
+                        }
+                    } else {
+                        Ok(LoopResult::Continue)
+                    }
+            }
+        }
+    }
+
+    fn handle_generation_result(&mut self, result: Result<GeneratedMessage, anyhow::Error>) {
+        match result {
+            Ok(new_message) => {
+                self.state.add_message(new_message);
+                self.state.set_mode(Mode::Normal);
+                self.state.set_spinner(None);
+                self.state.set_status(format!(
+                    "New message generated! Viewing {}/{}",
+                    self.state.current_index() + 1,
+                    self.state.messages().len()
+                ));
+            }
+            Err(e) => {
+                self.state.set_mode(Mode::Normal);
+                self.state.set_spinner(None);
+                self.state.set_status(format!(
+                    "Generation failed: {e}. Press 'R' to retry or 'Esc' to exit."
+                ));
+            }
+        }
+    }
+
+    fn handle_completion_result(&mut self, result: Result<Vec<String>, anyhow::Error>) {
+        match result {
+            Ok(suggestions) => {
+                self.state.set_completion_suggestions(suggestions);
+            }
+            Err(e) => {
+                self.state.set_status(format!(
+                    "Completion failed: {e}. Press Tab to retry or continue editing."
+                ));
+                self.state.set_mode(Mode::EditingMessage);
+            }
+        }
+    }
+}
+
+enum LoopResult {
+    Continue,
+    Exit(ExitStatus),
+}
+
+impl TuiCommit {
     pub fn handle_regenerate(&mut self) {
         self.state.set_mode(Mode::Generating);
         self.state.set_spinner(Some(SpinnerState::new()));

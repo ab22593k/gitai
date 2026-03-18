@@ -69,7 +69,6 @@ impl ChangelogGenerator {
     /// # Returns
     ///
     /// A Result indicating success or an error
-    #[allow(clippy::too_many_lines)]
     pub fn update_changelog_file(
         changelog_content: &str,
         changelog_path: &str,
@@ -78,145 +77,158 @@ impl ChangelogGenerator {
         version_name: Option<String>,
     ) -> Result<()> {
         let path = Path::new(changelog_path);
-        let default_header = "# Changelog\n\nAll notable changes to this project will be documented in this file.\n\nThe format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),\nand this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).\n\n";
-
-        // Get the date from the "to" Git reference
-        let commit_date = match git_repo.get_commit_date(to_ref) {
-            Ok(date) => {
-                debug!("Got commit date for {to_ref}: {date}");
-                date
-            }
-            Err(e) => {
-                debug!("Failed to get commit date for {to_ref}: {e}");
-                chrono::Local::now().format("%Y-%m-%d").to_string()
-            }
-        };
-
-        // Strip ANSI color codes
-        let stripped_content = strip_ansi_codes(changelog_content);
-
-        // Skip the separator line if it exists (the first line with "━━━" or similar)
-        let clean_content =
-            if stripped_content.starts_with("━") || stripped_content.starts_with('-') {
-                // Find the first newline and skip everything before it
-                if let Some(pos) = stripped_content.find('\n') {
-                    stripped_content[pos + 1..].to_string()
-                } else {
-                    stripped_content
-                }
-            } else {
-                stripped_content
-            };
-
-        // Extract just the version content (skip the header)
-        let mut version_content = if clean_content.contains("## [") {
-            let parts: Vec<&str> = clean_content.split("## [").collect();
-            if parts.len() > 1 {
-                format!("## [{}", parts[1])
-            } else {
-                clean_content
-            }
-        } else {
-            clean_content
-        };
-
-        // If version_name is provided, override the existing version
-        if let Some(version) = version_name {
-            if version_content.contains("## [") {
-                let re = regex::Regex::new(r"## \[([^\]]+)\]").expect("Failed to compile regex");
-                version_content = re
-                    .replace(&version_content, &format!("## [{version}]"))
-                    .to_string();
-                debug!("Replaced version with user-provided version: {version}");
-            } else {
-                debug!("Could not find version header to replace in changelog content");
-            }
-        }
-
-        // Ensure version content has a date
-        if version_content.contains(" - \n") {
-            // Replace empty date placeholder with the commit date
-            version_content = version_content.replace(" - \n", &format!(" - {commit_date}\n"));
-            debug!("Replaced empty date with commit date: {commit_date}");
-        } else if version_content.contains("] - ") && !version_content.contains("] - 20") {
-            // For cases where there's no date but a dash
-            let parts: Vec<&str> = version_content.splitn(2, "] - ").collect();
-            if parts.len() == 2 {
-                version_content = format!(
-                    "{}] - {}\n{}",
-                    parts[0],
-                    commit_date,
-                    parts[1].trim_start_matches(['\n', ' '])
-                );
-                debug!("Added commit date after dash: {commit_date}");
-            }
-        } else if !version_content.contains("] - ") {
-            // If no date pattern at all, find the version line and add a date
-            let line_end = version_content.find('\n').unwrap_or(version_content.len());
-            let version_line = &version_content[..line_end];
-
-            if version_line.contains("## [") && version_line.contains(']') {
-                // Insert the date right after the closing bracket
-                let bracket_pos = version_line
-                    .rfind(']')
-                    .expect("Failed to find closing bracket in version line");
-                version_content = format!(
-                    "{} - {}{}",
-                    &version_content[..=bracket_pos],
-                    commit_date,
-                    &version_content[bracket_pos + 1..]
-                );
-                debug!("Added date to version line: {commit_date}");
-            }
-        }
-
-        // Add a decorative separator after the version content
-        let separator =
-            "\n<!-- -------------------------------------------------------------- -->\n\n";
-        let version_content_with_separator = format!("{version_content}{separator}");
-
-        let updated_content = if path.exists() {
-            let existing_content = fs::read_to_string(path)
-                .with_context(|| format!("Failed to read changelog file: {changelog_path}"))?;
-
-            // Check if the file already has a Keep a Changelog header
-            if existing_content.contains("# Changelog")
-                && existing_content.contains("Keep a Changelog")
-            {
-                // Split at the first version heading
-                if existing_content.contains("## [") {
-                    let parts: Vec<&str> = existing_content.split("## [").collect();
-                    let header = parts[0];
-
-                    // Combine header with new version content and existing versions
-                    if parts.len() > 1 {
-                        let existing_versions = parts[1..].join("## [");
-                        format!("{header}{version_content_with_separator}## [{existing_versions}")
-                    } else {
-                        format!("{header}{version_content_with_separator}")
-                    }
-                } else {
-                    // No version sections yet, just append new content
-                    format!("{existing_content}{version_content_with_separator}")
-                }
-            } else {
-                // Existing file doesn't have proper format, overwrite with default structure
-                format!("{default_header}{version_content_with_separator}")
-            }
-        } else {
-            // File doesn't exist, create new with proper header
-            format!("{default_header}{version_content_with_separator}")
-        };
-
-        // Write the updated content back to the file
-        let mut file = fs::File::create(path)
-            .with_context(|| format!("Failed to create changelog file: {changelog_path}"))?;
-
-        file.write_all(updated_content.as_bytes())
-            .with_context(|| format!("Failed to write to changelog file: {changelog_path}"))?;
-
+        let commit_date = get_commit_date(git_repo, to_ref);
+        let clean_content = prepare_version_content(changelog_content, &commit_date, version_name);
+        let updated_content = merge_with_existing(path, &clean_content)?;
+        write_changelog_file(path, &updated_content, changelog_path)?;
         Ok(())
     }
+}
+
+fn get_commit_date(git_repo: &Arc<GitRepo>, to_ref: &str) -> String {
+    match git_repo.get_commit_date(to_ref) {
+        Ok(date) => {
+            debug!("Got commit date for {to_ref}: {date}");
+            date
+        }
+        Err(e) => {
+            debug!("Failed to get commit date for {to_ref}: {e}");
+            chrono::Local::now().format("%Y-%m-%d").to_string()
+        }
+    }
+}
+
+fn prepare_version_content(
+    changelog_content: &str,
+    commit_date: &str,
+    version_name: Option<String>,
+) -> String {
+    let stripped = strip_ansi_codes(changelog_content);
+    let clean = clean_separator(&stripped);
+    let version_content = extract_version_section(&clean);
+    let with_version = apply_version_override(&version_content, version_name);
+    ensure_date_in_content(&with_version, commit_date)
+}
+
+fn clean_separator(content: &str) -> String {
+    if content.starts_with("━") || content.starts_with('-') {
+        if let Some(pos) = content.find('\n') {
+            content[pos + 1..].to_string()
+        } else {
+            content.to_string()
+        }
+    } else {
+        content.to_string()
+    }
+}
+
+fn extract_version_section(content: &str) -> String {
+    if let Some(parts) = content.split("## [").collect::<Vec<_>>().get(1) {
+        format!("## [{}", parts)
+    } else {
+        content.to_string()
+    }
+}
+
+fn apply_version_override(content: &str, version_name: Option<String>) -> String {
+    match version_name {
+        Some(version) if content.contains("## [") => {
+            let re = regex::Regex::new(r"## \[([^\]]+)\]").expect("Failed to compile regex");
+            let result = re.replace(content, format!("## [{version}]")).to_string();
+            debug!("Replaced version with user-provided version: {version}");
+            result
+        }
+        Some(_) => {
+            debug!("Could not find version header to replace in changelog content");
+            content.to_string()
+        }
+        None => content.to_string(),
+    }
+}
+
+fn ensure_date_in_content(content: &str, commit_date: &str) -> String {
+    if content.contains(" - \n") {
+        let result = content.replace(" - \n", &format!(" - {commit_date}\n"));
+        debug!("Replaced empty date with commit date: {commit_date}");
+        result
+    } else if content.contains("] - ") && !content.contains("] - 20") {
+        let parts: Vec<&str> = content.splitn(2, "] - ").collect();
+        if parts.len() == 2 {
+            debug!("Added commit date after dash: {commit_date}");
+            format!(
+                "{}] - {}\n{}",
+                parts[0],
+                commit_date,
+                parts[1].trim_start_matches(['\n', ' '])
+            )
+        } else {
+            content.to_string()
+        }
+    } else if !content.contains("] - ") {
+        add_date_to_version_line(content, commit_date)
+    } else {
+        content.to_string()
+    }
+}
+
+fn add_date_to_version_line(content: &str, commit_date: &str) -> String {
+    let line_end = content.find('\n').unwrap_or(content.len());
+    let version_line = &content[..line_end];
+
+    if version_line.contains("## [") && version_line.contains(']') {
+        let bracket_pos = version_line
+            .rfind(']')
+            .expect("Failed to find closing bracket");
+        debug!("Added date to version line: {commit_date}");
+        format!(
+            "{} - {}{}",
+            &content[..=bracket_pos],
+            commit_date,
+            &content[bracket_pos + 1..]
+        )
+    } else {
+        content.to_string()
+    }
+}
+
+fn merge_with_existing(path: &Path, new_content: &str) -> Result<String> {
+    let default_header = "# Changelog\n\nAll notable changes to this project will be documented in this file.\n\nThe format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),\nand this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).\n\n";
+    let separator = "\n<!-- -------------------------------------------------------------- -->\n\n";
+    let version_with_separator = format!("{new_content}{separator}");
+
+    if path.exists() {
+        let existing_content = fs::read_to_string(path)?;
+        if existing_content.contains("# Changelog") && existing_content.contains("Keep a Changelog")
+        {
+            Ok(merge_with_keep_a_changelog(
+                &existing_content,
+                &version_with_separator,
+            ))
+        } else {
+            Ok(format!("{default_header}{version_with_separator}"))
+        }
+    } else {
+        Ok(format!("{default_header}{version_with_separator}"))
+    }
+}
+
+fn merge_with_keep_a_changelog(existing: &str, new_content: &str) -> String {
+    let parts: Vec<&str> = existing.split("## [").collect();
+    let header = parts[0];
+    if parts.len() > 1 {
+        let existing_versions = parts[1..].join("## [");
+        format!("{header}{new_content}## [{existing_versions}")
+    } else {
+        format!("{existing}{new_content}")
+    }
+}
+
+fn write_changelog_file(path: &Path, content: &str, changelog_path: &str) -> Result<()> {
+    let mut file = fs::File::create(path)
+        .with_context(|| format!("Failed to create changelog file: {changelog_path}"))?;
+    file.write_all(content.as_bytes())
+        .with_context(|| format!("Failed to write to changelog file: {changelog_path}"))?;
+    Ok(())
 }
 
 /// Strips ANSI color/style codes from a string

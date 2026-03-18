@@ -201,17 +201,13 @@ mod tests {
 
     #[test]
     fn test_cache_metadata_creation() {
-        let config = RepositoryConfiguration::new(
-            None,
-            "https://github.com/example/repo.git".to_string(),
-            "main".to_string(),
-            "./src/module1".to_string(),
-            vec!["src/".to_string()],
-            None,
-            None,
-            None,
-            None,
-        );
+        let config = RepositoryConfiguration {
+            url: "https://github.com/example/repo.git".to_string(),
+            branch: "main".to_string(),
+            target_path: "./src/module1".to_string(),
+            filters: vec!["src/".to_string()],
+            ..Default::default()
+        };
 
         let temp_dir = TempDir::new().expect("Failed to create temporary directory for test");
         let cache_path = temp_dir
@@ -240,17 +236,13 @@ mod tests {
         let mut manager = CacheMetadataManager::new(metadata_file);
 
         // Create test metadata
-        let config = RepositoryConfiguration::new(
-            None,
-            "https://github.com/example/repo.git".to_string(),
-            "main".to_string(),
-            "./src/module1".to_string(),
-            vec!["src/".to_string()],
-            None,
-            None,
-            None,
-            None,
-        );
+        let config = RepositoryConfiguration {
+            url: "https://github.com/example/repo.git".to_string(),
+            branch: "main".to_string(),
+            target_path: "./src/module1".to_string(),
+            filters: vec!["src/".to_string()],
+            ..Default::default()
+        };
 
         let cache_path_binding = temp_dir.path().join("cache");
         let test_cache_path = cache_path_binding

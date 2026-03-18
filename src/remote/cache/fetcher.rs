@@ -209,17 +209,13 @@ mod tests {
 
     #[test]
     fn test_is_cache_valid_with_nonexistent_path() {
-        let config = RepositoryConfiguration::new(
-            None,
-            "https://github.com/example/repo.git".to_string(),
-            "main".to_string(),
-            "./src/module1".to_string(),
-            vec!["src/".to_string()],
-            None,
-            None,
-            None,
-            None,
-        );
+        let config = RepositoryConfiguration {
+            url: "https://github.com/example/repo.git".to_string(),
+            branch: "main".to_string(),
+            target_path: "./src/module1".to_string(),
+            filters: vec!["src/".to_string()],
+            ..Default::default()
+        };
 
         // Test with a path that doesn't exist
         let result = RepositoryFetcher::is_cache_valid(&config, "/definitely/does/not/exist");
