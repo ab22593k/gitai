@@ -2,7 +2,7 @@ use anyhow::Result;
 use clap::Parser;
 use gitai::{
     app::{self, WireArgs},
-    init_logger, init_tracing_to_file,
+    init_app,
     ui::print_error,
 };
 
@@ -21,8 +21,7 @@ struct WireCli {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    init_logger();
-    init_tracing_to_file();
+    init_app();
 
     let cli = WireCli::parse();
 

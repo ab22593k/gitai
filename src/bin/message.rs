@@ -3,7 +3,7 @@ use clap::{Parser, crate_authors, crate_version};
 use gitai::{
     app::{self, CmsgConfig, MessageParams},
     common::CommonParams,
-    init_logger, init_tracing_to_file,
+    init_app,
     ui::print_error,
 };
 
@@ -26,14 +26,9 @@ struct MessageArgs {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Standard initialization
-    init_logger();
-    init_tracing_to_file();
+    init_app();
 
     let args = MessageArgs::parse();
-
-    // repository_url is already in common.repository_url, but handle_message
-    // expects it separately for consistency with handle_command
     let repository_url = args.common.repository_url.clone();
 
     if let Err(e) = app::handle_message(

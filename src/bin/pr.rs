@@ -3,7 +3,7 @@ use clap::{Parser, crate_authors, crate_version};
 use gitai::{
     app::{self, PrParams},
     common::CommonParams,
-    init_logger, init_tracing_to_file,
+    init_app,
     ui::print_error,
 };
 
@@ -26,11 +26,9 @@ struct PrArgs {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    init_logger();
-    init_tracing_to_file();
+    init_app();
 
     let args = PrArgs::parse();
-
     let repository_url = args.common.repository_url.clone();
 
     if let Err(e) = app::handle_pr_command(

@@ -33,3 +33,8 @@ pub use remote::{
 
 // Re-export tracing initialization
 pub use core::llm::init_tracing_to_file;
+
+pub fn init_app() {
+    init_logger();
+    init_tracing_to_file();
+}
