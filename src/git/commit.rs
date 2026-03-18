@@ -19,150 +19,167 @@ fn detect_renames(diff: &mut git2::Diff<'_>) -> Result<()> {
     Ok(())
 }
 
+fn extract_delta_info(delta: &git2::DiffDelta) -> Option<(String, ChangeType, git2::Delta)> {
+    let to_owned_path =
+        |p: Option<&std::path::Path>| p.and_then(|path| path.to_str()).map(String::from);
+
+    match delta.status() {
+        git2::Delta::Added => Some((
+            to_owned_path(delta.new_file().path())?,
+            ChangeType::Added,
+            delta.status(),
+        )),
+        git2::Delta::Modified => Some((
+            to_owned_path(delta.new_file().path())?,
+            ChangeType::Modified,
+            delta.status(),
+        )),
+        git2::Delta::Deleted => Some((
+            to_owned_path(delta.old_file().path())?,
+            ChangeType::Deleted,
+            delta.status(),
+        )),
+        git2::Delta::Renamed => {
+            let old_path = to_owned_path(delta.old_file().path()).unwrap_or_default();
+            Some((
+                to_owned_path(delta.new_file().path())?,
+                ChangeType::Renamed {
+                    from: old_path,
+                    similarity: 0,
+                },
+                delta.status(),
+            ))
+        }
+        git2::Delta::Copied => {
+            let old_path = to_owned_path(delta.old_file().path()).unwrap_or_default();
+            Some((
+                to_owned_path(delta.new_file().path())?,
+                ChangeType::Copied {
+                    from: old_path,
+                    similarity: 0,
+                },
+                delta.status(),
+            ))
+        }
+        _ => None,
+    }
+}
+
+fn process_patch(
+    patch: &mut git2::Patch,
+    change_type: &ChangeType,
+    status: git2::Delta,
+    path_str: &str,
+) -> (ChangeType, String) {
+    let mut final_change_type = change_type.clone();
+
+    if patch.num_hunks() == 0 {
+        match &mut final_change_type {
+            ChangeType::Renamed { similarity, .. } | ChangeType::Copied { similarity, .. } => {
+                *similarity = 100;
+            }
+            _ => {}
+        }
+    }
+
+    if patch.num_hunks() == 0 && matches!(status, git2::Delta::Renamed | git2::Delta::Copied) {
+        let from = match &final_change_type {
+            ChangeType::Renamed { from, .. } | ChangeType::Copied { from, .. } => from.clone(),
+            _ => String::new(),
+        };
+        let label = if status == git2::Delta::Renamed {
+            "RENAMED"
+        } else {
+            "COPIED"
+        };
+        (
+            final_change_type,
+            format!(
+                "[{}] '{}' -> '{}' (no content changes)",
+                label, from, path_str
+            ),
+        )
+    } else {
+        let Ok(buf) = patch.to_buf() else {
+            return (final_change_type, "[Binary data]".to_string());
+        };
+        let patch_content =
+            String::from_utf8(buf.to_vec()).unwrap_or_else(|_| "[Binary data]".to_string());
+
+        if is_binary_diff(&patch_content) {
+            (final_change_type, "[Binary file changed]".to_string())
+        } else {
+            let diff_content = match &final_change_type {
+                ChangeType::Renamed { from, .. } => {
+                    format!("[RENAMED] '{}' -> '{}'\n{}", from, path_str, patch_content)
+                }
+                ChangeType::Copied { from, .. } => {
+                    format!("[COPIED] from '{}'\n{}", from, patch_content)
+                }
+                _ => patch_content,
+            };
+            (final_change_type, diff_content)
+        }
+    }
+}
+
+fn get_patch_content(
+    diff: &mut git2::Diff<'_>,
+    delta_index: usize,
+    change_type: &ChangeType,
+    status: git2::Delta,
+    path_str: &str,
+) -> Result<(ChangeType, String)> {
+    let mut patch = git2::Patch::from_diff(diff, delta_index)
+        .map_err(|e| anyhow::anyhow!("Failed to get patch: {}", e))?
+        .ok_or_else(|| anyhow::anyhow!("Failed to get patch at index {}", delta_index))?;
+    Ok(process_patch(&mut patch, change_type, status, path_str))
+}
+
 /// Helper to extract files from diff with rename detection
 #[allow(clippy::too_many_lines)]
 fn get_files_from_diff(repo: &Repository, diff: &mut git2::Diff<'_>) -> Result<Vec<StagedFile>> {
     detect_renames(diff)?;
     let mut files = Vec::new();
 
-    let diff_len = diff.deltas().len();
-    for i in 0..diff_len {
-        let (file_path, change_type, status) = {
-            let delta = diff
-                .get_delta(i)
-                .ok_or_else(|| anyhow!("Failed to get delta at index {}", i))?;
-            let to_owned_path =
-                |p: Option<&std::path::Path>| p.and_then(|path| path.to_str()).map(String::from);
+    for i in 0..diff.deltas().len() {
+        let delta = diff
+            .get_delta(i)
+            .ok_or_else(|| anyhow!("Failed to get delta at index {}", i))?;
 
-            match delta.status() {
-                git2::Delta::Added => (
-                    to_owned_path(delta.new_file().path()),
-                    ChangeType::Added,
-                    delta.status(),
-                ),
-                git2::Delta::Modified => (
-                    to_owned_path(delta.new_file().path()),
-                    ChangeType::Modified,
-                    delta.status(),
-                ),
-                git2::Delta::Deleted => (
-                    to_owned_path(delta.old_file().path()),
-                    ChangeType::Deleted,
-                    delta.status(),
-                ),
-                git2::Delta::Renamed => {
-                    let old_path = to_owned_path(delta.old_file().path()).unwrap_or_default();
-                    (
-                        to_owned_path(delta.new_file().path()),
-                        ChangeType::Renamed {
-                            from: old_path,
-                            similarity: 0, // Placeholder, will update if patch is created
-                        },
-                        delta.status(),
-                    )
-                }
-                git2::Delta::Copied => {
-                    let old_path = to_owned_path(delta.old_file().path()).unwrap_or_default();
-                    (
-                        to_owned_path(delta.new_file().path()),
-                        ChangeType::Copied {
-                            from: old_path,
-                            similarity: 0,
-                        },
-                        delta.status(),
-                    )
-                }
-                _ => continue,
-            }
+        let Some((path_str, change_type, status)) = extract_delta_info(&delta) else {
+            continue;
         };
 
-        if let Some(path_str) = &file_path {
-            let should_exclude = repo.is_path_ignored(path_str).unwrap_or(false);
-            let diff_content;
+        let should_exclude = repo.is_path_ignored(&path_str).unwrap_or(false);
+        let diff_content;
 
-            if should_exclude {
-                diff_content = String::from("[Content excluded]");
-            } else if status == git2::Delta::Deleted {
-                diff_content = format!("[DELETED] File '{}' was removed", path_str);
-            } else {
-                // Now create patch only if needed
-                let mut patch = git2::Patch::from_diff(diff, i)?
-                    .ok_or_else(|| anyhow!("Failed to get patch at index {}", i))?;
-
-                // Update similarity if it's a rename/copy with no hunks
-                let mut final_change_type = change_type.clone();
-                if patch.num_hunks() == 0 {
-                    match &mut final_change_type {
-                        ChangeType::Renamed { similarity, .. }
-                        | ChangeType::Copied { similarity, .. } => {
-                            *similarity = 100;
-                        }
-                        _ => {}
-                    }
-                }
-
-                if patch.num_hunks() == 0
-                    && matches!(status, git2::Delta::Renamed | git2::Delta::Copied)
-                {
-                    diff_content = format!(
-                        "[{}] '{}' -> '{}' (no content changes)",
-                        if status == git2::Delta::Renamed {
-                            "RENAMED"
-                        } else {
-                            "COPIED"
-                        },
-                        match &final_change_type {
-                            ChangeType::Renamed { from, .. } | ChangeType::Copied { from, .. } =>
-                                from,
-                            _ => "",
-                        },
-                        path_str
-                    );
-                } else {
-                    let buf = patch
-                        .to_buf()
-                        .map_err(|e| anyhow!("Failed to get patch buffer: {}", e))?;
-                    let patch_str = match std::str::from_utf8(&buf) {
-                        Ok(s) => s.to_string(),
-                        Err(_) => "[Binary data]".to_string(),
-                    };
-
-                    if is_binary_diff(&patch_str) {
-                        diff_content = "[Binary file changed]".to_string();
-                    } else {
-                        match &final_change_type {
-                            ChangeType::Renamed { from, .. } => {
-                                diff_content = format!(
-                                    "[RENAMED] '{}' -> '{}'\n{}",
-                                    from, path_str, patch_str
-                                );
-                            }
-                            ChangeType::Copied { from, .. } => {
-                                diff_content = format!("[COPIED] from '{}'\n{}", from, patch_str);
-                            }
-                            _ => diff_content = patch_str,
-                        }
-                    }
-                }
-
-                files.push(StagedFile {
-                    path: path_str.clone(),
-                    change_type: final_change_type,
-                    diff: diff_content,
-                    content: None,
-                    content_excluded: should_exclude,
-                });
-                continue;
-            }
+        if should_exclude {
+            diff_content = String::from("[Content excluded]");
+        } else if status == git2::Delta::Deleted {
+            diff_content = format!("[DELETED] File '{}' was removed", path_str);
+        } else {
+            let (final_change_type, content) =
+                get_patch_content(diff, i, &change_type, status, &path_str)?;
+            diff_content = content;
 
             files.push(StagedFile {
-                path: path_str.clone(),
-                change_type,
+                path: path_str,
+                change_type: final_change_type,
                 diff: diff_content,
                 content: None,
                 content_excluded: should_exclude,
             });
+            continue;
         }
+
+        files.push(StagedFile {
+            path: path_str,
+            change_type,
+            diff: diff_content,
+            content: None,
+            content_excluded: should_exclude,
+        });
     }
     Ok(files)
 }
