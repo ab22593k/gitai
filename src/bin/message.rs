@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::{Parser, crate_authors, crate_version};
 use gitai::{
-    app::{self, CmsgConfig, MessageParams},
+    app::{self, CmsgConfig, MessageArgs, MessageParams},
     common::CommonParams,
     init_app,
     ui::print_error,
@@ -16,7 +16,7 @@ use gitai::{
     after_help = app::get_dynamic_help(),
     styles = app::get_styles(),
 )]
-struct MessageArgs {
+struct CliArgs {
     #[command(flatten)]
     common: CommonParams,
 
@@ -28,7 +28,7 @@ struct MessageArgs {
 async fn main() -> Result<()> {
     init_app();
 
-    let args = MessageArgs::parse();
+    let args = CliArgs::parse();
     let repository_url = args.common.repository_url.clone();
 
     if let Err(e) = app::handle_message(
@@ -38,9 +38,11 @@ async fn main() -> Result<()> {
             dry_run: args.params.dry_run,
         },
         repository_url,
-        args.params.complete,
-        args.params.prefix,
-        args.params.context_ratio,
+        MessageArgs {
+            complete: args.params.complete,
+            prefix: args.params.prefix,
+            context_ratio: args.params.context_ratio,
+        },
     )
     .await
     {
@@ -58,6 +60,6 @@ mod tests {
 
     #[test]
     fn verify_cli() {
-        MessageArgs::command().debug_assert();
+        CliArgs::command().debug_assert();
     }
 }

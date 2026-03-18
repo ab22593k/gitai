@@ -18,7 +18,7 @@ pub mod models;
 #[allow(clippy::uninlined_format_args)]
 pub mod prompt;
 
-pub use cli::{handle_changelog_command, handle_release_notes_command};
+pub use cli::{ChangelogCommandConfig, handle_changelog_command, handle_release_notes_command};
 
 pub use change_log::ChangelogGenerator;
 pub use releasenotes::ReleaseNotesGenerator;

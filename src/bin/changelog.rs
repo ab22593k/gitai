@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::{Parser, crate_authors, crate_version};
 use gitai::{
-    app::{self, ChangelogParams},
+    app::{self, ChangelogArgs, ChangelogParams},
     common::CommonParams,
     init_app,
     ui::print_error,
@@ -16,7 +16,7 @@ use gitai::{
     after_help = app::get_dynamic_help(),
     styles = app::get_styles(),
 )]
-struct ChangelogArgs {
+struct CliArgs {
     #[command(flatten)]
     common: CommonParams,
 
@@ -28,18 +28,20 @@ struct ChangelogArgs {
 async fn main() -> Result<()> {
     init_app();
 
-    let args = ChangelogArgs::parse();
+    let args = CliArgs::parse();
     let repository_url = args.common.repository_url.clone();
 
     if let Err(e) = app::handle_changelog(
         args.common,
-        args.params.from,
-        args.params.to,
-        repository_url,
-        args.params.update,
-        args.params.save,
-        args.params.file,
-        args.params.version_name,
+        ChangelogArgs {
+            from: args.params.from,
+            to: args.params.to,
+            repository_url,
+            update: args.params.update,
+            save: args.params.save,
+            file: args.params.file,
+            version_name: args.params.version_name,
+        },
     )
     .await
     {
@@ -57,6 +59,6 @@ mod tests {
 
     #[test]
     fn verify_cli() {
-        ChangelogArgs::command().debug_assert();
+        CliArgs::command().debug_assert();
     }
 }

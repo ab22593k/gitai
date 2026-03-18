@@ -10,6 +10,16 @@ use std::env;
 use std::str::FromStr;
 use std::sync::Arc;
 
+pub struct ChangelogCommandConfig {
+    pub from: Option<String>,
+    pub to: Option<String>,
+    pub repository_url: Option<String>,
+    pub update_file: bool,
+    pub save: bool,
+    pub changelog_path: Option<String>,
+    pub version_name: Option<String>,
+}
+
 /// Handles the changelog generation command.
 ///
 /// This function orchestrates the process of generating a changelog based on the provided
@@ -19,27 +29,25 @@ use std::sync::Arc;
 /// # Arguments
 ///
 /// * `common` - Common parameters for the command, including configuration overrides.
-/// * `from` - The starting point (commit or tag) for the changelog.
-/// * `to` - The ending point for the changelog. Defaults to "HEAD" if not provided.
-/// * `repository_url` - Optional URL of the remote repository to use.
-/// * `update_file` - Whether to update the changelog file.
-/// * `changelog_path` - Optional path to the changelog file.
-/// * `version_name` - Optional version name to use instead of extracting from Git refs.
+/// * `config` - Configuration for the changelog command.
 ///
 /// # Returns
 ///
 /// Returns a Result indicating success or containing an error if the operation failed.
-#[allow(clippy::too_many_arguments)]
 pub async fn handle_changelog_command(
     common: CommonParams,
-    from: Option<String>,
-    to: Option<String>,
-    repository_url: Option<String>,
-    update_file: bool,
-    save: bool,
-    changelog_path: Option<String>,
-    version_name: Option<String>,
+    config: ChangelogCommandConfig,
 ) -> Result<()> {
+    let ChangelogCommandConfig {
+        from,
+        to,
+        repository_url,
+        update_file,
+        save,
+        changelog_path,
+        version_name,
+    } = config;
+
     // Load and apply configuration
     let mut config = Config::load()?;
     common.apply_to_config(&mut config)?;

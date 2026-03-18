@@ -1,6 +1,8 @@
 use crate::common::CommonParams;
 use crate::core::llm::get_available_provider_names;
-use crate::features::changelog::{handle_changelog_command, handle_release_notes_command};
+use crate::features::changelog::{
+    ChangelogCommandConfig, handle_changelog_command, handle_release_notes_command,
+};
 use crate::features::commit;
 use crate::remote::{
     check,
@@ -164,6 +166,22 @@ pub struct ChangelogParams {
 
     /// Explicit version name to use in the changelog instead of getting it from Git
     #[arg(long, help = "Explicit version name to use in the changelog")]
+    pub version_name: Option<String>,
+}
+
+pub struct MessageArgs {
+    pub complete: bool,
+    pub prefix: Option<String>,
+    pub context_ratio: Option<f32>,
+}
+
+pub struct ChangelogArgs {
+    pub from: Option<String>,
+    pub to: Option<String>,
+    pub repository_url: Option<String>,
+    pub update: bool,
+    pub save: bool,
+    pub file: Option<String>,
     pub version_name: Option<String>,
 }
 
@@ -386,24 +404,22 @@ pub struct CmsgConfig {
 ///
 /// Returns an error if the git repository is inaccessible, LLM provider configuration is missing,
 /// or if message generation fails.
-#[allow(clippy::too_many_arguments)]
 pub async fn handle_message(
     common: CommonParams,
     config: CmsgConfig,
     repository_url: Option<String>,
-    complete: bool,
-    prefix: Option<String>,
-    context_ratio: Option<f32>,
+    args: MessageArgs,
 ) -> anyhow::Result<()> {
     debug!(
-        "Handling 'message' command with common: {common:?}, print: {}, complete: {complete}, prefix: {prefix:?}, context_ratio: {context_ratio:?}",
-        config.print_only,
+        "Handling 'message' command with common: {common:?}, print: {}, complete: {}, prefix: {:?}, context_ratio: {:?}",
+        config.print_only, args.complete, args.prefix, args.context_ratio,
     );
 
-    if complete {
-        let prefix_text =
-            prefix.ok_or_else(|| anyhow::anyhow!("Prefix is required for completion mode"))?;
-        let context_ratio_val = context_ratio.unwrap_or(0.5);
+    if args.complete {
+        let prefix_text = args
+            .prefix
+            .ok_or_else(|| anyhow::anyhow!("Prefix is required for completion mode"))?;
+        let context_ratio_val = args.context_ratio.unwrap_or(0.5);
 
         commit::handle_completion_command(
             common,
@@ -434,29 +450,22 @@ pub async fn handle_message(
 /// # Errors
 ///
 /// Returns an error if git operations fail or LLM generation fails.
-#[allow(clippy::too_many_arguments)]
-pub async fn handle_changelog(
-    common: CommonParams,
-    from: Option<String>,
-    to: Option<String>,
-    repository_url: Option<String>,
-    update: bool,
-    save: bool,
-    file: Option<String>,
-    version_name: Option<String>,
-) -> anyhow::Result<()> {
+pub async fn handle_changelog(common: CommonParams, args: ChangelogArgs) -> anyhow::Result<()> {
     debug!(
-        "Handling 'changelog' command with common: {common:?}, from: {from:?}, to: {to:?}, update: {update}, save: {save}, file: {file:?}, version_name: {version_name:?}"
+        "Handling 'changelog' command with common: {common:?}, from: {:?}, to: {:?}, update: {}, save: {}, file: {:?}, version_name: {:?}",
+        args.from, args.to, args.update, args.save, args.file, args.version_name
     );
     handle_changelog_command(
         common,
-        from,
-        to,
-        repository_url,
-        update,
-        save,
-        file,
-        version_name,
+        ChangelogCommandConfig {
+            from: args.from,
+            to: args.to,
+            repository_url: args.repository_url,
+            update_file: args.update,
+            save: args.save,
+            changelog_path: args.file,
+            version_name: args.version_name,
+        },
     )
     .await
 }
@@ -607,22 +616,26 @@ pub async fn handle_command(command: Gitai, repository_url: Option<String>) -> a
                     dry_run: params.dry_run,
                 },
                 repository_url,
-                params.complete,
-                params.prefix,
-                params.context_ratio,
+                MessageArgs {
+                    complete: params.complete,
+                    prefix: params.prefix,
+                    context_ratio: params.context_ratio,
+                },
             )
             .await
         }
         Gitai::Changelog { common, params } => {
             handle_changelog(
                 common,
-                params.from,
-                params.to,
-                repository_url,
-                params.update,
-                params.save,
-                params.file,
-                params.version_name,
+                ChangelogArgs {
+                    from: params.from,
+                    to: params.to,
+                    repository_url,
+                    update: params.update,
+                    save: params.save,
+                    file: params.file,
+                    version_name: params.version_name,
+                },
             )
             .await
         }

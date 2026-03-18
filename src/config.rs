@@ -68,6 +68,13 @@ fn get_api_key_env_var(provider: &str) -> Option<&'static str> {
     }
 }
 
+pub struct ConfigUpdate {
+    pub api_key: Option<String>,
+    pub model: Option<String>,
+    pub additional_params: Option<HashMap<String, String>>,
+    pub instructions: Option<String>,
+}
+
 /// Configuration structure
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Config {
@@ -280,33 +287,26 @@ impl Config {
     }
 
     /// Update the configuration with new values
-    #[allow(clippy::too_many_arguments)]
-    pub fn update(
-        &mut self,
-        api_key: Option<String>,
-        model: Option<String>,
-        additional_params: Option<HashMap<String, String>>,
-        instructions: Option<String>,
-    ) -> Result<()> {
+    pub fn update(&mut self, update: ConfigUpdate) -> Result<()> {
         let provider_name = "google".to_string();
 
-        if let Some(key) = api_key {
+        if let Some(key) = update.api_key {
             let entry = self.providers.entry(provider_name.clone()).or_default();
             entry.api_key = key;
         }
 
-        if let Some(model) = model {
+        if let Some(model) = update.model {
             let entry = self.providers.entry(provider_name.clone()).or_default();
             entry.model_name = model;
         }
 
-        if let Some(params) = additional_params
+        if let Some(params) = update.additional_params
             && let Some(provider_config) = self.providers.get_mut(&provider_name)
         {
             provider_config.additional_params.extend(params);
         }
 
-        if let Some(instr) = instructions {
+        if let Some(instr) = update.instructions {
             self.instructions = instr;
         }
 
