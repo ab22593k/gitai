@@ -6,6 +6,7 @@ use git2::Repository;
 /// # Returns
 ///
 /// A Result containing a boolean indicating if inside a work tree or an error.
+#[inline]
 pub fn is_inside_work_tree() -> Result<bool> {
     match Repository::discover(".") {
         Ok(_) => Ok(true),
@@ -14,6 +15,7 @@ pub fn is_inside_work_tree() -> Result<bool> {
 }
 
 /// Determines if the given diff represents a binary file.
+#[inline]
 pub fn is_binary_diff(diff: &str) -> bool {
     diff.contains("Binary files")
         || diff.contains("GIT binary patch")

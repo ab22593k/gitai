@@ -138,30 +138,43 @@ impl TuiState {
         self.spinner.as_ref()
     }
 
+    #[inline]
     pub fn spinner_mut(&mut self) -> Option<&mut SpinnerState> {
         self.spinner.as_mut()
     }
 
+    #[inline]
+    #[must_use]
     pub fn is_dirty(&self) -> bool {
         self.dirty
     }
 
+    #[inline]
+    #[must_use]
     pub fn last_spinner_update(&self) -> std::time::Instant {
         self.last_spinner_update
     }
 
+    #[inline]
+    #[must_use]
     pub fn is_instructions_visible(&self) -> bool {
         self.instructions_visible
     }
 
+    #[inline]
+    #[must_use]
     pub fn is_nav_bar_visible(&self) -> bool {
         self.nav_bar_visible
     }
 
+    #[inline]
+    #[must_use]
     pub fn completion_suggestions(&self) -> &[String] {
         &self.completion_suggestions
     }
 
+    #[inline]
+    #[must_use]
     pub fn completion_index(&self) -> usize {
         self.completion_index
     }

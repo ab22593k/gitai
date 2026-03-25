@@ -174,16 +174,22 @@ impl GitRepo {
     }
 
     /// Returns whether this `GitRepo` instance is working with a remote repository
+    #[inline]
+    #[must_use]
     pub fn is_remote(&self) -> bool {
         self.is_remote
     }
 
     /// Returns the original remote URL if this is a cloned repository
+    #[inline]
+    #[must_use]
     pub fn get_remote_url(&self) -> Option<&str> {
         self.remote_url.as_deref()
     }
 
     /// Returns the repository path
+    #[inline]
+    #[must_use]
     pub fn repo_path(&self) -> &PathBuf {
         &self.repo_path
     }

@@ -71,6 +71,7 @@ impl<T: Clone + Default, const N: usize> FixedSizeBuffer<T, N> {
 
     /// Add an element to the buffer
     /// Returns true if the element was added, false if the buffer is full
+    #[inline]
     pub fn push(&mut self, item: T) -> bool {
         if self.size < N {
             self.data[self.size] = item;
@@ -82,6 +83,7 @@ impl<T: Clone + Default, const N: usize> FixedSizeBuffer<T, N> {
     }
 
     /// Get an element by index
+    #[inline]
     pub fn get(&self, index: usize) -> Option<&T> {
         if index < self.size {
             Some(&self.data[index])
@@ -91,26 +93,31 @@ impl<T: Clone + Default, const N: usize> FixedSizeBuffer<T, N> {
     }
 
     /// Get the number of elements currently in the buffer
+    #[inline]
     pub fn len(&self) -> usize {
         self.size
     }
 
     /// Check if the buffer is empty
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.size == 0
     }
 
     /// Check if the buffer is full
+    #[inline]
     pub fn is_full(&self) -> bool {
         self.size == N
     }
 
     /// Get the maximum capacity of the buffer
+    #[inline]
     pub fn capacity(&self) -> usize {
         N
     }
 
     /// Clear the buffer
+    #[inline]
     pub fn clear(&mut self) {
         self.size = 0;
     }
