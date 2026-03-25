@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::{Parser, crate_authors, crate_version};
 use gitai::{
-    app::{self, ReleaseNotesParams},
+    app::{self, NotesParams},
     common::CommonParams,
     init_app,
     ui::print_error,
@@ -9,29 +9,29 @@ use gitai::{
 
 #[derive(Parser)]
 #[command(
-    name = "git-release-notes",
+    name = "git-notes",
     author = crate_authors!(),
     version = crate_version!(),
     about = "Generate release notes",
     after_help = app::get_dynamic_help(),
     styles = app::get_styles(),
 )]
-struct ReleaseNotesArgs {
+struct NotesArgs {
     #[command(flatten)]
     common: CommonParams,
 
     #[command(flatten)]
-    params: ReleaseNotesParams,
+    params: NotesParams,
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
     init_app();
 
-    let args = ReleaseNotesArgs::parse();
+    let args = NotesArgs::parse();
     let repository_url = args.common.repository_url.clone();
 
-    if let Err(e) = app::handle_release_notes(
+    if let Err(e) = app::handle_notes(
         args.common,
         args.params.from,
         args.params.to,
@@ -54,6 +54,6 @@ mod tests {
 
     #[test]
     fn verify_cli() {
-        ReleaseNotesArgs::command().debug_assert();
+        NotesArgs::command().debug_assert();
     }
 }

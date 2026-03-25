@@ -187,7 +187,7 @@ pub struct ChangelogArgs {
 
 /// Arguments for the release notes generation command
 #[derive(Args, Clone, Debug)]
-pub struct ReleaseNotesParams {
+pub struct NotesParams {
     /// Starting Git reference (commit hash, tag, or branch name)
     #[arg(long, required = true)]
     pub from: String,
@@ -342,12 +342,12 @@ Supported commitish syntax: HEAD~2, HEAD^, @~3, main~1, origin/main^, etc."
         about = "Generate release notes",
         long_about = "Generate comprehensive release notes between two specified Git references."
     )]
-    ReleaseNotes {
+    Notes {
         #[command(flatten)]
         common: CommonParams,
 
         #[command(flatten)]
-        params: ReleaseNotesParams,
+        params: NotesParams,
     },
 
     /// Wire operations (syncing, checking)
@@ -470,12 +470,12 @@ pub async fn handle_changelog(common: CommonParams, args: ChangelogArgs) -> anyh
     .await
 }
 
-/// Handle the `ReleaseNotes` command
+/// Handle the `Notes` command
 ///
 /// # Errors
 ///
 /// Returns an error if git operations fail or LLM generation fails.
-pub async fn handle_release_notes(
+pub async fn handle_notes(
     common: CommonParams,
     from: String,
     to: Option<String>,
@@ -483,7 +483,7 @@ pub async fn handle_release_notes(
     version_name: Option<String>,
 ) -> anyhow::Result<()> {
     debug!(
-        "Handling 'release-notes' command with common: {common:?}, from: {from}, to: {to:?}, version_name: {version_name:?}"
+        "Handling 'notes' command with common: {common:?}, from: {from}, to: {to:?}, version_name: {version_name:?}"
     );
     handle_release_notes_command(common, from, to, repository_url, version_name).await
 }
@@ -639,8 +639,8 @@ pub async fn handle_command(command: Gitai, repository_url: Option<String>) -> a
             )
             .await
         }
-        Gitai::ReleaseNotes { common, params } => {
-            handle_release_notes(
+        Gitai::Notes { common, params } => {
+            handle_notes(
                 common,
                 params.from,
                 params.to,

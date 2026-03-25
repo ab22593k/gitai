@@ -22,8 +22,8 @@ name = "git-changelog"
 path = "src/bin/changelog.rs"
 
 [[bin]]
-name = "git-release-notes"
-path = "src/bin/release_notes.rs"
+name = "git-notes"
+path = "src/bin/notes.rs"
 
 [[bin]]
 name = "git-wire"

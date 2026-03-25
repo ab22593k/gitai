@@ -49,7 +49,7 @@ The release build produces five binaries in `target/release/`:
 | `git-message`       | Generate or complete commit messages      |
 | `git-pr`            | Generate pull request descriptions        |
 | `git-changelog`     | Generate changelogs                       |
-| `git-release-notes` | Generate release notes                    |
+| `git-notes`         | Generate release notes                    |
 | `git-wire`          | Synchronize code from remote repositories |
 
 ### Prerequisites
@@ -143,7 +143,7 @@ git-changelog --from v0.1.0 --save --file CHANGES.md
 ### Generate release notes
 
 ```sh
-git-release-notes --from v0.1.3 --to v0.1.4
+git-notes --from v0.1.3 --to v0.1.4
 ```
 
 ### Wire operations (code synchronization)

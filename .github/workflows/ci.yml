@@ -136,7 +136,7 @@ jobs:
             ./target/${{ matrix.target }}/release/git-changelog${{ matrix.os == 'windows-latest' && '.exe' || '' }}
             ./target/${{ matrix.target }}/release/git-message${{ matrix.os == 'windows-latest' && '.exe' || '' }}
             ./target/${{ matrix.target }}/release/git-pr${{ matrix.os == 'windows-latest' && '.exe' || '' }}
-            ./target/${{ matrix.target }}/release/git-release-notes${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+            ./target/${{ matrix.target }}/release/git-notes${{ matrix.os == 'windows-latest' && '.exe' || '' }}
             ./target/${{ matrix.target }}/release/git-wire${{ matrix.os == 'windows-latest' && '.exe' || '' }}
           if-no-files-found: error
           retention-days: 1
@@ -213,7 +213,7 @@ jobs:
 
             if [ -n "$PREVIOUS_TAG" ]; then
               # Generate release notes using gitai
-              ./target/release/gitai-release-notes --from "$PREVIOUS_TAG" --to "$GITHUB_REF_NAME" --print > RELEASE_NOTES.md
+              ./target/release/git-notes --from "$PREVIOUS_TAG" --to "$GITHUB_REF_NAME" --print > RELEASE_NOTES.md
               echo "✨ Generated release notes with gitai"
             else
               echo "No previous tag found, using default release notes"
