@@ -5,7 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
-use crate::remote::RepositoryConfiguration;
+use crate::sync::RepositoryConfiguration;
 
 // Type alias for cache key
 type CacheKey = String;

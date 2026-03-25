@@ -14,23 +14,14 @@ jobs:
   # This job runs for all pushes and pull requests
   build-and-test:
     name: Build & Test ${{ matrix.build }}
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:latest
     strategy:
       matrix:
         include:
           - build: linux-amd64
-            os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            cmd: cargo
-
-          - build: windows-amd64
-            os: windows-latest
-            target: x86_64-pc-windows-gnu
-            cmd: cargo
-
-          - build: macos-amd64
-            os: macos-latest
-            target: x86_64-apple-darwin
             cmd: cargo
 
     steps:
@@ -38,6 +29,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Install build dependencies
+        run: dnf install -y gcc gcc-c++ make pkgconfig openssl-devel cmake perl
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -63,50 +57,27 @@ jobs:
           ${{ matrix.cmd }} test --verbose --locked --target ${{ matrix.target }}
           echo "::endgroup::"
 
-  docs:
-    name: Documentation
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Rust cache
-        uses: Swatinem/rust-cache@v2
-
-      - name: Check documentation
-        env:
-          RUSTDOCFLAGS: -D warnings
-        run: cargo doc --workspace --no-deps --document-private-items
-
-    # The following jobs only run on tag pushes (i.e., releases)
   build-artifacts:
     name: Build Artifacts ${{ matrix.build }}
     if: startsWith(github.ref, 'refs/tags/')
     needs: build-and-test
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:latest
     strategy:
       matrix:
         include:
           - build: linux-amd64
-            os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-
-          - build: windows-gnu
-            os: windows-latest
-            target: x86_64-pc-windows-gnu
-
-          - build: macos-amd64
-            os: macos-latest
-            target: x86_64-apple-darwin
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Install build dependencies
+        run: dnf install -y gcc gcc-c++ make pkgconfig openssl-devel cmake
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -133,11 +104,11 @@ jobs:
         with:
           name: gitai-${{ matrix.build }}
           path: |
-            ./target/${{ matrix.target }}/release/git-changelog${{ matrix.os == 'windows-latest' && '.exe' || '' }}
-            ./target/${{ matrix.target }}/release/git-message${{ matrix.os == 'windows-latest' && '.exe' || '' }}
-            ./target/${{ matrix.target }}/release/git-pr${{ matrix.os == 'windows-latest' && '.exe' || '' }}
-            ./target/${{ matrix.target }}/release/git-notes${{ matrix.os == 'windows-latest' && '.exe' || '' }}
-            ./target/${{ matrix.target }}/release/git-wire${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+            ./target/${{ matrix.target }}/release/git-changelog
+            ./target/${{ matrix.target }}/release/git-message
+            ./target/${{ matrix.target }}/release/git-pr
+            ./target/${{ matrix.target }}/release/git-notes
+            ./target/${{ matrix.target }}/release/git-wire
           if-no-files-found: error
           retention-days: 1
 

@@ -1,5 +1,5 @@
 use gitai::{
-    RepositoryConfiguration, WireOperation, remote::cache::key_generator::CacheKeyGenerator,
+    RepositoryConfiguration, WireOperation, sync::cache::key_generator::CacheKeyGenerator,
 };
 
 #[test]

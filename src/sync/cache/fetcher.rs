@@ -1,4 +1,4 @@
-use crate::remote::models::repo_config::RepositoryConfiguration;
+use crate::sync::models::repo_config::RepositoryConfiguration;
 
 use super::super::common::{ErrorType, Method};
 use cause::{Cause, cause};

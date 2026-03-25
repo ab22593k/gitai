@@ -20,5 +20,5 @@ pub use repository::GitRepo;
 pub use utils::*;
 
 // Re-export type aliases to maintain backward compatibility
-pub use crate::core::context::{RecentCommit, StagedFile};
+pub use crate::llm::context::{RecentCommit, StagedFile};
 pub use files::RepoFilesInfo;

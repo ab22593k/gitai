@@ -1,7 +1,7 @@
 use super::engine::{ChangeAnalysisEngine, DefaultAnalysisEngine};
 use super::models::{ChangeMetrics, ChangelogType};
-use crate::core::context::{ChangeType, RecentCommit};
 use crate::git::GitRepo;
+use crate::llm::context::{ChangeType, RecentCommit};
 
 use anyhow::Result;
 use git2::Oid;
@@ -67,7 +67,7 @@ impl ChangeAnalyzer {
         // Since we need to use self.engine in the blocking task, we wrap the analyzer in Arc
         // or just pass the engine if it's clonable. But trait objects are tricky.
         // For now, we'll re-create the default engine or pass the Arc'd engine.
-        let engine = Arc::new(DefaultAnalysisEngine); // Currently DefaultAnalysisEngine is stateless
+        let engine = Arc::new(DefaultAnalysisEngine);
 
         let _ = tokio::task::spawn_blocking(move || {
             git_repo.get_commits_between_stream(&from, &to, |commit| {
@@ -119,7 +119,7 @@ impl ChangeAnalyzer {
         })
     }
 
-    /// Analyze changes between two Git references and return the analyzed changes along with total metrics
+    /// Analyze changes between two git refs and return the analyzed changes with total metrics
     pub async fn analyze_changes(
         &self,
         from: &str,

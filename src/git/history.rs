@@ -5,7 +5,7 @@
 //! - File-specific commit history
 //! - Author commit history
 
-use crate::core::context::RecentCommit;
+use crate::llm::context::RecentCommit;
 
 use anyhow::Result;
 use git2::Repository;

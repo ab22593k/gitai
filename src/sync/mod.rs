@@ -2,7 +2,7 @@ pub mod cache;
 pub mod check;
 pub mod common;
 pub mod models;
-pub mod sync;
+pub mod operation;
 
 pub use cache::manager::CacheManager;
 pub use models::cached_repo::CachedRepository;

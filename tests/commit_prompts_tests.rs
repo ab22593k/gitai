@@ -1,11 +1,11 @@
 use gitai::{
-    common::DetailLevel,
-    config::Config,
-    core::context::CommitContext,
-    features::commit::prompt::{
+    commands::commit::prompt::{
         create_completion_system_prompt, create_completion_user_prompt, create_pr_system_prompt,
         create_system_prompt, create_user_prompt,
     },
+    common::DetailLevel,
+    config::Config,
+    llm::context::CommitContext,
 };
 
 // Use our centralized test infrastructure

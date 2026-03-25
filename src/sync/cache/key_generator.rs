@@ -1,6 +1,6 @@
 use std::hash::{DefaultHasher, Hash, Hasher};
 
-use crate::remote::models::repo_config::RepositoryConfiguration;
+use crate::sync::models::repo_config::RepositoryConfiguration;
 
 pub struct CacheKeyGenerator;
 

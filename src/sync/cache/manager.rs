@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 
 use super::key_generator::CacheKeyGenerator;
-use crate::remote::models::{
+use crate::sync::models::{
     cached_repo::CachedRepository, repo_config::RepositoryConfiguration,
     wire_operation::WireOperation,
 };

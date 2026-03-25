@@ -1,6 +1,6 @@
 use crate::config::Config;
-use crate::core::context::CommitContext;
 use crate::git::{CommitResult, GitRepo};
+use crate::llm::context::CommitContext;
 
 use anyhow::Result;
 use log::debug;

@@ -1,10 +1,10 @@
 use super::models::ChangeMetrics;
 use super::readme_reader::get_readme_summary;
+use crate::commands::changelog::change_analyzer::{AnalyzedChange, ChangeAnalyzer};
 use crate::common::DetailLevel;
 use crate::config::Config;
-use crate::core::llm;
-use crate::features::changelog::change_analyzer::{AnalyzedChange, ChangeAnalyzer};
 use crate::git::GitRepo;
+use crate::llm::engine;
 
 use anyhow::{Context, Result};
 use schemars::JsonSchema;
@@ -52,7 +52,7 @@ where
     );
 
     // Generate content using LLM
-    llm::get_message::<T>(config, provider_name, &system_prompt, &user_prompt)
+    engine::get_message::<T>(config, provider_name, &system_prompt, &user_prompt)
         .await
         .context("Failed to generate content")
 }

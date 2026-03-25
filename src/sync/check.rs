@@ -5,7 +5,7 @@ use colored::Colorize;
 use folder_compare::FolderCompare;
 use temp_dir::TempDir;
 
-use crate::remote::common::{ErrorType, sequence};
+use crate::sync::common::{ErrorType, sequence};
 
 use super::common::{
     ErrorType::{CheckDifferenceExecution, CheckDifferenceStringReplace},

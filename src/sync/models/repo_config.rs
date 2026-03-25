@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::remote::common::{MergeStrategy, Method};
+use crate::sync::common::{MergeStrategy, Method};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RepositoryConfiguration {

@@ -1,6 +1,6 @@
 use super::spinner::SpinnerState;
-use crate::core::context::CommitContext;
-use crate::features::commit::types::{GeneratedMessage, format_commit_message};
+use crate::commands::commit::types::{GeneratedMessage, format_commit_message};
+use crate::llm::context::CommitContext;
 
 use tui_textarea::TextArea;
 
@@ -449,7 +449,7 @@ impl TuiState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::context::{ChangeType, RecentCommit, StagedFile};
+    use crate::llm::context::{ChangeType, RecentCommit, StagedFile};
 
     #[test]
     fn test_get_filtered_context_filters_files_and_commits() {

@@ -5,9 +5,9 @@ use super::git_service_core::GitServiceCore;
 use super::prompt::{create_completion_system_prompt, create_completion_user_prompt};
 use super::types::GeneratedMessage;
 use crate::config::Config;
-use crate::core::context::CommitContext;
-use crate::core::llm;
 use crate::git::{CommitResult, GitRepo};
+use crate::llm::context::CommitContext;
+use crate::llm::engine;
 
 use anyhow::Result;
 use std::path::Path;
@@ -95,7 +95,7 @@ impl CompletionService {
         // Generate user prompt directly
         let final_user_prompt = create_completion_user_prompt(&context, prefix, context_ratio);
 
-        let generated_message = llm::get_message::<GeneratedMessage>(
+        let generated_message = engine::get_message::<GeneratedMessage>(
             &config_clone,
             self.core.provider_name(),
             &system_prompt,

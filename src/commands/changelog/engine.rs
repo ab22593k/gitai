@@ -1,6 +1,6 @@
 use super::change_analyzer::FileChange;
 use super::models::{ChangeMetrics, ChangelogType};
-use crate::core::context::ChangeType;
+use crate::llm::context::ChangeType;
 use anyhow::Result;
 use git2::Diff;
 use regex::Regex;

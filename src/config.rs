@@ -1,5 +1,5 @@
-use crate::core::llm::{get_available_provider_names, get_default_model_for_provider};
 use crate::git::GitRepo;
+use crate::llm::engine::{get_available_provider_names, get_default_model_for_provider};
 
 use anyhow::{Result, anyhow};
 use git2::Config as GitConfig;

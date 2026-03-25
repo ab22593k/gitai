@@ -1,7 +1,7 @@
 use super::types::GeneratedMessage;
 use crate::common::{DetailLevel, get_combined_instructions};
 use crate::config::Config;
-use crate::core::context::{ChangeType, CommitContext, RecentCommit, StagedFile};
+use crate::llm::context::{ChangeType, CommitContext, RecentCommit, StagedFile};
 
 const MAX_DIFF_LENGTH: usize = 2000;
 const MAX_FILE_CONTENT_LENGTH: usize = 5000;

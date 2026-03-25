@@ -5,9 +5,9 @@ use super::strategy::{
 use super::types::{GeneratedMessage, GeneratedPullRequest};
 use crate::common::DetailLevel;
 use crate::config::Config;
-use crate::core::context::CommitContext;
-use crate::core::llm;
 use crate::git::{CommitResult, GitRepo};
+use crate::llm::context::CommitContext;
+use crate::llm::engine;
 
 use anyhow::Result;
 use log::debug;
@@ -97,7 +97,7 @@ impl CommitService {
         let system_prompt = strategy.create_system_prompt(&config_clone)?;
         let user_prompt = strategy.create_user_prompt(&context)?;
 
-        llm::get_message::<T>(
+        engine::get_message::<T>(
             &config_clone,
             self.core.provider_name(),
             &system_prompt,

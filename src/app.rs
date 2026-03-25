@@ -1,13 +1,13 @@
-use crate::common::CommonParams;
-use crate::core::llm::get_available_provider_names;
-use crate::features::changelog::{
+use crate::commands::changelog::{
     ChangelogCommandConfig, handle_changelog_command, handle_release_notes_command,
 };
-use crate::features::commit;
-use crate::remote::{
+use crate::commands::commit;
+use crate::common::CommonParams;
+use crate::llm::engine::get_available_provider_names;
+use crate::sync::{
     check,
     common::{Method, Parsed, Target, TargetConfig, sequence},
-    sync,
+    operation,
 };
 use clap::builder::{Styles, styling::AnsiColor};
 use clap::{Args, Parser, Subcommand, crate_version};
@@ -509,7 +509,7 @@ pub async fn handle_wire(args: WireArgs) -> anyhow::Result<()> {
             append,
         } => {
             let target_config = build_target_config(target_name, &source, save, append)?;
-            sync::sync_with_caching(&Target::Declared(target_config), mode).await
+            operation::sync_with_caching(&Target::Declared(target_config), mode).await
         }
 
         WireCommand::Check {
@@ -605,7 +605,7 @@ fn build_parsed_from_cli(source: &WireSource) -> Option<Parsed> {
 /// Returns an error if the subcommand execution fails.
 pub async fn handle_command(command: Gitai, repository_url: Option<String>) -> anyhow::Result<()> {
     // Initialize tracing to file
-    crate::core::llm::init_tracing_to_file();
+    crate::llm::engine::init_tracing_to_file();
 
     match command {
         Gitai::Message { common, params } => {

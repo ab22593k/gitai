@@ -81,11 +81,11 @@ fn format_release_notes_response(
     )
     .expect("writing to string should never fail");
 
-    // Add summary
+    // --- Summary ---
     write!(formatted, "{}\n\n", response.summary.bright_cyan())
         .expect("writing to string should never fail");
 
-    // Add highlights
+    // --- highlights ---
     if !response.highlights.is_empty() {
         formatted.push_str(&"## ✨ Highlights\n\n".bright_magenta().bold().to_string());
         for highlight in &response.highlights {
@@ -93,12 +93,12 @@ fn format_release_notes_response(
         }
     }
 
-    // Add changes grouped by section
+    // --- changes by section ---
     for section in &response.sections {
         formatted.push_str(&format_section(section));
     }
 
-    // Add breaking changes
+    // --- breaking changes ---
     if !response.breaking_changes.is_empty() {
         formatted.push_str(&"## ⚠️ Breaking Changes\n\n".bright_red().bold().to_string());
         for breaking_change in &response.breaking_changes {
@@ -106,7 +106,7 @@ fn format_release_notes_response(
         }
     }
 
-    // Add upgrade notes
+    // --- upgrade notes ---
     if !response.upgrade_notes.is_empty() {
         formatted.push_str(&"## 🔧 Upgrade Notes\n\n".yellow().bold().to_string());
         for note in &response.upgrade_notes {
@@ -115,7 +115,7 @@ fn format_release_notes_response(
         formatted.push('\n');
     }
 
-    // Add metrics
+    // --- metrics ---
     formatted.push_str(&"## 📊 Metrics\n\n".bright_blue().bold().to_string());
     formatted.push_str(&format_metrics(&response.metrics));
 

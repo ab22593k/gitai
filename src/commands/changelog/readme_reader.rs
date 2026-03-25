@@ -1,6 +1,6 @@
 use crate::config::Config;
-use crate::core::llm;
 use crate::git::GitRepo;
+use crate::llm::engine;
 
 use anyhow::{Context, Result};
 use std::sync::Arc;
@@ -44,7 +44,7 @@ async fn summarize_readme(
         "Please summarize the following README content, adhering to the guidelines provided:\n\n{readme_content}"
     );
 
-    llm::get_message(config, provider_name, system_prompt, &user_prompt)
+    engine::get_message(config, provider_name, system_prompt, &user_prompt)
         .await
         .context("Failed to generate README summary")
 }

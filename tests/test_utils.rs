@@ -1,15 +1,15 @@
 use git2::Repository;
 use gitai::{
-    config::{Config, ProviderConfig},
-    core::context::{ChangeType, CommitContext, RecentCommit, StagedFile},
-    features::{
+    commands::{
         changelog::{
             change_analyzer::{AnalyzedChange, FileChange},
             models::{ChangeMetrics, ChangelogType},
         },
         commit::types::GeneratedPullRequest,
     },
+    config::{Config, ProviderConfig},
     git::GitRepo,
+    llm::context::{ChangeType, CommitContext, RecentCommit, StagedFile},
 };
 
 use anyhow::Result;
@@ -337,14 +337,20 @@ impl<'a> GitTestHelper<'a> {
         index.write()?;
         let tree_id = index.write_tree()?;
         let tree = remote_repo.find_tree(tree_id)?;
+
+        // Create a proper branch reference (not anonymous HEAD)
+        let branch_ref = format!("refs/heads/{branch_name}");
         remote_repo.commit(
-            Some("HEAD"),
+            Some(&branch_ref),
             &signature,
             &signature,
             &format!("Initial commit for {branch_name}"),
             &tree,
             &[],
         )?;
+
+        // Set HEAD to point to the branch
+        remote_repo.set_head(&branch_ref)?;
 
         // Add the remote to our test repo
         let fetch_spec = format!("+refs/heads/*:refs/remotes/{remote_name}/*");

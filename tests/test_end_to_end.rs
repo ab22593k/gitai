@@ -1,6 +1,4 @@
-use gitai::{
-    CacheManager, RepositoryConfiguration, remote::cache::key_generator::CacheKeyGenerator,
-};
+use gitai::{CacheManager, RepositoryConfiguration, sync::cache::key_generator::CacheKeyGenerator};
 use std::time::Instant;
 
 #[test]

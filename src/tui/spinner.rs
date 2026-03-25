@@ -1,4 +1,4 @@
-use crate::core::messages::{ColoredMessage, get_waiting_message};
+use crate::llm::messages::{ColoredMessage, get_waiting_message};
 use ratatui::style::Color;
 use unicode_width::UnicodeWidthStr;
 

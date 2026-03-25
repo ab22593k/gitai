@@ -3,7 +3,7 @@ use super::spinner::SpinnerState;
 use super::state::{Mode, TuiState};
 use super::theme::init_theme;
 use super::ui::draw_ui;
-use crate::features::commit::{
+use crate::commands::commit::{
     CommitService, completion::CompletionService, format_commit_result, types::GeneratedMessage,
 };
 use anyhow::{Error, Result};
@@ -353,7 +353,7 @@ pub enum ExitStatus {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::features::commit::types::GeneratedMessage;
+    use crate::commands::commit::types::GeneratedMessage;
 
     #[test]
     fn test_panic_hook_setup() {

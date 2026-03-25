@@ -7,7 +7,7 @@
 
 use git2::Repository;
 use gitai::config::Config;
-use gitai::core::context::ChangeType;
+use gitai::llm::context::ChangeType;
 use std::fs;
 
 #[path = "test_utils.rs"]

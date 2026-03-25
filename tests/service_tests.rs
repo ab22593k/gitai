@@ -1,5 +1,5 @@
 use anyhow::Result;
-use gitai::{common::DetailLevel, config::Config, features::commit::CommitService, git::GitRepo};
+use gitai::{commands::commit::CommitService, common::DetailLevel, config::Config, git::GitRepo};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tempfile::TempDir;

@@ -1,6 +1,6 @@
 use crate::common::DetailLevel;
 use crate::config::Config;
-use crate::core::context::CommitContext;
+use crate::llm::context::CommitContext;
 use anyhow::Result;
 
 /// Trait for defining how to generate prompts for commit-related operations

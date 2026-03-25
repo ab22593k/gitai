@@ -1,12 +1,12 @@
 use super::completion::CompletionService;
 use super::service::CommitService;
 use super::types::{format_commit_message, format_pull_request};
+use crate::commands::commit::types;
 use crate::common::{CommonParams, DetailLevel};
 use crate::config::Config;
-use crate::core::context::CommitContext;
-use crate::core::messages;
-use crate::features::commit::types;
 use crate::git::GitRepo;
+use crate::llm::context::CommitContext;
+use crate::llm::messages;
 use crate::tui::run_tui_commit;
 use crate::ui::{self, SpinnerState};
 

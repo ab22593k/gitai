@@ -1,22 +1,23 @@
+use git2::Repository;
 use gitai::{common::CommonParams, config::ProviderConfig};
 use std::env;
 use std::path::Path;
-use std::process::Command;
 
 // Use our centralized test infrastructure
 #[path = "test_utils.rs"]
 mod test_utils;
 use test_utils::{MockDataBuilder, setup_git_repo};
 
-// Helper to verify git repo status
+// Helper to verify git repo status using git2
 fn is_git_repo(dir: &Path) -> bool {
-    let status = Command::new("git")
-        .args(["rev-parse", "--is-inside-work-tree"])
-        .current_dir(dir)
-        .output()
-        .expect("Failed to execute git command");
+    Repository::open(dir).is_ok()
+}
 
-    status.status.success()
+// Helper to check git config using git2
+fn git_config_get(key: &str) -> Option<String> {
+    let repo = Repository::open(".").ok()?;
+    let config = repo.config().ok()?;
+    config.get_string(key).ok()
 }
 
 #[test]
@@ -63,13 +64,9 @@ fn test_project_config_security() {
     {
         let provider_name = &"google";
         let key = format!("gitai.{provider_name}-apikey");
-        let output = Command::new("git")
-            .args(["config", "--get", &key])
-            .current_dir(".")
-            .output()
-            .expect("Failed to check git config");
+        let config_value = git_config_get(&key);
         assert!(
-            !output.status.success(),
+            config_value.is_none(),
             "API key was found in git config for provider {provider_name}",
         );
     }
@@ -141,13 +138,9 @@ fn test_project_config_security() {
         .expect("Failed to save project config with CLI params");
 
     // Verify the API key is not in git config
-    let output = Command::new("git")
-        .args(["config", "--get", "gitai.google-apikey"])
-        .current_dir(".")
-        .output()
-        .expect("Failed to check git config");
+    let config_value = git_config_get("gitai.google-apikey");
     assert!(
-        !output.status.success(),
+        config_value.is_none(),
         "API key from CLI integration was found in git config"
     );
 
