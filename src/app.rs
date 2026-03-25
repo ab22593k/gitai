@@ -86,7 +86,7 @@ pub struct MessageParams {
         long,
         help = "Dry run mode: do not make real HTTP requests, for UI testing"
     )]
-    pub dry_run: bool,
+    pub dry: bool,
 
     /// Complete a commit message instead of generating from scratch
     #[arg(
@@ -395,7 +395,7 @@ pub fn get_dynamic_help() -> String {
 /// Configuration for the cmsg command
 pub struct CmsgConfig {
     pub print_only: bool,
-    pub dry_run: bool,
+    pub dry: bool,
 }
 
 /// Handle the message command
@@ -427,7 +427,7 @@ pub async fn handle_message(
             Some(context_ratio_val),
             commit::MessageConfig {
                 print: config.print_only,
-                dry_run: config.dry_run,
+                dry: config.dry,
             },
             repository_url,
         )
@@ -437,7 +437,7 @@ pub async fn handle_message(
             common,
             commit::MessageConfig {
                 print: config.print_only,
-                dry_run: config.dry_run,
+                dry: config.dry,
             },
             repository_url,
         )
@@ -613,7 +613,7 @@ pub async fn handle_command(command: Gitai, repository_url: Option<String>) -> a
                 common,
                 CmsgConfig {
                     print_only: params.print,
-                    dry_run: params.dry_run,
+                    dry: params.dry,
                 },
                 repository_url,
                 MessageArgs {

@@ -35,7 +35,7 @@ async fn main() -> Result<()> {
         args.common,
         CmsgConfig {
             print_only: args.params.print,
-            dry_run: args.params.dry_run,
+            dry: args.params.dry,
         },
         repository_url,
         MessageArgs {

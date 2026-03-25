@@ -59,8 +59,8 @@ where
     result
 }
 
-fn validate_staged_files(git_info: &CommitContext, dry_run: bool) {
-    if git_info.staged_files.is_empty() && !dry_run {
+fn validate_staged_files(git_info: &CommitContext, dry: bool) {
+    if git_info.staged_files.is_empty() && !dry {
         ui::print_warning(
             "No staged changes. Please stage your changes before generating a commit message.",
         );
@@ -71,9 +71,9 @@ fn validate_staged_files(git_info: &CommitContext, dry_run: bool) {
 async fn generate_initial_message(
     service: &CommitService,
     instructions: &str,
-    dry_run: bool,
+    dry: bool,
 ) -> Result<types::GeneratedMessage> {
-    if dry_run {
+    if dry {
         return Ok(types::GeneratedMessage {
             title: "Fix bug in UI rendering".to_string(),
             message: "Updated the layout to properly handle dynamic constraints and improve user experience.".to_string(),
@@ -94,7 +94,7 @@ pub async fn handle_message_command(
     repository_url: Option<String>,
 ) -> Result<()> {
     let print = config.print;
-    let dry_run = config.dry_run;
+    let dry = config.dry;
     let mut config = Config::load()?;
     common.apply_to_config(&mut config)?;
 
@@ -111,8 +111,8 @@ pub async fn handle_message_command(
 
     let git_info = service.get_git_info().await?;
 
-    if git_info.staged_files.is_empty() && !dry_run {
-        validate_staged_files(&git_info, dry_run);
+    if git_info.staged_files.is_empty() && !dry {
+        validate_staged_files(&git_info, dry);
         return Ok(());
     }
 
@@ -120,8 +120,7 @@ pub async fn handle_message_command(
         .instructions
         .unwrap_or_else(|| config.instructions.clone());
 
-    let initial_message =
-        generate_initial_message(&service, &effective_instructions, dry_run).await?;
+    let initial_message = generate_initial_message(&service, &effective_instructions, dry).await?;
 
     if print {
         println!("{}", format_commit_message(&initial_message));
@@ -173,7 +172,7 @@ pub async fn handle_pr_command(
 
 pub struct MessageConfig {
     pub print: bool,
-    pub dry_run: bool,
+    pub dry: bool,
 }
 
 /// Handles the commit message completion command
@@ -185,7 +184,7 @@ pub async fn handle_completion_command(
     repository_url: Option<String>,
 ) -> Result<()> {
     let print = config.print;
-    let dry_run = config.dry_run;
+    let dry = config.dry;
     let mut config = Config::load()?;
     common.apply_to_config(&mut config)?;
 
@@ -222,7 +221,7 @@ pub async fn handle_completion_command(
 
     let git_info = service.get_git_info().await?;
 
-    if git_info.staged_files.is_empty() && !dry_run {
+    if git_info.staged_files.is_empty() && !dry {
         ui::print_warning(
             "No staged changes. Please stage your changes before completing a commit message.",
         );
@@ -242,7 +241,7 @@ pub async fn handle_completion_command(
     ));
 
     // Generate completion with spinner display
-    let completed_message = if dry_run {
+    let completed_message = if dry {
         types::GeneratedMessage {
             title: format!("{}: Complete the implementation", prefix),
             message: "Add comprehensive error handling and improve code documentation.".to_string(),
