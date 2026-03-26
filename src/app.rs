@@ -231,6 +231,10 @@ pub enum WireCommand {
         /// Append to existing .gitwire.toml instead of creating new (requires --save)
         #[arg(long, requires = "save")]
         append: bool,
+
+        /// Use global config (~/.gitwire) instead of local (.gitwire)
+        #[arg(long)]
+        global: bool,
     },
 
     /// Checks if the synchronized code identical to the original.
@@ -245,6 +249,10 @@ pub enum WireCommand {
         /// Append to existing .gitwire.toml instead of creating new (requires --save)
         #[arg(long, requires = "save")]
         append: bool,
+
+        /// Use global config (~/.gitwire) instead of local (.gitwire)
+        #[arg(long)]
+        global: bool,
     },
 }
 
@@ -507,8 +515,9 @@ pub async fn handle_wire(args: WireArgs) -> anyhow::Result<()> {
             source,
             save,
             append,
+            global,
         } => {
-            let target_config = build_target_config(target_name, &source, save, append)?;
+            let target_config = build_target_config(target_name, &source, save, append, global)?;
             operation::sync_with_caching(&Target::Declared(target_config), mode).await
         }
 
@@ -516,8 +525,9 @@ pub async fn handle_wire(args: WireArgs) -> anyhow::Result<()> {
             source,
             save,
             append,
+            global,
         } => {
-            let target_config = build_target_config(target_name, &source, save, append)?;
+            let target_config = build_target_config(target_name, &source, save, append, global)?;
             check::check(&Target::Declared(target_config), &mode)
         }
     };
@@ -540,6 +550,7 @@ fn build_target_config(
     source: &WireSource,
     save_config: bool,
     append_config: bool,
+    global: bool,
 ) -> anyhow::Result<TargetConfig> {
     let cli_override = build_parsed_from_cli(source);
 
@@ -554,6 +565,7 @@ fn build_target_config(
         cli_override,
         save_config,
         append_config,
+        global,
     })
 }
 

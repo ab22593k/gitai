@@ -112,6 +112,8 @@ pub struct TargetConfig {
     pub save_config: bool,
     /// Append to existing .gitwire.toml instead of overwriting
     pub append_config: bool,
+    /// Use global config (~/.gitwire) instead of local (.gitwire)
+    pub global: bool,
 }
 
 pub enum Target {

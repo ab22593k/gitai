@@ -27,6 +27,8 @@ pub use commands::commit::types::{
 };
 
 // Re-exports from wire
+pub use sync::common::Parsed;
+pub use sync::common::parse::{parse_gitwire, save_to_gitwire};
 pub use sync::{
     CacheManager, CachedRepository, RepositoryConfiguration, WireOperation, init_logger,
 };

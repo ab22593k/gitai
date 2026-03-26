@@ -84,86 +84,81 @@ fn get_repo_configs(
 fn get_repo_configs_declared(
     config: &TargetConfig,
 ) -> Result<(String, Vec<RepositoryConfiguration>, Option<Parsed>), Cause<ErrorType>> {
-    // Try to parse .gitwire.toml
-    let gitwire_data = parse::parse_gitwire()?;
+    let root = std::env::current_dir()
+        .or(Err(cause!(ErrorType::CurrentDirRetrieve)))?
+        .clone();
 
-    let (root, parsed_items, cli_parsed_for_save) = match (gitwire_data, &config.cli_override) {
-        // Both .gitwire.toml and CLI args provided
-        (Some((root, mut file_items)), Some(cli_parsed)) => {
+    let gitwire_data = parse::parse_gitwire(&root, config.global)?;
+
+    let (root_str, parsed_items, cli_parsed_for_save) = match (gitwire_data, &config.cli_override) {
+        // Both .gitwire and CLI args provided
+        (Some(mut file_items), Some(cli_parsed)) => {
             if let Some(name) = &config.name_filter {
-                // Try to find and override entry by name
                 if let Some(entry) = file_items
                     .iter_mut()
                     .find(|p| p.name.as_ref() == Some(name))
                 {
                     merge_parsed(entry, cli_parsed);
-                    // Keep only the matched entry
                     let matched = entry.clone();
                     file_items.retain(|p| p.name.as_ref() == Some(name));
-                    (root, file_items, Some(matched))
+                    (
+                        root.to_string_lossy().to_string(),
+                        file_items,
+                        Some(matched),
+                    )
                 } else {
-                    // Name not found, use CLI args as new entry
-                    (root, vec![cli_parsed.clone()], Some(cli_parsed.clone()))
+                    (
+                        root.to_string_lossy().to_string(),
+                        vec![cli_parsed.clone()],
+                        Some(cli_parsed.clone()),
+                    )
                 }
             } else {
-                // No name filter: use CLI args only (override all)
-                (root, vec![cli_parsed.clone()], Some(cli_parsed.clone()))
+                (
+                    root.to_string_lossy().to_string(),
+                    vec![cli_parsed.clone()],
+                    Some(cli_parsed.clone()),
+                )
             }
         }
 
-        // Only .gitwire.toml exists
-        (Some((root, mut file_items)), None) => {
+        // Only .gitwire exists
+        (Some(mut file_items), None) => {
             if let Some(name) = &config.name_filter {
                 file_items.retain(|p| p.name.as_ref() == Some(name));
                 if file_items.is_empty() {
                     return Err(cause!(
                         ErrorType::NoItemToOperate,
-                        format!("No entry with name '{name}' found in .gitwire.toml")
+                        format!("No entry with name '{name}' found in .gitwire")
                     ));
                 }
             }
-            (root, file_items, None)
+            (root.to_string_lossy().to_string(), file_items, None)
         }
 
-        // Only CLI args provided (no .gitwire.toml)
-        (None, Some(cli_parsed)) => {
-            let root = env::current_dir()
-                .or(Err(cause!(ErrorType::CurrentDirRetrieve)))?
-                .to_string_lossy()
-                .to_string();
-            (root, vec![cli_parsed.clone()], Some(cli_parsed.clone()))
-        }
+        // Only CLI args provided (no .gitwire)
+        (None, Some(cli_parsed)) => (
+            root.to_string_lossy().to_string(),
+            vec![cli_parsed.clone()],
+            Some(cli_parsed.clone()),
+        ),
 
         // Neither provided - show interactive prompt
-        (None, None) => match parse::prompt_create_gitwire()? {
-            Some(parsed) => {
-                let root = env::current_dir()
-                    .or(Err(cause!(ErrorType::CurrentDirRetrieve)))?
-                    .to_string_lossy()
-                    .to_string();
-
-                // Save the prompted config
-                parse::save_to_gitwire_toml(&parsed, false)?;
-
-                (root, vec![parsed.clone()], Some(parsed))
-            }
-            None => {
-                return Err(cause!(
-                    ErrorType::NoItemToOperate,
-                    "No .gitwire.toml file found and no CLI arguments provided.\n\
-                     \nUsage examples:\n\
-                     \n  git-wire sync --url <URL> --rev <REV> --src <SRC> --dst <DST>\n\
-                     \n  git-wire sync --url <URL> --rev <REV> --src '[\"lib\",\"tools\"]' --dst <DST>\n\
-                     \n  git-wire sync  # Interactive mode"
-                ));
-            }
-        },
+        (None, None) => {
+            return Err(cause!(
+                ErrorType::NoItemToOperate,
+                "No .gitwire file found and no CLI arguments provided.\n\
+                 \nUsage examples:\n\
+                 \n  git-wire sync --url <URL> --rev <REV> --src <SRC> --dst <DST>\n\
+                 \n  git-wire sync --url <URL> --rev <REV> --src '[\"lib\",\"tools\"]' --dst <DST>\n\
+                 \n  git-wire sync  # Interactive mode"
+            ));
+        }
     };
 
-    // Convert parsed items to RepositoryConfigurations
     let repo_configs = parsed_items.into_iter().map(parsed_to_config).collect();
 
-    Ok((root, repo_configs, cli_parsed_for_save))
+    Ok((root_str, repo_configs, cli_parsed_for_save))
 }
 
 /// Validate that the target path is within the project root to prevent path traversal attacks.
@@ -232,36 +227,34 @@ pub async fn sync_with_caching(
 }
 
 fn update_sync_hashes(target: &Target, ops: &[WireOperation]) -> Result<(), Cause<ErrorType>> {
-    let gitwire_data = parse::parse_gitwire()?;
-    if let Some((_, mut file_items)) = gitwire_data {
+    let root = std::env::current_dir()
+        .or(Err(cause!(ErrorType::CurrentDirRetrieve)))?
+        .clone();
+
+    let Target::Declared(config) = target;
+    let gitwire_data = parse::parse_gitwire(&root, config.global)?;
+
+    if let Some(mut file_items) = gitwire_data {
         let mut updated = false;
         for op in ops {
             if let Some(entry) = file_items.iter_mut().find(|p| {
                 p.name == op.source_config.name_filter || p.dst == op.source_config.target_path
-            }) {
-                // Get the current commit hash from the cached repo
-                if let Ok(repo) = git2::Repository::open(&op.cached_repo_path)
-                    && let Ok(head) = repo.head()
-                    && let Some(oid) = head.target()
-                {
-                    let new_hash = oid.to_string();
-                    if entry.last_sync_hash.as_ref() != Some(&new_hash) {
-                        entry.last_sync_hash = Some(new_hash);
-                        updated = true;
-                    }
+            }) && let Ok(repo) = git2::Repository::open(&op.cached_repo_path)
+                && let Ok(head) = repo.head()
+                && let Some(oid) = head.target()
+            {
+                let new_hash = oid.to_string();
+                if entry.last_sync_hash.as_ref() != Some(&new_hash) {
+                    entry.last_sync_hash = Some(new_hash);
+                    updated = true;
                 }
             }
         }
 
         if updated {
-            // This is a bit inefficient as it rewrites the whole file, but it works
-            // In a real implementation, we might want a more granular update
-            let Target::Declared(_config) = target;
-            if let Some(first) = file_items.first() {
-                parse::save_to_gitwire_toml(first, false)?;
-                for item in file_items.iter().skip(1) {
-                    parse::save_to_gitwire_toml(item, true)?;
-                }
+            let Target::Declared(config) = target;
+            for item in &file_items {
+                parse::save_to_gitwire(&root, config.global, item)?;
             }
         }
     }
@@ -452,7 +445,10 @@ fn handle_save_config(
     if config.save_config
         && let Some(parsed) = cli_parsed_for_save
     {
-        parse::save_to_gitwire_toml(parsed, config.append_config)?;
+        let root = std::env::current_dir()
+            .or(Err(cause!(ErrorType::CurrentDirRetrieve)))?
+            .clone();
+        parse::save_to_gitwire(&root, config.global, parsed)?;
     }
     Ok(())
 }
