@@ -1,72 +1,16 @@
-use super::completion::CompletionService;
 use super::service::CommitService;
 use super::types::{format_commit_message, format_pull_request};
 use crate::commands::commit::types;
-use crate::common::{CommonParams, DetailLevel};
+use crate::commands::common::service::{create_commit_service, create_completion_service};
+use crate::commands::common::{run_with_spinner, validate_staged_files};
+use crate::common::CommonParams;
 use crate::config::Config;
-use crate::git::GitRepo;
-use crate::llm::context::CommitContext;
 use crate::llm::messages;
 use crate::tui::run_tui_commit;
 use crate::ui::{self, SpinnerState};
 
-use anyhow::{Context, Result};
-use crossterm::{
-    ExecutableCommand,
-    terminal::{Clear, ClearType},
-};
-use std::{
-    io::{self, Write},
-    str::FromStr,
-    sync::Arc,
-    time::Duration,
-};
-use tokio::time;
-
-/// Run an async operation with a CLI spinner display
-async fn run_with_spinner<F, T>(mut spinner: SpinnerState, operation: F) -> Result<T, anyhow::Error>
-where
-    F: AsyncFnOnce() -> Result<T, anyhow::Error>,
-{
-    let (tx, mut rx) = tokio::sync::mpsc::channel(1);
-
-    // Spawn spinner animation task
-    let spinner_handle = tokio::spawn(async move {
-        let mut stdout = io::stdout();
-        loop {
-            tokio::select! {
-                _ = rx.recv() => break, // Stop signal received
-                () = time::sleep(Duration::from_millis(100)) => {
-                    let (frame, message, _color, _width) = spinner.tick();
-                    let _ = write!(stdout, "\r{frame} {message}");
-                    let _ = stdout.flush();
-                }
-            }
-        }
-        // Clear the spinner line
-        let _ = stdout.execute(Clear(ClearType::CurrentLine));
-        let _ = write!(stdout, "\r");
-        let _ = stdout.flush();
-    });
-
-    // Run the operation
-    let result = operation().await;
-
-    // Stop the spinner
-    let _ = tx.send(()).await;
-    spinner_handle.await?;
-
-    result
-}
-
-fn validate_staged_files(git_info: &CommitContext, dry: bool) {
-    if git_info.staged_files.is_empty() && !dry {
-        ui::print_warning(
-            "No staged changes. Please stage your changes before generating a commit message.",
-        );
-        ui::print_info("You can stage changes using 'git add <file>' or 'git add .'");
-    }
-}
+use anyhow::Result;
+use std::sync::Arc;
 
 async fn generate_initial_message(
     service: &CommitService,
@@ -535,68 +479,4 @@ fn is_commitish_syntax(reference: &str) -> bool {
 /// Heuristic to determine if a reference looks like a commit hash (legacy function for backward compatibility)
 fn is_likely_commit_hash(reference: &str) -> bool {
     reference.len() >= 7 && reference.chars().all(|c| c.is_ascii_hexdigit())
-}
-
-/// Common function to set up `CommitService`
-fn create_commit_service(
-    common: &CommonParams,
-    repository_url: Option<String>,
-    config: &Config,
-) -> Result<Arc<CommitService>> {
-    // Combine repository URL from CLI and CommonParams
-    let repo_url = repository_url.or(common.repository_url.clone());
-
-    // Create the git repository
-    let git_repo = GitRepo::new_from_url(repo_url).context("Failed to create GitRepo")?;
-
-    let repo_path = git_repo.repo_path().clone();
-    let provider_name = "google";
-
-    let detail_level = DetailLevel::from_str(&common.detail_level).unwrap_or(DetailLevel::Standard);
-
-    let service = Arc::new(
-        CommitService::new(
-            config.clone(),
-            &repo_path,
-            provider_name,
-            detail_level,
-            git_repo,
-        )
-        .context("Failed to create CommitService")?,
-    );
-
-    // Check environment prerequisites
-    service
-        .check_environment()
-        .context("Environment check failed")?;
-
-    Ok(service)
-}
-
-/// Common function to set up `CompletionService`
-fn create_completion_service(
-    common: &CommonParams,
-    repository_url: Option<String>,
-    config: &Config,
-) -> Result<Arc<CompletionService>> {
-    // Combine repository URL from CLI and CommonParams
-    let repo_url = repository_url.or(common.repository_url.clone());
-
-    // Create the git repository
-    let git_repo = GitRepo::new_from_url(repo_url).context("Failed to create GitRepo")?;
-
-    let repo_path = git_repo.repo_path().clone();
-    let provider_name = "google";
-
-    let service = Arc::new(
-        CompletionService::new(config.clone(), &repo_path, provider_name, git_repo)
-            .context("Failed to create CompletionService")?,
-    );
-
-    // Check environment prerequisites
-    service
-        .check_environment()
-        .context("Environment check failed")?;
-
-    Ok(service)
 }
