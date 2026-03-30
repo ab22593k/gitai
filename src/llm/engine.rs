@@ -11,9 +11,6 @@ use serde::de::DeserializeOwned;
 use std::collections::HashMap;
 use tokio_retry::Retry;
 use tokio_retry::strategy::ExponentialBackoff;
-use tracing::Level;
-use tracing_appender::rolling::{RollingFileAppender, Rotation};
-use tracing_subscriber::fmt::format::FmtSpan;
 
 #[derive(Debug)]
 struct ProviderDefault {
@@ -63,9 +60,15 @@ static PROVIDER_DEFAULTS: std::sync::LazyLock<
     m
 });
 
-/// Initialize tracing to a rolling file in target/debug
+/// Initialize tracing to a rolling file in temp directory
 pub fn init_tracing_to_file() {
-    let file_appender = RollingFileAppender::new(Rotation::DAILY, "target/debug", "llm-debug.log");
+    use tracing::Level;
+    use tracing_appender::rolling::{RollingFileAppender, Rotation};
+    use tracing_subscriber::fmt::format::FmtSpan;
+
+    let log_dir = std::env::temp_dir().join("gitai-logs").join("debug");
+    let _ = std::fs::create_dir_all(&log_dir);
+    let file_appender = RollingFileAppender::new(Rotation::DAILY, log_dir, "llm-debug.log");
     let _ = tracing_subscriber::fmt()
         .with_writer(file_appender)
         .with_max_level(Level::INFO)
