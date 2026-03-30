@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::{Parser, crate_authors, crate_version};
 use gitai::{
-    app::{self, PrParams},
+    cli::args::{self, PrParams},
     common::CommonParams,
     init_app,
     ui::print_error,
@@ -13,8 +13,8 @@ use gitai::{
     author = crate_authors!(),
     version = crate_version!(),
     about = "Generate a pull request description using AI",
-    after_help = app::get_dynamic_help(),
-    styles = app::get_styles(),
+    after_help = args::get_dynamic_help(),
+    styles = args::get_styles(),
 )]
 struct PrArgs {
     #[command(flatten)]
@@ -31,7 +31,7 @@ async fn main() -> Result<()> {
     let args = PrArgs::parse();
     let repository_url = args.common.repository_url.clone();
 
-    if let Err(e) = app::handle_pr_command(
+    if let Err(e) = gitai::cli::handlers::handle_pr_command(
         args.common,
         args.params.print,
         args.params.from,

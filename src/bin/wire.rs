@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Parser;
 use gitai::{
-    app::{self, WireArgs},
+    cli::args::{self, WireArgs},
     init_app,
     ui::print_error,
 };
@@ -12,7 +12,7 @@ use gitai::{
     version,
     author,
     about = "Synchronize code from remote repositories",
-    styles = app::get_styles(),
+    styles = args::get_styles(),
 )]
 struct WireCli {
     #[command(flatten)]
@@ -25,7 +25,7 @@ async fn main() -> Result<()> {
 
     let cli = WireCli::parse();
 
-    if let Err(e) = app::handle_wire(cli.args).await {
+    if let Err(e) = gitai::cli::handlers::handle_wire(cli.args).await {
         print_error(&format!("Error: {e}"));
         std::process::exit(1);
     }

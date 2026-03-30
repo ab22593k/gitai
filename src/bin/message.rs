@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::{Parser, crate_authors, crate_version};
 use gitai::{
-    app::{self, CmsgConfig, MessageArgs, MessageParams},
+    cli::args::{self, CmsgConfig, MessageArgs, MessageParams},
     common::CommonParams,
     init_app,
     ui::print_error,
@@ -13,8 +13,8 @@ use gitai::{
     author = crate_authors!(),
     version = crate_version!(),
     about = "Generate a commit message using AI",
-    after_help = app::get_dynamic_help(),
-    styles = app::get_styles(),
+    after_help = args::get_dynamic_help(),
+    styles = args::get_styles(),
 )]
 struct CliArgs {
     #[command(flatten)]
@@ -31,7 +31,7 @@ async fn main() -> Result<()> {
     let args = CliArgs::parse();
     let repository_url = args.common.repository_url.clone();
 
-    if let Err(e) = app::handle_message(
+    if let Err(e) = gitai::cli::handlers::handle_message(
         args.common,
         CmsgConfig {
             print_only: args.params.print,

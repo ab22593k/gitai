@@ -13,12 +13,12 @@ use fs_extra::{copy_items, dir::CopyOptions, remove_items};
 use log::{debug, error, info};
 use tokio::task::JoinSet;
 
-use super::cache::{
+use crate::sync::cache::{
     fetcher::RepositoryFetcher, key_generator::CacheKeyGenerator, manager::CacheManager,
 };
-use super::common::{ErrorType, MergeStrategy, Parsed, Target, TargetConfig, parse};
-use super::models::repo_config::RepositoryConfiguration;
-use super::models::wire_operation::WireOperation;
+use crate::sync::common::{ErrorType, MergeStrategy, Parsed, Target, TargetConfig, parse};
+use crate::sync::models::repo_config::RepositoryConfiguration;
+use crate::sync::models::wire_operation::WireOperation;
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 #[allow(dead_code)]
@@ -193,7 +193,7 @@ fn validate_dest_path(
 // Enhanced sync functionality that integrates caching
 pub async fn sync_with_caching(
     target: &Target,
-    _mode: super::common::sequence::Mode,
+    _mode: crate::sync::common::sequence::Mode,
 ) -> Result<bool, Cause<ErrorType>> {
     info!("git-wire sync with caching started");
 

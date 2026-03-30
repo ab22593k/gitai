@@ -1,4 +1,4 @@
-pub mod app;
+pub mod cli;
 pub mod commands;
 #[allow(
     clippy::must_use_candidate,
@@ -12,6 +12,8 @@ pub mod llm;
 pub mod sync;
 pub mod tui;
 pub mod ui;
+
+pub use crate::cli::{Cli, Gitai, handle_command, parse_args};
 
 // Re-export important structs and functions for easier testing
 pub use config::Config;

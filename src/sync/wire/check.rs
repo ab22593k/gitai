@@ -5,13 +5,9 @@ use colored::Colorize;
 use folder_compare::FolderCompare;
 use temp_dir::TempDir;
 
-use crate::sync::common::{ErrorType, sequence};
-
-use super::common::{
-    ErrorType::{CheckDifferenceExecution, CheckDifferenceStringReplace},
-    Parsed, Target,
-    sequence::Operation,
-};
+use crate::sync::common::ErrorType::{CheckDifferenceExecution, CheckDifferenceStringReplace};
+use crate::sync::common::sequence::Operation;
+use crate::sync::common::{ErrorType, Parsed, Target, sequence};
 
 #[derive(Debug)]
 struct CheckOperation {}
