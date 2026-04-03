@@ -129,3 +129,24 @@ pub fn is_path_sound(path: &str) -> bool {
         Component::ParentDir | Component::CurDir => false,
     })
 }
+
+/// Normalize a GitHub browser URL to a git clone URL.
+pub fn normalize_github_url(url: &str) -> String {
+    if !url.contains("github.com") {
+        return url.to_string();
+    }
+    let url = url.trim_end_matches('/');
+    if let Some(pos) = url.find("/tree/") {
+        return format!("{}.git", &url[..pos]);
+    }
+    if let Some(pos) = url.find("/blob/") {
+        return format!("{}.git", &url[..pos]);
+    }
+    if std::path::Path::new(url)
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("git"))
+    {
+        return url.to_string();
+    }
+    format!("{url}.git")
+}

@@ -41,7 +41,8 @@ impl<'a> GhostRefManager<'a> {
 
     /// Update a ghost reference for a specific wire entry
     pub fn update_ghost_ref(&self, entry_name: &str, commit_hash: &str) -> Result<()> {
-        let ref_name = format!("refs/gitai/wire/{}", entry_name);
+        let safe_name = entry_name.trim_end_matches('/').replace('/', "_");
+        let ref_name = format!("refs/gitai/wire/{}", safe_name);
         let oid = git2::Oid::from_str(commit_hash)
             .map_err(|e| anyhow!("Invalid commit hash '{}': {}", commit_hash, e))?;
 
@@ -53,7 +54,8 @@ impl<'a> GhostRefManager<'a> {
 
     /// Get the commit hash stored in a ghost reference
     pub fn get_ghost_hash(&self, entry_name: &str) -> Result<Option<String>> {
-        let ref_name = format!("refs/gitai/wire/{}", entry_name);
+        let safe_name = entry_name.trim_end_matches('/').replace('/', "_");
+        let ref_name = format!("refs/gitai/wire/{}", safe_name);
         match self.repo.find_reference(&ref_name) {
             Ok(reference) => {
                 let oid = reference

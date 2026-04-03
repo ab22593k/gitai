@@ -161,7 +161,10 @@ pub enum WireCommand {
         #[arg(long)]
         save: bool,
 
-        #[arg(long, requires = "save")]
+        #[arg(long)]
+        no_save: bool,
+
+        #[arg(long)]
         append: bool,
 
         #[arg(long)]
@@ -173,6 +176,9 @@ pub enum WireCommand {
 
         #[arg(long)]
         save: bool,
+
+        #[arg(long)]
+        no_save: bool,
 
         #[arg(long, requires = "save")]
         append: bool,

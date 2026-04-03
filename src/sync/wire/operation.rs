@@ -9,7 +9,7 @@ use crate::config::Config;
 use crate::git::GhostRefManager;
 use crate::git::GitRepo;
 use cause::{Cause, cause};
-use fs_extra::{copy_items, dir::CopyOptions, remove_items};
+use fs_extra::{copy_items, dir::CopyOptions};
 use log::{debug, error, info};
 use tokio::task::JoinSet;
 
@@ -143,15 +143,12 @@ fn get_repo_configs_declared(
             Some(cli_parsed.clone()),
         ),
 
-        // Neither provided - show interactive prompt
+        // Neither provided - no .gitwire and no CLI args
         (None, None) => {
             return Err(cause!(
                 ErrorType::NoItemToOperate,
-                "No .gitwire file found and no CLI arguments provided.\n\
-                 \nUsage examples:\n\
-                 \n  git-wire sync --url <URL> --rev <REV> --src <SRC> --dst <DST>\n\
-                 \n  git-wire sync --url <URL> --rev <REV> --src '[\"lib\",\"tools\"]' --dst <DST>\n\
-                 \n  git-wire sync  # Interactive mode"
+                "No synced items found. Run:\n\
+                 \n  git-wire sync --url <URL> --rev <REV> --src <SRC> --dst <DST>"
             ));
         }
     };
@@ -254,7 +251,7 @@ fn update_sync_hashes(target: &Target, ops: &[WireOperation]) -> Result<(), Caus
         if updated {
             let Target::Declared(config) = target;
             for item in &file_items {
-                parse::save_to_gitwire(&root, config.global, item)?;
+                parse::save_to_gitwire(&root, config.global, item, false)?;
             }
         }
     }
@@ -305,6 +302,7 @@ fn execute_wire_operations(
             MergeStrategy::Auto | MergeStrategy::Manual | MergeStrategy::Ai
         ) && let Some(base_hash) = &wire_op.source_config.last_sync_hash
             && dest_dir.exists()
+            && local_repo.revparse_single(base_hash).is_ok()
         {
             // Check if dirty
             let is_dirty = ghost_manager.is_dirty(base_hash, &dest_dir).unwrap_or(true);
@@ -320,14 +318,6 @@ fn execute_wire_operations(
         }
 
         if !performed_integrated {
-            if dest_dir.exists() {
-                remove_items(&[dest_dir.as_path()]).map_err(|e| {
-                    cause!(ErrorType::MoveFromTempToDest)
-                        .src(e)
-                        .msg(format!("Could not remove {}", dest_dir.display()))
-                })?;
-            }
-
             fs::create_dir_all(&dest_dir)
                 .map_err(|e| cause!(ErrorType::MoveFromTempToDest).src(e))?;
 
@@ -345,6 +335,8 @@ fn execute_wire_operations(
         }
 
         // Update ghost ref after successful sync
+        // Only update if the cached repo's HEAD commit exists in the local repo
+        // (ghost refs track local state, not remote state)
         if let Ok(repo) = git2::Repository::open(&wire_op.cached_repo_path)
             && let Ok(head) = repo.head()
             && let Some(oid) = head.target()
@@ -354,7 +346,10 @@ fn execute_wire_operations(
                 .name_filter
                 .as_deref()
                 .unwrap_or(&wire_op.source_config.target_path);
-            if let Err(e) = ghost_manager.update_ghost_ref(entry_name, &oid.to_string()) {
+            // Only update ghost ref if the OID exists in the local repo
+            if local_repo.revparse_single(&oid.to_string()).is_ok()
+                && let Err(e) = ghost_manager.update_ghost_ref(entry_name, &oid.to_string())
+            {
                 error!("Failed to update ghost ref for {entry_name}: {e}");
             }
         }
@@ -448,7 +443,7 @@ fn handle_save_config(
         let root = std::env::current_dir()
             .or(Err(cause!(ErrorType::CurrentDirRetrieve)))?
             .clone();
-        parse::save_to_gitwire(&root, config.global, parsed)?;
+        parse::save_to_gitwire(&root, config.global, parsed, config.append_config)?;
     }
     Ok(())
 }

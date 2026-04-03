@@ -5,7 +5,7 @@ use crate::commands::commit;
 use crate::common::CommonParams;
 use crate::sync::{
     check,
-    common::{Method, Parsed, Target, TargetConfig, sequence},
+    common::{Method, Parsed, Target, TargetConfig, normalize_github_url, sequence},
 };
 
 use super::args::{
@@ -168,10 +168,14 @@ pub async fn handle_wire(args: WireArgs) -> Result<()> {
         WireCommand::Sync {
             source,
             save,
+            no_save,
             append,
             global,
         } => {
-            let target_config = build_target_config(target_name, &source, save, append, global)?;
+            let has_cli_args = source.url.is_some() || !source.src.is_empty();
+            let auto_save = has_cli_args && !no_save;
+            let target_config =
+                build_target_config(target_name, &source, save || auto_save, append, global)?;
             crate::sync::wire::operation::sync_with_caching(&Target::Declared(target_config), mode)
                 .await
         }
@@ -179,10 +183,14 @@ pub async fn handle_wire(args: WireArgs) -> Result<()> {
         WireCommand::Check {
             source,
             save,
+            no_save,
             append,
             global,
         } => {
-            let target_config = build_target_config(target_name, &source, save, append, global)?;
+            let has_cli_args = source.url.is_some() || !source.src.is_empty();
+            let auto_save = has_cli_args && !no_save;
+            let target_config =
+                build_target_config(target_name, &source, save || auto_save, append, global)?;
             check::check(&Target::Declared(target_config), &mode)
         }
     };
@@ -250,7 +258,11 @@ fn build_parsed_from_cli(source: &WireSource) -> Option<Parsed> {
     Some(Parsed {
         name: source.entry_name.clone(),
         dsc: source.description.clone(),
-        url: source.url.clone().unwrap_or_default(),
+        url: source
+            .url
+            .as_ref()
+            .map(|u| normalize_github_url(u))
+            .unwrap_or_default(),
         rev: source.rev.clone().unwrap_or_default(),
         src: src_paths,
         dst: source.dst.clone().unwrap_or_default(),

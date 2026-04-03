@@ -2,7 +2,6 @@ use crate::sync::models::repo_config::RepositoryConfiguration;
 
 use super::super::common::{ErrorType, Method};
 use cause::{Cause, cause};
-use git2::Repository;
 use serde::{Deserialize, Serialize};
 use std::process::Command;
 
@@ -33,9 +32,6 @@ impl RepositoryFetcher {
         let config_clone = config.clone();
         tokio::task::spawn_blocking(move || -> Result<(), Cause<ErrorType>> {
             Self::execute_git_clone(&config_clone, &cache_path_clone)?;
-            if !matches!(config_clone.mtd, Some(Method::ShallowNoSparse)) {
-                Self::execute_git_checkout(&cache_path_clone, &config_clone.branch)?;
-            }
 
             // Get the actual commit hash and write cache metadata
             let commit_hash = Self::get_current_commit_hash(&cache_path_clone)?;
@@ -81,29 +77,17 @@ impl RepositoryFetcher {
                 );
             }
         } else {
-            Repository::clone(&config.url, cache_path)
+            // Use git command to clone with the specific branch
+            let output = Command::new("git")
+                .args(["clone", "--branch", &config.branch, &config.url, cache_path])
+                .output()
                 .map_err(|e| cause!(ErrorType::GitCloneCommand).src(e))?;
+            if !output.status.success() {
+                return Err(
+                    cause!(ErrorType::GitCloneCommand).msg(String::from_utf8_lossy(&output.stderr))
+                );
+            }
         }
-
-        Ok(())
-    }
-
-    /// Execute the git checkout command with error handling
-    fn execute_git_checkout(cache_path: &str, rev: &str) -> Result<(), Cause<ErrorType>> {
-        let repo = Repository::open(cache_path)
-            .map_err(|e| cause!(ErrorType::GitCheckoutCommand).src(e))?;
-
-        let obj = repo
-            .revparse_single(rev)
-            .map_err(|e| cause!(ErrorType::GitCheckoutCommand).src(e))?
-            .peel(git2::ObjectType::Commit)
-            .map_err(|e| cause!(ErrorType::GitCheckoutCommand).src(e))?;
-
-        repo.checkout_tree(&obj, None)
-            .map_err(|e| cause!(ErrorType::GitCheckoutCommand).src(e))?;
-
-        repo.set_head_detached(obj.id())
-            .map_err(|e| cause!(ErrorType::GitCheckoutCommand).src(e))?;
 
         Ok(())
     }

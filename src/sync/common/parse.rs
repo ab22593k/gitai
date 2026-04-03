@@ -123,8 +123,12 @@ fn parse_wire_entries(config: &GitConfig) -> Result<Vec<Parsed>, Cause<ErrorType
                         "dst" => entry.dst = value.to_string(),
                         "src" => entry.src = vec![value.to_string()],
                         "method" => entry.mtd = parse_method(value),
-                        "last_sync_hash" => entry.last_sync_hash = Some(value.to_string()),
-                        "merge_strategy" => entry.merge_strategy = parse_merge_strategy(value),
+                        "last-sync-hash" | "last_sync_hash" => {
+                            entry.last_sync_hash = Some(value.to_string());
+                        }
+                        "merge-strategy" | "merge_strategy" => {
+                            entry.merge_strategy = parse_merge_strategy(value);
+                        }
                         _ => {}
                     }
                 }
@@ -152,8 +156,12 @@ fn parse_wire_entries(config: &GitConfig) -> Result<Vec<Parsed>, Cause<ErrorType
                         "dst" => entry.dst = value.to_string(),
                         "src" => entry.src = vec![value.to_string()],
                         "method" => entry.mtd = parse_method(value),
-                        "last_sync_hash" => entry.last_sync_hash = Some(value.to_string()),
-                        "merge_strategy" => entry.merge_strategy = parse_merge_strategy(value),
+                        "last-sync-hash" | "last_sync_hash" => {
+                            entry.last_sync_hash = Some(value.to_string());
+                        }
+                        "merge-strategy" | "merge_strategy" => {
+                            entry.merge_strategy = parse_merge_strategy(value);
+                        }
                         _ => {}
                     }
                 }
@@ -197,13 +205,25 @@ pub fn save_to_gitwire(
     base_dir: &Path,
     global: bool,
     entry: &Parsed,
+    append: bool,
 ) -> Result<(), Cause<ErrorType>> {
     let config_path = get_gitwire_path(base_dir, global);
     let parent = config_path.parent().unwrap_or(Path::new("."));
     fs::create_dir_all(parent)
         .map_err(|e| cause!(DotGitWireFileOpen, "Failed to create directory").src(e))?;
 
-    let mut content = String::new();
+    let mut content = if append && config_path.exists() {
+        fs::read_to_string(&config_path).unwrap_or_default()
+    } else {
+        String::new()
+    };
+
+    if !content.is_empty() && !content.ends_with('\n') {
+        content.push('\n');
+    }
+    if !content.is_empty() {
+        content.push('\n');
+    }
 
     let subsection = entry
         .name
@@ -249,7 +269,7 @@ pub fn save_to_gitwire(
     if let Some(ref last_hash) = entry.last_sync_hash
         && !last_hash.is_empty()
     {
-        let _ = writeln!(content, "    last_sync_hash = {last_hash}");
+        let _ = writeln!(content, "    last-sync-hash = {last_hash}");
     }
 
     if let Some(ref strategy) = entry.merge_strategy {
@@ -259,7 +279,7 @@ pub fn save_to_gitwire(
             MergeStrategy::Manual => "manual",
             MergeStrategy::Ai => "ai",
         };
-        let _ = writeln!(content, "    merge_strategy = {strategy_str}");
+        let _ = writeln!(content, "    merge-strategy = {strategy_str}");
     }
 
     fs::write(&config_path, content)

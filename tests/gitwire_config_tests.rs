@@ -107,7 +107,7 @@ fn test_save_and_parse_roundtrip() {
         merge_strategy: None,
     };
 
-    let save_result = save_to_gitwire(repo_dir, false, &entry);
+    let save_result = save_to_gitwire(repo_dir, false, &entry, false);
     assert!(save_result.is_ok());
 
     let parsed_result = parse_gitwire(repo_dir, false);

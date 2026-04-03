@@ -141,7 +141,7 @@ pub fn sequence(
                 let root_path = std::env::current_dir()
                     .or(Err(cause!(ErrorType::CurrentDirRetrieve)))?
                     .clone();
-                super::parse::save_to_gitwire(&root_path, config.global, p)?;
+                super::parse::save_to_gitwire(&root_path, config.global, p, config.append_config)?;
             }
 
             (root, items, cli_parsed)
