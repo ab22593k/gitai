@@ -2,12 +2,12 @@
 //! PROOF: Tests common developer scenarios requiring minimal friction
 //! Persona: Developer who wants quick, friction-free commits
 
-use gitai::git::GitRepo;
 use gitai::config::Config;
+use gitai::git::GitRepo;
 
-#[path = "test_utils.rs"]
+#[path = "../utils_tests.rs"]
 mod test_utils;
-use test_utils::{setup_git_repo, TestAssertions};
+use test_utils::{TestAssertions, setup_git_repo};
 
 #[tokio::test]
 /// WORKFLOW: Quick commit flow - minimal friction
@@ -20,10 +20,10 @@ async fn test_quick_commit_flow() {
     use git2::Repository;
     use std::fs;
     use std::path::Path;
-    
+
     let repo = Repository::open(temp_dir.path()).expect("Failed to open");
     fs::write(temp_dir.path().join("quick.rs"), "fn main() {}").expect("Failed");
-    
+
     let mut index = repo.index().expect("Failed");
     index.add_path(Path::new("quick.rs")).expect("Failed");
     index.write().expect("Failed");
@@ -55,12 +55,12 @@ async fn test_quick_commit_flow() {
 /// Busy developer doesn't want to configure things
 async fn test_default_config_works() {
     let (temp_dir, git_repo) = setup_git_repo();
-    
+
     // Default config should work without any setup
     let config = Config::default();
-    
+
     let result = git_repo.get_git_info(&config).await;
-    
+
     TestAssertions::assert_success(
         &result,
         "Default config workflow",
@@ -77,10 +77,10 @@ async fn test_single_file_change_workflow() {
     use git2::Repository;
     use std::fs;
     use std::path::Path;
-    
+
     let repo = Repository::open(temp_dir.path()).expect("Failed");
     fs::write(temp_dir.path().join("modified.txt"), "changed").expect("Failed");
-    
+
     let mut index = repo.index().expect("Failed");
     index.add_path(Path::new("modified.txt")).expect("Failed");
     index.write().expect("Failed");

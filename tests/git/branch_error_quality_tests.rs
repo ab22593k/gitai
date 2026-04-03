@@ -7,7 +7,7 @@
 
 use gitai::config::Config;
 
-#[path = "test_utils.rs"]
+#[path = "../utils_tests.rs"]
 mod test_utils;
 use test_utils::setup_git_repo;
 

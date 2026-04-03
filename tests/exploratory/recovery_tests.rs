@@ -2,12 +2,12 @@
 //! Tests system recovery from invalid states and interrupted operations
 //! PROOF: Ensures system degrades gracefully under adverse conditions
 
-use gitai::git::GitRepo;
 use gitai::config::Config;
+use gitai::git::GitRepo;
 
-#[path = "test_utils.rs"]
+#[path = "../utils_tests.rs"]
 mod test_utils;
-use test_utils::{setup_git_repo, TestAssertions};
+use test_utils::{TestAssertions, setup_git_repo};
 
 #[tokio::test]
 /// RECOVERY: Test recovery from config access issues
@@ -18,7 +18,7 @@ async fn test_graceful_degradation_on_config_error() {
 
     // Normal operation should work
     let result = git_repo.get_git_info(&config).await;
-    
+
     TestAssertions::assert_success(
         &result,
         "Normal operation after setup",
@@ -29,19 +29,15 @@ async fn test_graceful_degradation_on_config_error() {
 #[tokio::test]
 /// RECOVERY: Test handles empty directory gracefully
 async fn test_handles_empty_directory() {
-    use tempfile::TempDir;
     use gitai::git::GitRepo;
-    
+    use tempfile::TempDir;
+
     let temp_dir = TempDir::new().expect("Failed to create temp");
-    
+
     // Attempting to open non-repo should return error, not panic
     let result = GitRepo::new(temp_dir.path());
-    
-    TestAssertions::assert_failure(
-        &result,
-        "Non-git directory access",
-        Some("repository"),
-    );
+
+    TestAssertions::assert_failure(&result, "Non-git directory access", Some("repository"));
 }
 
 #[tokio::test]
@@ -64,7 +60,7 @@ async fn test_state_consistency_across_operations() {
          EXPECTED: Consistent behavior\n\
          ACTUAL: First call result differs from second"
     );
-    
+
     assert_eq!(
         result2.is_ok(),
         result3.is_ok(),
@@ -83,7 +79,7 @@ async fn test_handles_simulated_interruption() {
 
     // Get initial state
     let initial = git_repo.get_git_info(&config).await;
-    
+
     TestAssertions::assert_success(
         &initial,
         "Initial state retrieval",
@@ -92,7 +88,7 @@ async fn test_handles_simulated_interruption() {
 
     // Do another operation
     let subsequent = git_repo.get_git_info(&config).await;
-    
+
     TestAssertions::assert_success(
         &subsequent,
         "Subsequent state retrieval",

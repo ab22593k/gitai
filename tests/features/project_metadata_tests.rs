@@ -3,7 +3,7 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 // Use our centralized test infrastructure
-#[path = "test_utils.rs"]
+#[path = "../utils_tests.rs"]
 mod test_utils;
 use test_utils::setup_temp_dir;
 

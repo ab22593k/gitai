@@ -1,18 +1,18 @@
 use anyhow::Result;
+use git2::Repository;
 use gitai::{
     changes::models::{
         ChangeEntry, ChangeMetrics, ChangelogResponse, ChangelogType, ReleaseNotesResponse,
     },
     common::DetailLevel,
 };
-use git2::Repository;
 
 use std::fmt::Write as FmtWrite;
 use std::str::FromStr;
 use tempfile::TempDir;
 
 // Use our centralized test infrastructure
-#[path = "test_utils.rs"]
+#[path = "../utils_tests.rs"]
 mod test_utils;
 use test_utils::setup_git_repo_with_tags;
 

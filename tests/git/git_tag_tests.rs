@@ -4,7 +4,7 @@
 use anyhow::Result;
 use gitai::git::GitRepo;
 
-#[path = "test_utils.rs"]
+#[path = "../utils_tests.rs"]
 mod test_utils;
 use test_utils::{GitTestHelper, setup_git_repo, setup_git_repo_with_tags};
 

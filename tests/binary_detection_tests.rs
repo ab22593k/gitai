@@ -10,7 +10,7 @@ use gitai::config::Config;
 use gitai::llm::context::ChangeType;
 use std::fs;
 
-#[path = "test_utils.rs"]
+#[path = "utils_tests.rs"]
 mod test_utils;
 use test_utils::{GitTestHelper, MockDataBuilder, setup_git_repo};
 

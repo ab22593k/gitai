@@ -4,7 +4,7 @@ use anyhow::Result;
 use git2::Repository;
 
 // Use our centralized test infrastructure
-#[path = "test_utils.rs"]
+#[path = "../utils_tests.rs"]
 mod test_utils;
 use test_utils::{GitHooksTestHelper, GitTestHelper, setup_git_repo};
 

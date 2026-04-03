@@ -4,7 +4,7 @@ use gitai::{
 };
 
 // Use our centralized test infrastructure
-#[path = "test_utils.rs"]
+#[path = "../utils_tests.rs"]
 mod test_utils;
 use test_utils::{MockDataBuilder, TestAssertions};
 

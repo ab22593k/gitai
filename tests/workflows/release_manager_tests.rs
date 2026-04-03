@@ -2,12 +2,12 @@
 //! PROOF: Tests scenarios for release planning and changelog generation
 //! Persona: Release manager who needs accurate changelogs and version tracking
 
-use gitai::git::GitRepo;
 use gitai::config::Config;
+use gitai::git::GitRepo;
 
-#[path = "test_utils.rs"]
+#[path = "../utils_tests.rs"]
 mod test_utils;
-use test_utils::{setup_git_repo, TestAssertions, ComplexRepoBuilder};
+use test_utils::{ComplexRepoBuilder, TestAssertions, setup_git_repo};
 
 #[tokio::test]
 /// WORKFLOW: Release preparation - need version context
@@ -20,7 +20,7 @@ async fn test_release_preparation_workflow() {
     if let Ok((_temp_dir, git_repo)) = result {
         let config = Config::default();
         let context = git_repo.get_git_info(&config).await;
-        
+
         TestAssertions::assert_success(
             &context,
             "Release preparation",
@@ -32,9 +32,7 @@ async fn test_release_preparation_workflow() {
 #[tokio::test]
 /// WORKFLOW: Changelog generation - need commit history
 async fn test_changelog_generation_workflow() {
-    let result = ComplexRepoBuilder::new()
-        .with_commits(5)
-        .build();
+    let result = ComplexRepoBuilder::new().with_commits(5).build();
 
     if let Ok((_temp_dir, git_repo)) = result {
         let config = Config::default();
@@ -63,7 +61,7 @@ async fn test_version_comparison_workflow() {
     if let Ok((_temp_dir, git_repo)) = result {
         let config = Config::default();
         let context = git_repo.get_git_info(&config).await;
-        
+
         TestAssertions::assert_success(
             &context,
             "Version comparison",

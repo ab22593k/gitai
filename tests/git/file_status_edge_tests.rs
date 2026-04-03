@@ -11,7 +11,7 @@ use gitai::llm::context::ChangeType;
 use std::fs;
 use std::path::Path;
 
-#[path = "test_utils.rs"]
+#[path = "../utils_tests.rs"]
 mod test_utils;
 use test_utils::{GitTestHelper, setup_git_repo};
 

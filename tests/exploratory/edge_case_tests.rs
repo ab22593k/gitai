@@ -2,24 +2,22 @@
 //! Tests system behavior with unusual but valid inputs
 //! PROOF: Ensures robustness under edge conditions
 
-use gitai::git::GitRepo;
 use gitai::config::Config;
+use gitai::git::GitRepo;
 
-#[path = "test_utils.rs"]
+#[path = "../utils_tests.rs"]
 mod test_utils;
-use test_utils::{setup_git_repo, TestAssertions, ComplexRepoBuilder};
+use test_utils::{ComplexRepoBuilder, TestAssertions, setup_git_repo};
 
 #[tokio::test]
 /// EDGE CASE: Test with repository having many commits
 async fn test_handles_many_commits() {
-    let result = ComplexRepoBuilder::new()
-        .with_commits(10)
-        .build();
+    let result = ComplexRepoBuilder::new().with_commits(10).build();
 
     if let Ok((_temp_dir, git_repo)) = result {
         let config = Config::default();
         let info = git_repo.get_git_info(&config).await;
-        
+
         TestAssertions::assert_success(
             &info,
             "Many commits handling",
@@ -39,7 +37,7 @@ async fn test_handles_multiple_branches() {
     if let Ok((_temp_dir, git_repo)) = result {
         let config = Config::default();
         let info = git_repo.get_git_info(&config).await;
-        
+
         TestAssertions::assert_success(
             &info,
             "Multiple branches handling",
@@ -59,7 +57,7 @@ async fn test_handles_tags() {
     if let Ok((_temp_dir, git_repo)) = result {
         let config = Config::default();
         let info = git_repo.get_git_info(&config).await;
-        
+
         TestAssertions::assert_success(
             &info,
             "Tags handling",
@@ -79,7 +77,7 @@ async fn test_handles_binary_files() {
     if let Ok((_temp_dir, git_repo)) = result {
         let config = Config::default();
         let info = git_repo.get_git_info(&config).await;
-        
+
         TestAssertions::assert_success(
             &info,
             "Binary files handling",
@@ -99,7 +97,7 @@ async fn test_handles_special_characters() {
     if let Ok((_temp_dir, git_repo)) = result {
         let config = Config::default();
         let info = git_repo.get_git_info(&config).await;
-        
+
         TestAssertions::assert_success(
             &info,
             "Special characters handling",
@@ -121,7 +119,7 @@ async fn test_handles_complex_repo() {
     if let Ok((_temp_dir, git_repo)) = result {
         let config = Config::default();
         let info = git_repo.get_git_info(&config).await;
-        
+
         TestAssertions::assert_success(
             &info,
             "Complex repo handling",

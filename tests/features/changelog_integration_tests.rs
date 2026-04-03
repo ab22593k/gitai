@@ -3,6 +3,7 @@
 use anyhow::Result;
 use dotenv::dotenv;
 use env_logger;
+use git2::Repository;
 use gitai::{
     changes::{
         ChangelogGenerator, ReleaseNotesGenerator,
@@ -11,13 +12,12 @@ use gitai::{
     common::DetailLevel,
     config::Config,
 };
-use git2::Repository;
 
 use std::env;
 use tempfile::TempDir;
 
 // Use our centralized test infrastructure
-#[path = "test_utils.rs"]
+#[path = "../utils_tests.rs"]
 mod test_utils;
 use test_utils::setup_git_repo_with_tags;
 

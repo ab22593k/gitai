@@ -2,12 +2,12 @@
 //! Tests that operations don't have unintended side effects
 //! PROOF: Ensures operations are focused and don't affect unrelated state
 
-use gitai::git::GitRepo;
 use gitai::config::Config;
+use gitai::git::GitRepo;
 
-#[path = "test_utils.rs"]
+#[path = "../utils_tests.rs"]
 mod test_utils;
-use test_utils::{setup_git_repo, TestAssertions};
+use test_utils::{TestAssertions, setup_git_repo};
 
 #[tokio::test]
 /// SIDE EFFECT: Verify unrelated files unchanged after operation
@@ -15,20 +15,24 @@ async fn test_unrelated_files_unchanged() {
     use git2::Repository;
     use std::fs;
     use std::path::Path;
-    
+
     let (temp_dir, git_repo) = setup_git_repo();
     let config = Config::default();
 
     // Create additional files (unrelated to operation)
     let unrelated_file = temp_dir.path().join("unrelated.txt");
     fs::write(&unrelated_file, "unrelated content").expect("Failed to write");
-    
+
     // Get git info
     let before = git_repo.get_git_info(&config).await.expect("Failed");
-    
+
     // Verify unrelated file wasn't mentioned as staged
-    let staged_paths: Vec<&str> = before.staged_files.iter().map(|f| f.path.as_str()).collect();
-    
+    let staged_paths: Vec<&str> = before
+        .staged_files
+        .iter()
+        .map(|f| f.path.as_str())
+        .collect();
+
     assert!(
         !staged_paths.contains(&"unrelated.txt"),
         "PROBLEM: Unrelated file appeared in staged files\n\
@@ -52,29 +56,26 @@ async fn test_operation_is_read_only() {
     use git2::Repository;
     use std::fs;
     use std::path::Path;
-    
+
     let repo = Repository::open(temp_dir.path()).expect("Failed to open");
     fs::write(temp_dir.path().join("new.txt"), "content").expect("Failed");
-    
+
     let mut index = repo.index().expect("Failed");
     index.add_path(Path::new("new.txt")).expect("Failed");
     index.write().expect("Failed");
-    
+
     // Should be able to make a new commit
     let tree_id = index.write_tree().expect("Failed");
     let tree = repo.find_tree(tree_id).expect("Failed");
     let sig = repo.signature().expect("Failed");
-    let head = repo.head().expect("Failed").peel_to_commit().expect("Failed");
-    
-    let commit_result = repo.commit(
-        Some("HEAD"),
-        &sig,
-        &sig,
-        "Test commit",
-        &tree,
-        &[&head],
-    );
-    
+    let head = repo
+        .head()
+        .expect("Failed")
+        .peel_to_commit()
+        .expect("Failed");
+
+    let commit_result = repo.commit(Some("HEAD"), &sig, &sig, "Test commit", &tree, &[&head]);
+
     assert!(
         commit_result.is_ok(),
         "PROBLEM: Cannot commit after read operation\n\
@@ -110,14 +111,22 @@ async fn test_recent_commits_immutable() {
     let config = Config::default();
 
     let context1 = git_repo.get_git_info(&config).await.expect("Failed");
-    let commits1: Vec<_> = context1.recent_commits.iter().map(|c| c.hash.clone()).collect();
-    
+    let commits1: Vec<_> = context1
+        .recent_commits
+        .iter()
+        .map(|c| c.hash.clone())
+        .collect();
+
     // Perform operation
     let _context2 = git_repo.get_git_info(&config).await.expect("Failed");
-    
+
     // Get again
     let context3 = git_repo.get_git_info(&config).await.expect("Failed");
-    let commits3: Vec<_> = context3.recent_commits.iter().map(|c| c.hash.clone()).collect();
+    let commits3: Vec<_> = context3
+        .recent_commits
+        .iter()
+        .map(|c| c.hash.clone())
+        .collect();
 
     assert_eq!(
         commits1, commits3,

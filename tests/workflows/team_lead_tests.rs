@@ -2,12 +2,12 @@
 //! PROOF: Tests scenarios for code review and project analysis
 //! Persona: Team lead who needs insight into team patterns and PR quality
 
-use gitai::git::GitRepo;
 use gitai::config::Config;
+use gitai::git::GitRepo;
 
-#[path = "test_utils.rs"]
+#[path = "../utils_tests.rs"]
 mod test_utils;
-use test_utils::{setup_git_repo, TestAssertions};
+use test_utils::{TestAssertions, setup_git_repo};
 
 #[tokio::test]
 /// WORKFLOW: Code review preparation - need full context
@@ -19,10 +19,10 @@ async fn test_code_review_preparation_workflow() {
     use git2::Repository;
     use std::fs;
     use std::path::Path;
-    
+
     let repo = Repository::open(temp_dir.path()).expect("Failed");
     fs::write(temp_dir.path().join("review_me.rs"), "fn reviewed() {}").expect("Failed");
-    
+
     let mut index = repo.index().expect("Failed");
     index.add_path(Path::new("review_me.rs")).expect("Failed");
     index.write().expect("Failed");

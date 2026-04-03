@@ -1,5 +1,5 @@
 // Use our centralized test infrastructure
-#[path = "test_utils.rs"]
+#[path = "../utils_tests.rs"]
 mod test_utils;
 use gitai::llm::engine::{
     get_available_provider_names, get_default_model_for_provider, validate_provider_config,

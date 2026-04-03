@@ -7,7 +7,7 @@ use gitai::config::Config;
 use std::fs;
 use std::path::Path;
 
-#[path = "test_utils.rs"]
+#[path = "utils_tests.rs"]
 mod test_utils;
 use test_utils::{TestAssertions, setup_git_repo};
 

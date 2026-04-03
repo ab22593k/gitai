@@ -5,7 +5,7 @@ use std::sync::Arc;
 use tempfile::TempDir;
 
 // Use our centralized test infrastructure
-#[path = "test_utils.rs"]
+#[path = "utils_tests.rs"]
 mod test_utils;
 use test_utils::setup_git_repo_with_commits;
 
