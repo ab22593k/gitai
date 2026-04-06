@@ -150,3 +150,47 @@ pub fn normalize_github_url(url: &str) -> String {
     }
     format!("{url}.git")
 }
+
+/// Infer revision and source path from a GitHub browser URL.
+/// Infers revision and source path from a GitHub browser URL.
+/// Returns Some((rev, `src_paths`)) if inference is possible, None otherwise.
+pub fn infer_from_url(url: &str) -> Option<(String, Vec<String>)> {
+    if !url.contains("github.com") {
+        return None;
+    }
+
+    let url = url.trim_end_matches('/');
+
+    // Try /tree/ first, then /blob/
+    let (separator, base_pos) = if let Some(pos) = url.find("/tree/") {
+        ("/tree/", pos)
+    } else if let Some(pos) = url.find("/blob/") {
+        ("/blob/", pos)
+    } else {
+        return None;
+    };
+
+    // Find the part after /tree/ or /blob/
+    let after_separator = &url[base_pos + separator.len()..];
+
+    // Split by the next '/' to get rev and remaining path
+    let slash_pos = after_separator.find('/')?;
+    let rev = after_separator[..slash_pos].to_string();
+    let src_path = after_separator[slash_pos + 1..].to_string();
+
+    if rev.is_empty() || src_path.is_empty() {
+        return None;
+    }
+
+    // For /blob/ URLs, the path may include a file, so extract just the directory
+    let src_path = if separator == "/blob/" {
+        let path = std::path::Path::new(&src_path);
+        path.parent()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or(src_path)
+    } else {
+        src_path
+    };
+
+    Some((rev, vec![src_path]))
+}

@@ -5,7 +5,9 @@ use crate::commands::commit;
 use crate::common::CommonParams;
 use crate::sync::{
     check,
-    common::{Method, Parsed, Target, TargetConfig, normalize_github_url, sequence},
+    common::{
+        Method, Parsed, Target, TargetConfig, infer_from_url, normalize_github_url, sequence,
+    },
 };
 
 use super::args::{
@@ -242,7 +244,17 @@ fn build_parsed_from_cli(source: &WireSource) -> Option<Parsed> {
         return None;
     }
 
-    let src_paths: Vec<String> = if src.len() == 1 && src[0].trim().starts_with('[') {
+    // Infer rev and src from URL if not explicitly provided
+    let (inferred_rev, inferred_src) = url
+        .as_ref()
+        .and_then(|u| infer_from_url(u))
+        .map_or((None, None), |(r, s)| (Some(r), Some(s)));
+
+    // Use explicit values if provided, otherwise use inferred values
+    let rev = rev.clone().or(inferred_rev);
+    let src_paths: Vec<String> = if src.is_empty() {
+        inferred_src.unwrap_or_default()
+    } else if src.len() == 1 && src[0].trim().starts_with('[') {
         serde_json::from_str::<Vec<String>>(&src[0]).unwrap_or_else(|_| src.clone())
     } else {
         src.clone()
@@ -263,7 +275,7 @@ fn build_parsed_from_cli(source: &WireSource) -> Option<Parsed> {
             .as_ref()
             .map(|u| normalize_github_url(u))
             .unwrap_or_default(),
-        rev: source.rev.clone().unwrap_or_default(),
+        rev: rev.unwrap_or_default(),
         src: src_paths,
         dst: source.dst.clone().unwrap_or_default(),
         mtd,

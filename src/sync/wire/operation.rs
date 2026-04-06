@@ -251,7 +251,7 @@ fn update_sync_hashes(target: &Target, ops: &[WireOperation]) -> Result<(), Caus
         if updated {
             let Target::Declared(config) = target;
             for item in &file_items {
-                parse::save_to_gitwire(&root, config.global, item, false)?;
+                parse::save_to_gitwire(&root, config.global, item, config.append_config)?;
             }
         }
     }
