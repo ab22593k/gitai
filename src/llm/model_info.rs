@@ -4,7 +4,6 @@
 //! to get the actual context window size for a given model, with caching and fallbacks.
 
 use anyhow::{Context, Result};
-use async_trait::async_trait;
 use log::{debug, warn};
 use reqwest::Client;
 use serde::Deserialize;
@@ -34,21 +33,62 @@ impl ModelInfo {
     }
 }
 
-/// Trait for LLM model providers to fetch model information
-#[async_trait]
-trait ModelProvider: Send + Sync {
-    /// Fetch model information from the provider's API
-    async fn fetch_info(&self, client: &Client, model: &str, api_key: &str) -> Result<ModelInfo>;
-
-    /// Get the fallback token limit for this provider
-    fn get_fallback_limit(&self, model: &str) -> usize;
+/// Enum-based dispatch for LLM model providers (avoids dyn compatibility issues with async traits)
+#[derive(Debug, Clone, Copy)]
+enum ProviderKind {
+    Google,
+    Groq,
+    OpenRouter,
+    Anthropic,
+    DeepSeek,
+    Phind,
+    OpenAI,
+    Xai,
+    Cerebras,
 }
 
-struct GoogleProvider;
+impl ProviderKind {
+    fn from_name(name: &str) -> Option<Self> {
+        match name.to_lowercase().as_str() {
+            "google" => Some(Self::Google),
+            "groq" => Some(Self::Groq),
+            "openrouter" => Some(Self::OpenRouter),
+            "anthropic" => Some(Self::Anthropic),
+            "deepseek" => Some(Self::DeepSeek),
+            "phind" => Some(Self::Phind),
+            "openai" => Some(Self::OpenAI),
+            "xai" => Some(Self::Xai),
+            "cerebras" => Some(Self::Cerebras),
+            _ => None,
+        }
+    }
 
-#[async_trait]
-impl ModelProvider for GoogleProvider {
-    async fn fetch_info(&self, client: &Client, model: &str, api_key: &str) -> Result<ModelInfo> {
+    fn get_fallback_limit(self, _model: &str) -> usize {
+        match self {
+            Self::Google => 1_000_000,
+            Self::Groq => 8_192,
+            Self::OpenRouter | Self::OpenAI | Self::Xai | Self::Cerebras => 128_000,
+            Self::Anthropic => 200_000,
+            Self::DeepSeek => 64_000,
+            Self::Phind => 32_000,
+        }
+    }
+
+    async fn fetch_info(self, client: &Client, model: &str, api_key: &str) -> Result<ModelInfo> {
+        match self {
+            Self::Google => Self::fetch_google(client, model, api_key).await,
+            Self::Groq => Self::fetch_groq(client, model, api_key).await,
+            Self::OpenRouter => Self::fetch_openrouter(client, model, api_key).await,
+            Self::Anthropic
+            | Self::DeepSeek
+            | Self::Phind
+            | Self::OpenAI
+            | Self::Xai
+            | Self::Cerebras => Err(anyhow::anyhow!("Provider does not expose model info API")),
+        }
+    }
+
+    async fn fetch_google(client: &Client, model: &str, api_key: &str) -> Result<ModelInfo> {
         let url = format!(
             "https://generativelanguage.googleapis.com/v1beta/models/{model}?key={api_key}"
         );
@@ -72,16 +112,7 @@ impl ModelProvider for GoogleProvider {
         })
     }
 
-    fn get_fallback_limit(&self, _model: &str) -> usize {
-        1_000_000
-    }
-}
-
-struct GroqProvider;
-
-#[async_trait]
-impl ModelProvider for GroqProvider {
-    async fn fetch_info(&self, client: &Client, model: &str, api_key: &str) -> Result<ModelInfo> {
+    async fn fetch_groq(client: &Client, model: &str, api_key: &str) -> Result<ModelInfo> {
         let url = "https://api.groq.com/openai/v1/models";
 
         let response: GroqModelsResponse = client
@@ -110,16 +141,7 @@ impl ModelProvider for GroqProvider {
         })
     }
 
-    fn get_fallback_limit(&self, _model: &str) -> usize {
-        8_192
-    }
-}
-
-struct OpenRouterProvider;
-
-#[async_trait]
-impl ModelProvider for OpenRouterProvider {
-    async fn fetch_info(&self, client: &Client, model: &str, api_key: &str) -> Result<ModelInfo> {
+    async fn fetch_openrouter(client: &Client, model: &str, api_key: &str) -> Result<ModelInfo> {
         let url = "https://openrouter.ai/api/v1/models";
 
         let response: OpenRouterModelsResponse = client
@@ -150,37 +172,11 @@ impl ModelProvider for OpenRouterProvider {
             cached_at: Instant::now(),
         })
     }
-
-    fn get_fallback_limit(&self, _model: &str) -> usize {
-        128_000
-    }
-}
-
-/// Generic provider for services that don't expose a model info API
-struct GenericProvider {
-    default_limit: usize,
-}
-
-#[async_trait]
-impl ModelProvider for GenericProvider {
-    async fn fetch_info(
-        &self,
-        _client: &Client,
-        _model: &str,
-        _api_key: &str,
-    ) -> Result<ModelInfo> {
-        Err(anyhow::anyhow!("Provider does not expose model info API"))
-    }
-
-    fn get_fallback_limit(&self, _model: &str) -> usize {
-        self.default_limit
-    }
 }
 
 /// Service for fetching and caching model information from provider APIs
 pub struct ModelInfoService {
     cache: RwLock<HashMap<String, ModelInfo>>,
-    providers: HashMap<String, Box<dyn ModelProvider>>,
     http_client: Client,
 }
 
@@ -190,42 +186,8 @@ static MODEL_INFO_SERVICE: OnceLock<ModelInfoService> = OnceLock::new();
 impl ModelInfoService {
     /// Create a new `ModelInfoService`
     pub fn new() -> Self {
-        let mut providers: HashMap<String, Box<dyn ModelProvider>> = HashMap::new();
-        providers.insert("google".to_string(), Box::new(GoogleProvider));
-        providers.insert("groq".to_string(), Box::new(GroqProvider));
-        providers.insert("openrouter".to_string(), Box::new(OpenRouterProvider));
-        providers.insert(
-            "anthropic".to_string(),
-            Box::new(GenericProvider {
-                default_limit: 200_000,
-            }),
-        );
-        providers.insert(
-            "deepseek".to_string(),
-            Box::new(GenericProvider {
-                default_limit: 64_000,
-            }),
-        );
-        providers.insert(
-            "phind".to_string(),
-            Box::new(GenericProvider {
-                default_limit: 32_000,
-            }),
-        );
-
-        let standard_128k = ["openai", "xai", "cerebras"];
-        for p in standard_128k {
-            providers.insert(
-                p.to_string(),
-                Box::new(GenericProvider {
-                    default_limit: 128_000,
-                }),
-            );
-        }
-
         Self {
             cache: RwLock::new(HashMap::new()),
-            providers,
             http_client: Client::builder()
                 .timeout(Duration::from_secs(REQUEST_TIMEOUT_SECS))
                 .build()
@@ -260,7 +222,7 @@ impl ModelInfoService {
         }
 
         // Try to fetch from provider
-        if let Some(provider) = self.providers.get(&provider_key) {
+        if let Some(provider) = ProviderKind::from_name(&provider_key) {
             match provider.fetch_info(&self.http_client, model, api_key).await {
                 Ok(info) => {
                     let context_length = info.context_length;
@@ -281,20 +243,18 @@ impl ModelInfoService {
         }
 
         // Fallback
-        self.get_fallback_limit(&provider_key, model)
+        Self::get_fallback_limit(&provider_key, model)
     }
 
     /// Get fallback token limit
-    fn get_fallback_limit(&self, provider_name: &str, model: &str) -> usize {
+    fn get_fallback_limit(provider_name: &str, model: &str) -> usize {
         // First try model-specific fallbacks
         if let Some(limit) = Self::get_model_specific_fallback(model) {
             return limit;
         }
 
         // Use provider-specific fallback if available
-        self.providers
-            .get(provider_name)
-            .map_or(8_192, |p| p.get_fallback_limit(model))
+        ProviderKind::from_name(provider_name).map_or(8_192, |p| p.get_fallback_limit(model))
     }
 
     /// Model-specific fallbacks for known models
@@ -406,22 +366,35 @@ mod tests {
 
     #[tokio::test]
     async fn test_fallback_limits() {
-        let service = ModelInfoService::new();
-
         // Provider defaults
-        assert_eq!(service.get_fallback_limit("openai", "unknown"), 128_000);
-        assert_eq!(service.get_fallback_limit("anthropic", "unknown"), 200_000);
-        assert_eq!(service.get_fallback_limit("google", "unknown"), 1_000_000);
-        assert_eq!(service.get_fallback_limit("groq", "unknown"), 8_192);
-
-        // Model-specific
-        assert_eq!(service.get_fallback_limit("openai", "gpt-4o-mini"), 128_000);
         assert_eq!(
-            service.get_fallback_limit("anthropic", "claude-3-sonnet"),
+            ModelInfoService::get_fallback_limit("openai", "unknown"),
+            128_000
+        );
+        assert_eq!(
+            ModelInfoService::get_fallback_limit("anthropic", "unknown"),
             200_000
         );
         assert_eq!(
-            service.get_fallback_limit("google", "gemini-1.5-pro"),
+            ModelInfoService::get_fallback_limit("google", "unknown"),
+            1_000_000
+        );
+        assert_eq!(
+            ModelInfoService::get_fallback_limit("groq", "unknown"),
+            8_192
+        );
+
+        // Model-specific
+        assert_eq!(
+            ModelInfoService::get_fallback_limit("openai", "gpt-4o-mini"),
+            128_000
+        );
+        assert_eq!(
+            ModelInfoService::get_fallback_limit("anthropic", "claude-3-sonnet"),
+            200_000
+        );
+        assert_eq!(
+            ModelInfoService::get_fallback_limit("google", "gemini-1.5-pro"),
             2_000_000
         );
     }
@@ -456,5 +429,47 @@ mod tests {
         let model = "gpt-4o";
         let cache_key = format!("{provider}:{model}");
         assert_eq!(cache_key, "openai:gpt-4o");
+    }
+
+    #[test]
+    fn test_provider_kind_from_name() {
+        assert!(matches!(
+            ProviderKind::from_name("google"),
+            Some(ProviderKind::Google)
+        ));
+        assert!(matches!(
+            ProviderKind::from_name("Google"),
+            Some(ProviderKind::Google)
+        ));
+        assert!(matches!(
+            ProviderKind::from_name("groq"),
+            Some(ProviderKind::Groq)
+        ));
+        assert!(matches!(
+            ProviderKind::from_name("openrouter"),
+            Some(ProviderKind::OpenRouter)
+        ));
+        assert!(matches!(
+            ProviderKind::from_name("anthropic"),
+            Some(ProviderKind::Anthropic)
+        ));
+        assert!(matches!(
+            ProviderKind::from_name("openai"),
+            Some(ProviderKind::OpenAI)
+        ));
+        assert!(ProviderKind::from_name("unknown").is_none());
+    }
+
+    #[test]
+    fn test_provider_kind_fallback_limits() {
+        assert_eq!(ProviderKind::Google.get_fallback_limit("any"), 1_000_000);
+        assert_eq!(ProviderKind::Groq.get_fallback_limit("any"), 8_192);
+        assert_eq!(ProviderKind::OpenRouter.get_fallback_limit("any"), 128_000);
+        assert_eq!(ProviderKind::Anthropic.get_fallback_limit("any"), 200_000);
+        assert_eq!(ProviderKind::DeepSeek.get_fallback_limit("any"), 64_000);
+        assert_eq!(ProviderKind::Phind.get_fallback_limit("any"), 32_000);
+        assert_eq!(ProviderKind::OpenAI.get_fallback_limit("any"), 128_000);
+        assert_eq!(ProviderKind::Xai.get_fallback_limit("any"), 128_000);
+        assert_eq!(ProviderKind::Cerebras.get_fallback_limit("any"), 128_000);
     }
 }

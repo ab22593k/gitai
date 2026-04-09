@@ -36,7 +36,6 @@ integration = []
 
 [dependencies]
 anyhow = "1.0.86"
-async-trait = "0.1.88"
 chrono = "0.4.38"
 clap = { version = "4.5.47", features = ["derive", "cargo"] }
 colored = "3.0.0"
