@@ -1,7 +1,10 @@
 use anyhow::Result;
 use clap::Parser;
 use gitai::{
-    cli::args::{self, WireArgs},
+    app::{
+        args::{self, WireArgs},
+        handlers,
+    },
     init_app,
     ui::print_error,
 };
@@ -25,7 +28,7 @@ async fn main() -> Result<()> {
 
     let cli = WireCli::parse();
 
-    if let Err(e) = gitai::cli::handlers::handle_wire(cli.args).await {
+    if let Err(e) = handlers::handle_wire(cli.args).await {
         print_error(&format!("Error: {e}"));
         std::process::exit(1);
     }

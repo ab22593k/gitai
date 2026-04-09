@@ -12,7 +12,7 @@ use colored::Colorize;
     after_help = get_dynamic_help(),
     styles = get_styles(),
 )]
-pub struct Cli {
+pub struct App {
     #[command(subcommand)]
     pub command: Option<Gitai>,
 
@@ -259,8 +259,8 @@ pub fn get_styles() -> Styles {
 }
 
 #[must_use]
-pub fn parse_args() -> Cli {
-    Cli::parse()
+pub fn parse_args() -> App {
+    App::parse()
 }
 
 #[must_use]

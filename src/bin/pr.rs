@@ -1,7 +1,10 @@
 use anyhow::Result;
 use clap::{Parser, crate_authors, crate_version};
 use gitai::{
-    cli::args::{self, PrParams},
+    app::{
+        args::{self, PrParams},
+        handlers,
+    },
     common::CommonParams,
     init_app,
     ui::print_error,
@@ -31,7 +34,7 @@ async fn main() -> Result<()> {
     let args = PrArgs::parse();
     let repository_url = args.common.repository_url.clone();
 
-    if let Err(e) = gitai::cli::handlers::handle_pr_command(
+    if let Err(e) = handlers::handle_pr_command(
         args.common,
         args.params.print,
         args.params.from,

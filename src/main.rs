@@ -1,4 +1,4 @@
-use gitai::cli::{handle_command, parse_args};
+use gitai::app::{handle_command, parse_args};
 use gitai::init_app;
 use std::fs::OpenOptions;
 use std::io::Write;
