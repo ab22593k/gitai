@@ -5,6 +5,7 @@ use crate::common::DetailLevel;
 use crate::config::Config;
 use crate::git::GitRepo;
 use crate::llm::engine;
+use crate::llm::provider::ProviderKind;
 
 use anyhow::{Context, Result};
 use schemars::JsonSchema;
@@ -35,7 +36,7 @@ where
     let (analyzed_changes, total_metrics) = analyzer.analyze_changes(from, to).await?;
 
     // Get README summary for context
-    let provider_name = "google";
+    let provider_name = ProviderKind::Google.as_str();
     let readme_summary = get_readme_summary(git_repo, to, config, provider_name)
         .await
         .context("Failed to get README summary")?;

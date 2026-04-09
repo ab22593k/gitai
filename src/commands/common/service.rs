@@ -3,6 +3,7 @@ use crate::commands::commit::service::CommitService;
 use crate::common::{CommonParams, DetailLevel};
 use crate::config::Config;
 use crate::git::GitRepo;
+use crate::llm::provider::ProviderKind;
 
 use anyhow::{Context, Result};
 use std::str::FromStr;
@@ -18,7 +19,7 @@ pub fn create_commit_service(
     let git_repo = GitRepo::new_from_url(repo_url).context("Failed to create GitRepo")?;
 
     let repo_path = git_repo.repo_path().clone();
-    let provider_name = "google";
+    let provider_name = ProviderKind::Google.as_str();
 
     let detail_level = DetailLevel::from_str(&common.detail_level).unwrap_or(DetailLevel::Standard);
 
@@ -50,7 +51,7 @@ pub fn create_completion_service(
     let git_repo = GitRepo::new_from_url(repo_url).context("Failed to create GitRepo")?;
 
     let repo_path = git_repo.repo_path().clone();
-    let provider_name = "google";
+    let provider_name = ProviderKind::Google.as_str();
 
     let service = Arc::new(
         CompletionService::new(config.clone(), &repo_path, provider_name, git_repo)

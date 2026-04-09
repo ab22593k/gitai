@@ -3,6 +3,7 @@
 //! This module provides dynamic token limit resolution by querying provider APIs
 //! to get the actual context window size for a given model, with caching and fallbacks.
 
+use crate::llm::provider::ProviderKind;
 use anyhow::{Context, Result};
 use log::{debug, warn};
 use reqwest::Client;
@@ -33,145 +34,111 @@ impl ModelInfo {
     }
 }
 
-/// Enum-based dispatch for LLM model providers (avoids dyn compatibility issues with async traits)
-#[derive(Debug, Clone, Copy)]
-enum ProviderKind {
-    Google,
-    Groq,
-    OpenRouter,
-    Anthropic,
-    DeepSeek,
-    Phind,
-    OpenAI,
-    Xai,
-    Cerebras,
+// ============================================================================
+// Provider-specific model info fetching (uses shared ProviderKind for identity)
+// ============================================================================
+
+async fn fetch_info(
+    provider: ProviderKind,
+    client: &Client,
+    model: &str,
+    api_key: &str,
+) -> Result<ModelInfo> {
+    match provider {
+        ProviderKind::Google => fetch_google(client, model, api_key).await,
+        ProviderKind::Groq => fetch_groq(client, model, api_key).await,
+        ProviderKind::OpenRouter => fetch_openrouter(client, model, api_key).await,
+        ProviderKind::Anthropic
+        | ProviderKind::DeepSeek
+        | ProviderKind::Phind
+        | ProviderKind::OpenAI
+        | ProviderKind::Xai
+        | ProviderKind::Cerebras => Err(anyhow::anyhow!("Provider does not expose model info API")),
+    }
 }
 
-impl ProviderKind {
-    fn from_name(name: &str) -> Option<Self> {
-        match name.to_lowercase().as_str() {
-            "google" => Some(Self::Google),
-            "groq" => Some(Self::Groq),
-            "openrouter" => Some(Self::OpenRouter),
-            "anthropic" => Some(Self::Anthropic),
-            "deepseek" => Some(Self::DeepSeek),
-            "phind" => Some(Self::Phind),
-            "openai" => Some(Self::OpenAI),
-            "xai" => Some(Self::Xai),
-            "cerebras" => Some(Self::Cerebras),
-            _ => None,
-        }
-    }
+async fn fetch_google(client: &Client, model: &str, api_key: &str) -> Result<ModelInfo> {
+    let url =
+        format!("https://generativelanguage.googleapis.com/v1beta/models/{model}?key={api_key}");
 
-    fn get_fallback_limit(self, _model: &str) -> usize {
-        match self {
-            Self::Google => 1_000_000,
-            Self::Groq => 8_192,
-            Self::OpenRouter | Self::OpenAI | Self::Xai | Self::Cerebras => 128_000,
-            Self::Anthropic => 200_000,
-            Self::DeepSeek => 64_000,
-            Self::Phind => 32_000,
-        }
-    }
+    let response: GoogleModelResponse = client
+        .get(&url)
+        .send()
+        .await
+        .context("Failed to send request to Google API")?
+        .error_for_status()
+        .context("Google API returned error status")?
+        .json()
+        .await
+        .context("Failed to parse Google API response")?;
 
-    async fn fetch_info(self, client: &Client, model: &str, api_key: &str) -> Result<ModelInfo> {
-        match self {
-            Self::Google => Self::fetch_google(client, model, api_key).await,
-            Self::Groq => Self::fetch_groq(client, model, api_key).await,
-            Self::OpenRouter => Self::fetch_openrouter(client, model, api_key).await,
-            Self::Anthropic
-            | Self::DeepSeek
-            | Self::Phind
-            | Self::OpenAI
-            | Self::Xai
-            | Self::Cerebras => Err(anyhow::anyhow!("Provider does not expose model info API")),
-        }
-    }
+    Ok(ModelInfo {
+        model_id: model.to_string(),
+        context_length: response.input_token_limit,
+        max_output_tokens: Some(response.output_token_limit),
+        cached_at: Instant::now(),
+    })
+}
 
-    async fn fetch_google(client: &Client, model: &str, api_key: &str) -> Result<ModelInfo> {
-        let url = format!(
-            "https://generativelanguage.googleapis.com/v1beta/models/{model}?key={api_key}"
-        );
+async fn fetch_groq(client: &Client, model: &str, api_key: &str) -> Result<ModelInfo> {
+    let url = "https://api.groq.com/openai/v1/models";
 
-        let response: GoogleModelResponse = client
-            .get(&url)
-            .send()
-            .await
-            .context("Failed to send request to Google API")?
-            .error_for_status()
-            .context("Google API returned error status")?
-            .json()
-            .await
-            .context("Failed to parse Google API response")?;
+    let response: GroqModelsResponse = client
+        .get(url)
+        .header("Authorization", format!("Bearer {api_key}"))
+        .send()
+        .await
+        .context("Failed to send request to Groq API")?
+        .error_for_status()
+        .context("Groq API returned error status")?
+        .json()
+        .await
+        .context("Failed to parse Groq API response")?;
 
-        Ok(ModelInfo {
-            model_id: model.to_string(),
-            context_length: response.input_token_limit,
-            max_output_tokens: Some(response.output_token_limit),
-            cached_at: Instant::now(),
-        })
-    }
+    let model_info = response
+        .data
+        .into_iter()
+        .find(|m| m.id == model)
+        .ok_or_else(|| anyhow::anyhow!("Model {model} not found in Groq API response"))?;
 
-    async fn fetch_groq(client: &Client, model: &str, api_key: &str) -> Result<ModelInfo> {
-        let url = "https://api.groq.com/openai/v1/models";
+    Ok(ModelInfo {
+        model_id: model.to_string(),
+        context_length: model_info.context_window,
+        max_output_tokens: None,
+        cached_at: Instant::now(),
+    })
+}
 
-        let response: GroqModelsResponse = client
-            .get(url)
-            .header("Authorization", format!("Bearer {api_key}"))
-            .send()
-            .await
-            .context("Failed to send request to Groq API")?
-            .error_for_status()
-            .context("Groq API returned error status")?
-            .json()
-            .await
-            .context("Failed to parse Groq API response")?;
+async fn fetch_openrouter(client: &Client, model: &str, api_key: &str) -> Result<ModelInfo> {
+    let url = "https://openrouter.ai/api/v1/models";
 
-        let model_info = response
-            .data
-            .into_iter()
-            .find(|m| m.id == model)
-            .ok_or_else(|| anyhow::anyhow!("Model {model} not found in Groq API response"))?;
+    let response: OpenRouterModelsResponse = client
+        .get(url)
+        .header("Authorization", format!("Bearer {api_key}"))
+        .send()
+        .await
+        .context("Failed to send request to OpenRouter API")?
+        .error_for_status()
+        .context("OpenRouter API returned error status")?
+        .json()
+        .await
+        .context("Failed to parse OpenRouter API response")?;
 
-        Ok(ModelInfo {
-            model_id: model.to_string(),
-            context_length: model_info.context_window,
-            max_output_tokens: None,
-            cached_at: Instant::now(),
-        })
-    }
+    let model_info = response
+        .data
+        .into_iter()
+        .find(|m| m.id == model)
+        .ok_or_else(|| anyhow::anyhow!("Model {model} not found in OpenRouter API response"))?;
 
-    async fn fetch_openrouter(client: &Client, model: &str, api_key: &str) -> Result<ModelInfo> {
-        let url = "https://openrouter.ai/api/v1/models";
-
-        let response: OpenRouterModelsResponse = client
-            .get(url)
-            .header("Authorization", format!("Bearer {api_key}"))
-            .send()
-            .await
-            .context("Failed to send request to OpenRouter API")?
-            .error_for_status()
-            .context("OpenRouter API returned error status")?
-            .json()
-            .await
-            .context("Failed to parse OpenRouter API response")?;
-
-        let model_info = response
-            .data
-            .into_iter()
-            .find(|m| m.id == model)
-            .ok_or_else(|| anyhow::anyhow!("Model {model} not found in OpenRouter API response"))?;
-
-        Ok(ModelInfo {
-            model_id: model.to_string(),
-            context_length: model_info.context_length,
-            max_output_tokens: model_info
-                .top_provider
-                .as_ref()
-                .and_then(|p| p.max_completion_tokens),
-            cached_at: Instant::now(),
-        })
-    }
+    Ok(ModelInfo {
+        model_id: model.to_string(),
+        context_length: model_info.context_length,
+        max_output_tokens: model_info
+            .top_provider
+            .as_ref()
+            .and_then(|p| p.max_completion_tokens),
+        cached_at: Instant::now(),
+    })
 }
 
 /// Service for fetching and caching model information from provider APIs
@@ -223,7 +190,7 @@ impl ModelInfoService {
 
         // Try to fetch from provider
         if let Some(provider) = ProviderKind::from_name(&provider_key) {
-            match provider.fetch_info(&self.http_client, model, api_key).await {
+            match fetch_info(provider, &self.http_client, model, api_key).await {
                 Ok(info) => {
                     let context_length = info.context_length;
                     debug!("Fetched model info for {cache_key}: {context_length} tokens");
@@ -254,7 +221,8 @@ impl ModelInfoService {
         }
 
         // Use provider-specific fallback if available
-        ProviderKind::from_name(provider_name).map_or(8_192, |p| p.get_fallback_limit(model))
+        ProviderKind::from_name(provider_name)
+            .map_or(8_192, ProviderKind::model_info_fallback_limit)
     }
 
     /// Model-specific fallbacks for known models
@@ -462,14 +430,17 @@ mod tests {
 
     #[test]
     fn test_provider_kind_fallback_limits() {
-        assert_eq!(ProviderKind::Google.get_fallback_limit("any"), 1_000_000);
-        assert_eq!(ProviderKind::Groq.get_fallback_limit("any"), 8_192);
-        assert_eq!(ProviderKind::OpenRouter.get_fallback_limit("any"), 128_000);
-        assert_eq!(ProviderKind::Anthropic.get_fallback_limit("any"), 200_000);
-        assert_eq!(ProviderKind::DeepSeek.get_fallback_limit("any"), 64_000);
-        assert_eq!(ProviderKind::Phind.get_fallback_limit("any"), 32_000);
-        assert_eq!(ProviderKind::OpenAI.get_fallback_limit("any"), 128_000);
-        assert_eq!(ProviderKind::Xai.get_fallback_limit("any"), 128_000);
-        assert_eq!(ProviderKind::Cerebras.get_fallback_limit("any"), 128_000);
+        assert_eq!(ProviderKind::Google.model_info_fallback_limit(), 1_000_000);
+        assert_eq!(ProviderKind::Groq.model_info_fallback_limit(), 8_192);
+        assert_eq!(
+            ProviderKind::OpenRouter.model_info_fallback_limit(),
+            128_000
+        );
+        assert_eq!(ProviderKind::Anthropic.model_info_fallback_limit(), 200_000);
+        assert_eq!(ProviderKind::DeepSeek.model_info_fallback_limit(), 64_000);
+        assert_eq!(ProviderKind::Phind.model_info_fallback_limit(), 32_000);
+        assert_eq!(ProviderKind::OpenAI.model_info_fallback_limit(), 128_000);
+        assert_eq!(ProviderKind::Xai.model_info_fallback_limit(), 128_000);
+        assert_eq!(ProviderKind::Cerebras.model_info_fallback_limit(), 128_000);
     }
 }

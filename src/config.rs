@@ -1,5 +1,6 @@
 use crate::git::GitRepo;
 use crate::llm::engine::{get_available_provider_names, get_default_model_for_provider};
+use crate::llm::provider::ProviderKind;
 
 use anyhow::{Result, anyhow};
 use git2::Config as GitConfig;
@@ -62,8 +63,8 @@ fn load_additional_params(
 
 /// Get the environment variable name for a provider's API key
 fn get_api_key_env_var(provider: &str) -> Option<&'static str> {
-    match provider {
-        "google" => Some("GOOGLE_API_KEY"),
+    match ProviderKind::from_name(provider) {
+        Some(ProviderKind::Google) => Some("GOOGLE_API_KEY"),
         _ => None,
     }
 }
@@ -288,7 +289,7 @@ impl Config {
 
     /// Update the configuration with new values
     pub fn update(&mut self, update: ConfigUpdate) -> Result<()> {
-        let provider_name = "google".to_string();
+        let provider_name = ProviderKind::Google.as_str().to_string();
 
         if let Some(key) = update.api_key {
             let entry = self.providers.entry(provider_name.clone()).or_default();
@@ -317,17 +318,10 @@ impl Config {
     /// Get the configuration for a specific provider
     #[must_use]
     pub fn get_provider_config(&self, provider: &str) -> Option<&ProviderConfig> {
-        // Special case: redirect "claude" to "anthropic"
-        let provider_to_lookup = if provider.eq_ignore_ascii_case("claude") {
-            "anthropic"
-        } else {
-            provider
-        };
-
-        // Try direct lookup first, then lowercase
-        self.providers
-            .get(provider_to_lookup)
-            .or_else(|| self.providers.get(&provider_to_lookup.to_lowercase()))
+        // Normalize via ProviderKind (handles "claude" → "anthropic" alias, case-insensitivity)
+        ProviderKind::from_name(provider)
+            .and_then(|k| self.providers.get(k.as_str()))
+            .or_else(|| self.providers.get(provider))
     }
 
     /// Set whether this config is a project config

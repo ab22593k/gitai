@@ -421,12 +421,14 @@ async fn resolve_merge_conflict(
          Provide the resolved content and a brief explanation."
     );
 
-    let resolution: MergeResolution =
-        crate::llm::engine::get_message(config, "google", system_prompt, &user_prompt)
-            .await
-            .map_err(|e| {
-                cause!(ErrorType::PromptError).msg(format!("AI resolution failed: {e}"))
-            })?;
+    let resolution: MergeResolution = crate::llm::engine::get_message(
+        config,
+        crate::llm::provider::ProviderKind::Google.as_str(),
+        system_prompt,
+        &user_prompt,
+    )
+    .await
+    .map_err(|e| cause!(ErrorType::PromptError).msg(format!("AI resolution failed: {e}")))?;
 
     info!("AI Resolution explanation: {}", resolution.explanation);
     Ok(resolution.resolved_content)

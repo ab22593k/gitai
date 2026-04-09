@@ -1,64 +1,13 @@
 use crate::config::Config;
+use crate::llm::provider::ProviderKind;
 use anyhow::{Result, anyhow};
-use llm::{
-    LLMProvider,
-    builder::{LLMBackend, LLMBuilder},
-    chat::ChatMessage,
-};
+use llm::{LLMProvider, builder::LLMBuilder, chat::ChatMessage};
 use log::debug;
 use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
 use std::collections::HashMap;
 use tokio_retry::Retry;
 use tokio_retry::strategy::ExponentialBackoff;
-
-#[derive(Debug)]
-struct ProviderDefault {
-    model: &'static str,
-    backend: LLMBackend,
-}
-
-static PROVIDER_DEFAULTS: std::sync::LazyLock<
-    std::collections::HashMap<&'static str, ProviderDefault>,
-> = std::sync::LazyLock::new(|| {
-    let mut m = std::collections::HashMap::new();
-    m.insert(
-        "google",
-        ProviderDefault {
-            model: "gemini-2.0-flash",
-            backend: LLMBackend::Google,
-        },
-    );
-    m.insert(
-        "groq",
-        ProviderDefault {
-            model: "llama-3.3-70b-versatile",
-            backend: LLMBackend::Groq,
-        },
-    );
-    m.insert(
-        "openrouter",
-        ProviderDefault {
-            model: "google/gemini-2.0-flash-001",
-            backend: LLMBackend::OpenRouter,
-        },
-    );
-    m.insert(
-        "openai",
-        ProviderDefault {
-            model: "gpt-4o",
-            backend: LLMBackend::OpenAI,
-        },
-    );
-    m.insert(
-        "anthropic",
-        ProviderDefault {
-            model: "claude-3-5-sonnet-latest",
-            backend: LLMBackend::Anthropic,
-        },
-    );
-    m
-});
 
 /// Initialize tracing to a rolling file in temp directory
 pub fn init_tracing_to_file() {
@@ -91,12 +40,8 @@ where
     debug!("System prompt: {system_prompt}");
     debug!("User prompt: {user_prompt}");
 
-    let provider_key = provider_name.to_lowercase();
-    let provider_default = PROVIDER_DEFAULTS
-        .get(provider_key.as_str())
+    let provider = ProviderKind::from_name(provider_name)
         .ok_or_else(|| anyhow!("Provider '{provider_name}' is not supported"))?;
-
-    let backend = provider_default.backend.clone();
 
     // Get provider configuration
     let provider_config = config
@@ -104,14 +49,15 @@ where
         .ok_or_else(|| anyhow!("Provider '{provider_name}' not found in configuration"))?;
 
     // Build the provider
-    let mut builder = LLMBuilder::new().backend(backend);
+    let mut builder = LLMBuilder::new().backend(provider.backend());
 
-    // Set model
-    if provider_config.model_name.is_empty() {
-        builder = builder.model(provider_default.model.to_string());
+    // Set model (use config if set, otherwise default)
+    let model = if provider_config.model_name.is_empty() {
+        provider.default_model().to_string()
     } else {
-        builder = builder.model(provider_config.model_name.clone());
-    }
+        provider_config.model_name.clone()
+    };
+    builder = builder.model(model);
 
     // Set system prompt
     builder = builder.system(system_prompt.to_string());
@@ -240,24 +186,20 @@ fn extract_and_parse_json<T: DeserializeOwned>(text: &str) -> Result<T> {
 }
 
 pub fn get_available_provider_names() -> Vec<String> {
-    let mut names: Vec<String> = PROVIDER_DEFAULTS
-        .keys()
-        .map(std::string::ToString::to_string)
-        .collect();
-    names.sort();
-    names
+    ProviderKind::all()
+        .iter()
+        .map(|p| p.as_str().to_string())
+        .collect()
 }
 
 /// Returns the default model for a given provider
 pub fn get_default_model_for_provider(provider_type: &str) -> &'static str {
-    PROVIDER_DEFAULTS
-        .get(provider_type.to_lowercase().as_str())
-        .map_or("gemini-2.0-flash", |def| def.model)
+    ProviderKind::from_name(provider_type).map_or("gemini-2.0-flash", ProviderKind::default_model)
 }
 
 /// Checks if a provider requires an API key
-pub fn provider_requires_api_key(_provider_type: &str) -> bool {
-    true
+pub fn provider_requires_api_key(provider_type: &str) -> bool {
+    ProviderKind::from_name(provider_type).is_none_or(ProviderKind::requires_api_key)
 }
 
 /// Validates the provider configuration
@@ -284,7 +226,9 @@ pub fn get_combined_config<S: ::std::hash::BuildHasher>(
     // Add default values
     combined_params.insert(
         "model".to_string(),
-        get_default_model_for_provider(provider_name).to_string(),
+        ProviderKind::from_name(provider_name)
+            .map_or("gemini-2.0-flash", |p| p.default_model())
+            .to_string(),
     );
 
     // Add saved config values if available

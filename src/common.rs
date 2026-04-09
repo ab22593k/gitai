@@ -1,4 +1,5 @@
 use crate::config::Config;
+use crate::llm::provider::ProviderKind;
 use anyhow::Result;
 use clap::{Args, ValueEnum};
 use std::env;
@@ -133,8 +134,8 @@ impl CommonParams {
         let mut changes_made = false;
 
         if let Some(model) = &self.model {
-            let provider_name = "google".to_string();
-            if let Some(provider_config) = config.providers.get_mut(&provider_name)
+            let provider_name = ProviderKind::Google.as_str();
+            if let Some(provider_config) = config.providers.get_mut(provider_name)
                 && provider_config.model_name != *model
             {
                 provider_config.model_name.clone_from(model);
