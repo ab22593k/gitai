@@ -112,7 +112,7 @@ pub struct CommonParams {
     #[arg(
         long = "theme",
         help = "Theme mode (dark, light, system)",
-        default_value = "dark"
+        default_value = "system"
     )]
     pub theme: ThemeMode,
 }

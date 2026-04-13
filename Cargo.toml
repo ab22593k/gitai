@@ -1,6 +1,6 @@
 [package]
 name = "gitai"
-description = "AI-powered toolkit that enhances `Git` workflow"
+description = "Toolkit that translates git into interpretive dance routines"
 version = "0.1.5"
 edition = "2024"
 license = "MIT"

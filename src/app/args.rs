@@ -7,7 +7,7 @@ use colored::Colorize;
 #[command(
     author,
     version = crate_version!(),
-    about = "GitAI: AI-powered Git workflow assistant",
+    about = "AI-powered Git workflow assistant",
     disable_version_flag = true,
     after_help = get_dynamic_help(),
     styles = get_styles(),
@@ -61,6 +61,7 @@ pub struct MessageParams {
     #[arg(short, long, help = "Print the generated message to stdout and exit")]
     pub print: bool,
 
+    #[cfg(debug_assertions)]
     #[arg(
         long,
         help = "Dry run mode: do not make real HTTP requests, for UI testing"
