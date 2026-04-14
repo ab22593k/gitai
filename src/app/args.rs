@@ -61,13 +61,6 @@ pub struct MessageParams {
     #[arg(short, long, help = "Print the generated message to stdout and exit")]
     pub print: bool,
 
-    #[cfg(debug_assertions)]
-    #[arg(
-        long,
-        help = "Dry run mode: do not make real HTTP requests, for UI testing"
-    )]
-    pub dry: bool,
-
     #[arg(
         long,
         help = "Complete a commit message instead of generating from scratch"
@@ -299,5 +292,4 @@ pub struct ChangelogArgs {
 #[derive(Clone, Debug)]
 pub struct CmsgConfig {
     pub print_only: bool,
-    pub dry: bool,
 }

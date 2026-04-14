@@ -27,7 +27,6 @@ pub async fn handle_command(command: Gitai, repository_url: Option<String>) -> R
                 common,
                 CmsgConfig {
                     print_only: params.print,
-                    dry: params.dry,
                 },
                 repository_url,
                 MessageArgs {
@@ -93,7 +92,6 @@ pub async fn handle_message(
             Some(context_ratio_val),
             commit::MessageConfig {
                 print: config.print_only,
-                dry: config.dry,
             },
             repository_url,
         )
@@ -103,7 +101,6 @@ pub async fn handle_message(
             common,
             commit::MessageConfig {
                 print: config.print_only,
-                dry: config.dry,
             },
             repository_url,
         )

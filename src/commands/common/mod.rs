@@ -1,6 +1,5 @@
 #![allow(clippy::uninlined_format_args)]
 
-pub mod prompt;
 pub mod service;
 pub mod spinner;
 pub mod validation;
