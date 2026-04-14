@@ -46,14 +46,7 @@ async fn fetch_info(
 ) -> Result<ModelInfo> {
     match provider {
         ProviderKind::Google => fetch_google(client, model, api_key).await,
-        ProviderKind::Groq => fetch_groq(client, model, api_key).await,
         ProviderKind::OpenRouter => fetch_openrouter(client, model, api_key).await,
-        ProviderKind::Anthropic
-        | ProviderKind::DeepSeek
-        | ProviderKind::Phind
-        | ProviderKind::OpenAI
-        | ProviderKind::Xai
-        | ProviderKind::Cerebras => Err(anyhow::anyhow!("Provider does not expose model info API")),
     }
 }
 
@@ -76,35 +69,6 @@ async fn fetch_google(client: &Client, model: &str, api_key: &str) -> Result<Mod
         model_id: model.to_string(),
         context_length: response.input_token_limit,
         max_output_tokens: Some(response.output_token_limit),
-        cached_at: Instant::now(),
-    })
-}
-
-async fn fetch_groq(client: &Client, model: &str, api_key: &str) -> Result<ModelInfo> {
-    let url = "https://api.groq.com/openai/v1/models";
-
-    let response: GroqModelsResponse = client
-        .get(url)
-        .header("Authorization", format!("Bearer {api_key}"))
-        .send()
-        .await
-        .context("Failed to send request to Groq API")?
-        .error_for_status()
-        .context("Groq API returned error status")?
-        .json()
-        .await
-        .context("Failed to parse Groq API response")?;
-
-    let model_info = response
-        .data
-        .into_iter()
-        .find(|m| m.id == model)
-        .ok_or_else(|| anyhow::anyhow!("Model {model} not found in Groq API response"))?;
-
-    Ok(ModelInfo {
-        model_id: model.to_string(),
-        context_length: model_info.context_window,
-        max_output_tokens: None,
         cached_at: Instant::now(),
     })
 }
@@ -298,18 +262,6 @@ struct GoogleModelResponse {
     output_token_limit: usize,
 }
 
-/// Groq API response for listing models
-#[derive(Debug, Deserialize)]
-struct GroqModelsResponse {
-    data: Vec<GroqModel>,
-}
-
-#[derive(Debug, Deserialize)]
-struct GroqModel {
-    id: String,
-    context_window: usize,
-}
-
 /// `OpenRouter` API response for listing models
 #[derive(Debug, Deserialize)]
 struct OpenRouterModelsResponse {
@@ -336,31 +288,15 @@ mod tests {
     async fn test_fallback_limits() {
         // Provider defaults
         assert_eq!(
-            ModelInfoService::get_fallback_limit("openai", "unknown"),
+            ModelInfoService::get_fallback_limit("openrouter", "unknown"),
             128_000
-        );
-        assert_eq!(
-            ModelInfoService::get_fallback_limit("anthropic", "unknown"),
-            200_000
         );
         assert_eq!(
             ModelInfoService::get_fallback_limit("google", "unknown"),
             1_000_000
         );
-        assert_eq!(
-            ModelInfoService::get_fallback_limit("groq", "unknown"),
-            8_192
-        );
 
         // Model-specific
-        assert_eq!(
-            ModelInfoService::get_fallback_limit("openai", "gpt-4o-mini"),
-            128_000
-        );
-        assert_eq!(
-            ModelInfoService::get_fallback_limit("anthropic", "claude-3-sonnet"),
-            200_000
-        );
         assert_eq!(
             ModelInfoService::get_fallback_limit("google", "gemini-1.5-pro"),
             2_000_000
@@ -370,20 +306,16 @@ mod tests {
     #[test]
     fn test_model_specific_fallbacks() {
         assert_eq!(
-            ModelInfoService::get_model_specific_fallback("gpt-4o"),
-            Some(128_000)
-        );
-        assert_eq!(
-            ModelInfoService::get_model_specific_fallback("claude-3-opus"),
-            Some(200_000)
+            ModelInfoService::get_model_specific_fallback("gemini-1.5-pro"),
+            Some(2_000_000)
         );
         assert_eq!(
             ModelInfoService::get_model_specific_fallback("gemini-2.0-flash"),
             Some(1_000_000)
         );
         assert_eq!(
-            ModelInfoService::get_model_specific_fallback("llama3-70b-8192"),
-            Some(8_192)
+            ModelInfoService::get_model_specific_fallback("llama-3.3-70b"),
+            Some(131_072)
         );
         assert_eq!(
             ModelInfoService::get_model_specific_fallback("unknown-model"),
@@ -393,10 +325,10 @@ mod tests {
 
     #[test]
     fn test_cache_key_format() {
-        let provider = "openai";
-        let model = "gpt-4o";
+        let provider = "google";
+        let model = "gemini-2.0-flash";
         let cache_key = format!("{provider}:{model}");
-        assert_eq!(cache_key, "openai:gpt-4o");
+        assert_eq!(cache_key, "google:gemini-2.0-flash");
     }
 
     #[test]
@@ -410,20 +342,12 @@ mod tests {
             Some(ProviderKind::Google)
         ));
         assert!(matches!(
-            ProviderKind::from_name("groq"),
-            Some(ProviderKind::Groq)
-        ));
-        assert!(matches!(
             ProviderKind::from_name("openrouter"),
             Some(ProviderKind::OpenRouter)
         ));
         assert!(matches!(
-            ProviderKind::from_name("anthropic"),
-            Some(ProviderKind::Anthropic)
-        ));
-        assert!(matches!(
-            ProviderKind::from_name("openai"),
-            Some(ProviderKind::OpenAI)
+            ProviderKind::from_name("OpenRouter"),
+            Some(ProviderKind::OpenRouter)
         ));
         assert!(ProviderKind::from_name("unknown").is_none());
     }
@@ -431,16 +355,9 @@ mod tests {
     #[test]
     fn test_provider_kind_fallback_limits() {
         assert_eq!(ProviderKind::Google.model_info_fallback_limit(), 1_000_000);
-        assert_eq!(ProviderKind::Groq.model_info_fallback_limit(), 8_192);
         assert_eq!(
             ProviderKind::OpenRouter.model_info_fallback_limit(),
             128_000
         );
-        assert_eq!(ProviderKind::Anthropic.model_info_fallback_limit(), 200_000);
-        assert_eq!(ProviderKind::DeepSeek.model_info_fallback_limit(), 64_000);
-        assert_eq!(ProviderKind::Phind.model_info_fallback_limit(), 32_000);
-        assert_eq!(ProviderKind::OpenAI.model_info_fallback_limit(), 128_000);
-        assert_eq!(ProviderKind::Xai.model_info_fallback_limit(), 128_000);
-        assert_eq!(ProviderKind::Cerebras.model_info_fallback_limit(), 128_000);
     }
 }

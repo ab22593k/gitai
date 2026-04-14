@@ -65,6 +65,7 @@ fn load_additional_params(
 fn get_api_key_env_var(provider: &str) -> Option<&'static str> {
     match ProviderKind::from_name(provider) {
         Some(ProviderKind::Google) => Some("GOOGLE_API_KEY"),
+        Some(ProviderKind::OpenRouter) => Some("OPENROUTER_API_KEY"),
         _ => None,
     }
 }
