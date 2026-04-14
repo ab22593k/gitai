@@ -6,9 +6,9 @@ use crate::commands::common::{run_with_spinner, validate_staged_files};
 use crate::common::CommonParams;
 use crate::config::Config;
 use crate::llm::messages;
+use crate::output;
 use crate::tui::run_tui_commit;
 use crate::tui::spinner::SpinnerState;
-use crate::ui;
 
 use anyhow::Result;
 use std::sync::Arc;
@@ -26,7 +26,7 @@ async fn generate_initial_message(
     }
 
     let random_message = messages::get_waiting_message();
-    let spinner = ui::create_tui_spinner(&random_message.text);
+    let spinner = output::create_tui_spinner(&random_message.text);
     run_with_spinner(spinner, async || {
         service.generate_message(instructions).await
     })
@@ -44,13 +44,13 @@ pub async fn handle_message_command(
     common.apply_to_config(&mut config)?;
 
     let service = create_commit_service(&common, repository_url.clone(), &config).map_err(|e| {
-        ui::print_error(&format!("Error: {e}"));
+        output::print_error(&format!("Error: {e}"));
         e
     })?;
 
     let completion_service =
         create_completion_service(&common, repository_url, &config).map_err(|e| {
-            ui::print_error(&format!("Error: {e}"));
+            output::print_error(&format!("Error: {e}"));
             e
         })?;
 
@@ -73,7 +73,7 @@ pub async fn handle_message_command(
     }
 
     if service.is_remote_repository() {
-        ui::print_warning(
+        output::print_warning(
             "Interactive commit not available for remote repositories. Using print mode instead.",
         );
         println!("{}", format_commit_message(&initial_message));
@@ -138,12 +138,12 @@ pub async fn handle_completion_command(
 
     // Validate context ratio
     if !(0.0..=1.0).contains(&context_ratio) {
-        ui::print_error("Context ratio must be between 0.0 and 1.0");
+        output::print_error("Context ratio must be between 0.0 and 1.0");
         return Err(anyhow::anyhow!("Invalid context ratio: {context_ratio}"));
     }
 
     // Provide helpful information about context ratios
-    ui::print_info(&format!(
+    output::print_info(&format!(
         "Completing message with prefix '{}' using {:.0}% context ratio",
         prefix,
         context_ratio * 100.0
@@ -155,10 +155,10 @@ pub async fn handle_completion_command(
         repository_url,
         &config,
     ).map_err(|e| {
-        ui::print_error(&format!("Error: {e}"));
-        ui::print_info("\nPlease ensure the following:");
-        ui::print_info("1. Git is installed and accessible from the command line.");
-        ui::print_info(
+        output::print_error(&format!("Error: {e}"));
+        output::print_info("\nPlease ensure the following:");
+        output::print_info("1. Git is installed and accessible from the command line.");
+        output::print_info(
             "2. You are running this command from within a Git repository or provide a repository URL with --repo.",
         );
         e
@@ -167,10 +167,10 @@ pub async fn handle_completion_command(
     let git_info = service.get_git_info().await?;
 
     if git_info.staged_files.is_empty() && !dry {
-        ui::print_warning(
+        output::print_warning(
             "No staged changes. Please stage your changes before completing a commit message.",
         );
-        ui::print_info("You can stage changes using 'git add <file>' or 'git add .'");
+        output::print_info("You can stage changes using 'git add <file>' or 'git add .'");
         return Ok(());
     }
 
@@ -180,7 +180,7 @@ pub async fn handle_completion_command(
 
     // Create spinner for completion generation
     let random_message = messages::get_waiting_message();
-    let spinner = ui::create_tui_spinner(&format!(
+    let spinner = output::create_tui_spinner(&format!(
         "{} - Completing commit message",
         random_message.text
     ));
@@ -205,7 +205,7 @@ pub async fn handle_completion_command(
 
     // For completion, we don't support auto-commit since the user needs to review the completion
     if service.is_remote_repository() {
-        ui::print_warning(
+        output::print_warning(
             "Completion not available for remote repositories. Using print mode instead.",
         );
         println!("{}", format_commit_message(&completed_message));
@@ -213,11 +213,11 @@ pub async fn handle_completion_command(
     }
 
     // Show the completed message and let user decide
-    ui::print_info(&format!("Prefix: {}", prefix));
-    ui::print_info("Completed message:");
+    output::print_info(&format!("Prefix: {}", prefix));
+    output::print_info("Completed message:");
     println!("{}", format_commit_message(&completed_message));
 
-    ui::print_info(
+    output::print_info(
         "\nUse --print to output only the completed message, or --auto-commit to commit directly.",
     );
 
@@ -248,7 +248,7 @@ async fn generate_pr_based_on_parameters(
 
     // Create spinner for PR generation
     let random_message = messages::get_waiting_message();
-    let spinner = ui::create_tui_spinner(
+    let spinner = output::create_tui_spinner(
         format!("{} - Generating PR description", random_message.text).as_str(),
     );
 
@@ -290,7 +290,7 @@ async fn handle_from_and_to_parameters(
 ) -> Result<super::types::GeneratedPullRequest> {
     // Special case: if from and to are the same, treat as single commit analysis
     if from_ref == to_ref {
-        ui::create_tui_spinner(
+        output::create_tui_spinner(
             format!(
                 "{} - Analyzing single commit: {}",
                 random_message.text, from_ref
@@ -311,7 +311,7 @@ async fn handle_from_and_to_parameters(
     {
         // Check if these look like commit hashes (7+ hex chars) or branches
         // Treat as commit range
-        ui::create_tui_spinner(
+        output::create_tui_spinner(
             format!(
                 "{} - Analyzing commit range: {}..{}",
                 random_message.text, from_ref, to_ref
@@ -325,7 +325,7 @@ async fn handle_from_and_to_parameters(
             .await
     } else {
         // Treat as branch comparison
-        ui::create_tui_spinner(
+        output::create_tui_spinner(
             format!(
                 "{} - Comparing branches: {} -> {}",
                 random_message.text, from_ref, to_ref
@@ -350,7 +350,7 @@ async fn handle_to_only_parameter(
     // Check if this is a single commit hash
     if is_likely_commit_hash(&to_ref) {
         // For a single commit specified with --to, compare it against its parent
-        ui::create_tui_spinner(
+        output::create_tui_spinner(
             format!(
                 "{} - Analyzing single commit: {}",
                 random_message.text, to_ref
@@ -397,7 +397,7 @@ async fn handle_from_only_parameter(
     // Check if this looks like a single commit hash that we should compare against its parent
     if is_likely_commit_hash(&from_ref) {
         // For a single commit hash, compare it against its parent (commit^..commit)
-        ui::create_tui_spinner(
+        output::create_tui_spinner(
             format!(
                 "{} - Analyzing single commit: {}",
                 random_message.text, from_ref
@@ -415,7 +415,7 @@ async fn handle_from_only_parameter(
             .await
     } else if is_commitish_syntax(&from_ref) {
         // For commitish like HEAD~2, compare from that point to HEAD (reviewing multiple commits)
-        ui::create_tui_spinner(
+        output::create_tui_spinner(
             format!(
                 "{} - Analyzing range: {}..HEAD",
                 random_message.text, from_ref
@@ -429,7 +429,7 @@ async fn handle_from_only_parameter(
             .await
     } else {
         // For a branch name, compare to HEAD
-        ui::create_tui_spinner(
+        output::create_tui_spinner(
             format!(
                 "{} - Analyzing range: {}..HEAD",
                 random_message.text, from_ref
@@ -451,8 +451,10 @@ async fn handle_no_parameters(
     random_message: &messages::ColoredMessage,
 ) -> Result<super::types::GeneratedPullRequest> {
     // This case should be caught by validation, but provide a sensible fallback
-    ui::create_tui_spinner(format!("{} - Comparing main -> HEAD", random_message.text).as_str())
-        .tick();
+    output::create_tui_spinner(
+        format!("{} - Comparing main -> HEAD", random_message.text).as_str(),
+    )
+    .tick();
 
     service
         .generate_pr_for_branch_diff(effective_instructions, "main", "HEAD")

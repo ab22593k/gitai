@@ -3,7 +3,7 @@ use super::releasenotes::ReleaseNotesGenerator;
 use crate::common::{CommonParams, DetailLevel};
 use crate::config::Config;
 use crate::git::GitRepo;
-use crate::ui;
+use crate::output;
 use anyhow::{Context, Result, anyhow};
 use colored::Colorize;
 use std::env;
@@ -53,17 +53,17 @@ pub async fn handle_changelog_command(
     common.apply_to_config(&mut config)?;
 
     // Create a spinner to indicate progress
-    let mut spinner = ui::create_tui_spinner("Generating changelog...");
+    let mut spinner = output::create_tui_spinner("Generating changelog...");
 
     // Ensure we're in a git repository
     if let Err(e) = config.check_environment() {
-        ui::print_error(&format!("Error: {e}"));
-        ui::print_info("\nPlease ensure the following:");
-        ui::print_info("1. Git is installed and accessible from the command line.");
-        ui::print_info(
+        output::print_error(&format!("Error: {e}"));
+        output::print_info("\nPlease ensure the following:");
+        output::print_info("1. Git is installed and accessible from the command line.");
+        output::print_info(
             "2. You are running this command from within a Git repository or provide a repository URL with --repo.",
         );
-        ui::print_info("3. You have set up your configuration using 'git config'.");
+        output::print_info("3. You have set up your configuration using 'git config'.");
         return Err(e);
     }
 
@@ -95,24 +95,24 @@ pub async fn handle_changelog_command(
         Some(f)
     } else if save {
         // Auto-detect the starting reference for --save
-        ui::print_info("Detecting latest tag...");
+        output::print_info("Detecting latest tag...");
         match git_repo.get_latest_tag() {
             Ok(Some(tag)) => {
-                ui::print_success(&format!("Found latest tag: {}", tag));
+                output::print_success(&format!("Found latest tag: {}", tag));
                 Some(tag)
             }
             Ok(None) => {
-                ui::print_info("No tags found, using first commit...");
+                output::print_info("No tags found, using first commit...");
                 match git_repo.get_first_commit() {
                     Ok(commit) => Some(commit),
                     Err(e) => {
-                        ui::print_error(&format!("Failed to get first commit: {e}"));
+                        output::print_error(&format!("Failed to get first commit: {e}"));
                         return Err(anyhow!("Cannot determine starting point for changelog"));
                     }
                 }
             }
             Err(e) => {
-                ui::print_error(&format!("Failed to get latest tag: {e}"));
+                output::print_error(&format!("Failed to get latest tag: {e}"));
                 return Err(anyhow!("Failed to detect latest tag: {}", e));
             }
         }
@@ -138,13 +138,13 @@ pub async fn handle_changelog_command(
     spinner.tick();
 
     // Output the changelog with decorative borders
-    ui::print_bordered_content(&changelog);
+    output::print_bordered_content(&changelog);
 
     // Update the changelog file if requested
     if should_update_file {
         let path = changelog_file_path.unwrap_or_else(|| "CHANGELOG.md".to_string());
         let mut update_spinner =
-            ui::create_tui_spinner(&format!("Updating changelog file at {path}..."));
+            output::create_tui_spinner(&format!("Updating changelog file at {path}..."));
 
         match ChangelogGenerator::update_changelog_file(
             &changelog,
@@ -155,14 +155,14 @@ pub async fn handle_changelog_command(
         ) {
             Ok(()) => {
                 update_spinner.tick();
-                ui::print_success(&format!(
+                output::print_success(&format!(
                     "✨ Changelog successfully updated at {}",
                     path.bright_green()
                 ));
             }
             Err(e) => {
                 update_spinner.tick();
-                ui::print_error(&format!("Failed to update changelog file: {e}"));
+                output::print_error(&format!("Failed to update changelog file: {e}"));
             }
         }
     }
@@ -199,17 +199,17 @@ pub async fn handle_release_notes_command(
     common.apply_to_config(&mut config)?;
 
     // Create a spinner to indicate progress
-    let mut spinner = ui::create_tui_spinner("Generating release notes...");
+    let mut spinner = output::create_tui_spinner("Generating release notes...");
 
     // Check environment prerequisites
     if let Err(e) = config.check_environment() {
-        ui::print_error(&format!("Error: {e}"));
-        ui::print_info("\nPlease ensure the following:");
-        ui::print_info("1. Git is installed and accessible from the command line.");
-        ui::print_info(
+        output::print_error(&format!("Error: {e}"));
+        output::print_info("\nPlease ensure the following:");
+        output::print_info("1. Git is installed and accessible from the command line.");
+        output::print_info(
             "2. You are running this command from within a Git repository or provide a repository URL with --repo.",
         );
-        ui::print_info("3. You have set up your configuration using 'git config'.");
+        output::print_info("3. You have set up your configuration using 'git config'.");
         return Err(e);
     }
 
@@ -239,7 +239,7 @@ pub async fn handle_release_notes_command(
     spinner.tick();
 
     // Output the release notes with decorative borders
-    ui::print_bordered_content(&release_notes);
+    output::print_bordered_content(&release_notes);
 
     Ok(())
 }

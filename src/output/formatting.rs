@@ -1,45 +1,12 @@
+//! Text formatting utilities for CLI output.
+//!
+//! Gradient rendering, terminal writing, and bordered content.
+
 use colored::Colorize;
 use console::Term;
-use parking_lot::Mutex;
-use ratatui::style::Color;
 use std::fmt::Write as _;
 
-// Re-export SpinnerState for TUI use
-pub use crate::tui::spinner::SpinnerState;
-
-pub const STARLIGHT: Color = Color::Rgb(255, 255, 240);
-pub const NEBULA_PURPLE: Color = Color::Rgb(167, 132, 239);
-pub const CELESTIAL_BLUE: Color = Color::Rgb(75, 115, 235);
-pub const SOLAR_YELLOW: Color = Color::Rgb(255, 225, 100);
-pub const AURORA_GREEN: Color = Color::Rgb(140, 255, 170);
-pub const PLASMA_CYAN: Color = Color::Rgb(20, 255, 255);
-pub const METEOR_RED: Color = Color::Rgb(255, 89, 70);
-pub const GALAXY_PINK: Color = Color::Rgb(255, 162, 213);
-pub const COMET_ORANGE: Color = Color::Rgb(255, 165, 0);
-pub const BLACK_HOLE: Color = Color::Rgb(0, 0, 0);
-
-/// Track quiet mode state
-static QUIET_MODE: std::sync::LazyLock<Mutex<bool>> =
-    std::sync::LazyLock::new(|| Mutex::new(false));
-
-/// Enable or disable quiet mode
-#[inline]
-pub fn set_quiet_mode(enabled: bool) {
-    *QUIET_MODE.lock() = enabled;
-}
-
-/// Check if quiet mode is enabled
-#[inline]
-pub fn is_quiet_mode() -> bool {
-    *QUIET_MODE.lock()
-}
-
-/// Create a TUI spinner state for terminal user interface
-#[inline]
-#[must_use]
-pub fn create_tui_spinner(message: &str) -> SpinnerState {
-    SpinnerState::with_message(message)
-}
+use super::colors::is_quiet_mode;
 
 pub fn print_info(message: &str) {
     if !is_quiet_mode() {
@@ -97,7 +64,6 @@ pub fn create_gradient_text(text: &str) -> String {
         (75, 115, 235),  // Celestial Blue
         (20, 255, 255),  // Plasma Cyan
     ];
-
     apply_gradient(text, GRADIENT)
 }
 
@@ -110,22 +76,18 @@ pub fn create_secondary_gradient_text(text: &str) -> String {
         (148, 0, 211),  // Dark violet
         (153, 50, 204), // Dark orchid
     ];
-
     apply_gradient(text, GRADIENT)
 }
 
 #[must_use]
 fn apply_gradient(text: &str, gradient: &[(u8, u8, u8)]) -> String {
     let chars: Vec<char> = text.chars().collect();
-
     if chars.is_empty() || gradient.is_empty() {
         return String::new();
     }
-
     let chars_len = chars.len();
     let gradient_len = gradient.len();
-    let mut result = String::with_capacity(text.len() * 20); // Reserve space for ANSI codes
-
+    let mut result = String::with_capacity(text.len() * 20);
     for (i, &c) in chars.iter().enumerate() {
         let index = if chars_len == 1 {
             0
@@ -135,7 +97,6 @@ fn apply_gradient(text: &str, gradient: &[(u8, u8, u8)]) -> String {
         let (r, g, b) = gradient[index];
         let _ = write!(result, "{}", c.to_string().truecolor(r, g, b));
     }
-
     result
 }
 

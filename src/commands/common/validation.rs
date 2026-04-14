@@ -1,12 +1,12 @@
 use crate::llm::context::CommitContext;
-use crate::ui;
+use crate::output;
 
 pub fn validate_staged_files(git_info: &CommitContext, dry: bool) {
     if git_info.staged_files.is_empty() && !dry {
-        ui::print_warning(
+        output::print_warning(
             "No staged changes. Please stage your changes before generating a commit message.",
         );
-        ui::print_info("You can stage changes using 'git add <file>' or 'git add .'");
+        output::print_info("You can stage changes using 'git add <file>' or 'git add .'");
     }
 }
 

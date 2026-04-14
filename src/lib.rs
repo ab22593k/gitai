@@ -9,9 +9,9 @@ pub mod common;
 pub mod config;
 pub mod git;
 pub mod llm;
+pub mod output;
 pub mod sync;
 pub mod tui;
-pub mod ui;
 
 pub use crate::app::{App, Gitai, handle_command, parse_args};
 

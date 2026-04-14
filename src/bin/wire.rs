@@ -6,7 +6,7 @@ use gitai::{
         handlers,
     },
     init_app,
-    ui::print_error,
+    output::print_error,
 };
 
 #[derive(Parser)]
