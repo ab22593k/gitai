@@ -1,27 +1,25 @@
-use super::input_handler::{InputResult, handle_input};
+use super::renderer::draw_ui;
+use super::runtime::{ExitStatus, TerminalGuard, TuiRuntime};
 use super::spinner::SpinnerState;
 use super::state::{Mode, TuiState};
-use super::theme::init_theme;
-use super::ui::draw_ui;
+use super::task_runner::TuiTaskRunner;
 use crate::commands::commit::{
     CommitService, completion::CompletionService, format_commit_result, types::GeneratedMessage,
 };
 use anyhow::{Error, Result};
+use crossterm::event::{Event, EventStream, KeyEvent, KeyEventKind};
 use futures::StreamExt;
-use ratatui::{
-    Terminal,
-    backend::CrosstermBackend,
-    crossterm::{
-        event::{Event, EventStream},
-        execute,
-        terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
-    },
-};
-
 use std::io;
-use std::panic;
 use std::sync::Arc;
 use std::time::Duration;
+
+/// Result of processing a single input event.
+#[derive(Debug, PartialEq, Eq)]
+pub enum InputResult {
+    Continue,
+    Exit,
+    Commit(String),
+}
 
 pub struct TuiCommit {
     pub state: TuiState,
@@ -74,75 +72,67 @@ impl TuiCommit {
     }
 
     pub async fn run_app(&mut self, theme_mode: crate::common::ThemeMode) -> io::Result<()> {
-        // Initialize adaptive theme
-        init_theme(theme_mode);
-
-        // Setup
-        let default_hook = panic::take_hook();
-        panic::set_hook(Box::new(move |panic_info: &panic::PanicHookInfo| {
-            let _ = crossterm::terminal::disable_raw_mode();
-            default_hook(panic_info);
-        }));
-        enable_raw_mode()?;
-        let mut stdout = io::stdout();
-        execute!(stdout, EnterAlternateScreen)?;
-        let backend = CrosstermBackend::new(stdout);
-        let mut terminal = Terminal::new(backend)?;
+        // Setup terminal with theme (delegated to TuiRuntime)
+        let mut guard = TuiRuntime::setup_with_theme(theme_mode)?;
 
         // Run main loop
-        let result = self.main_loop(&mut terminal).await;
+        let result = self.main_loop_impl(&mut guard).await;
 
-        // Cleanup
-        disable_raw_mode()?;
-        execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
-        terminal.show_cursor()?;
+        // Cleanup happens automatically via TerminalGuard::Drop
+        drop(guard);
 
-        // Handle result and display appropriate message
-        match result {
-            Ok(exit_status) => match exit_status {
-                ExitStatus::Committed(message) => {
-                    println!("{message}");
-                }
-                ExitStatus::Cancelled => {
-                    println!("Commit operation cancelled. Your changes remain staged.");
-                }
-                ExitStatus::Error(error_message) => {
-                    eprintln!("An error occurred: {error_message}");
-                }
-            },
-            Err(e) => {
-                eprintln!("An unexpected error occurred: {e}");
-                return Err(io::Error::other(e.to_string()));
-            }
-        }
-
-        Ok(())
+        // Handle result
+        Self::handle_exit_result(result)
     }
 
-    async fn main_loop(
-        &mut self,
-        terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
-    ) -> anyhow::Result<ExitStatus> {
-        let (tx, mut rx) = tokio::sync::mpsc::channel::<Result<GeneratedMessage, anyhow::Error>>(1);
+    async fn main_loop_impl(&mut self, guard: &mut TerminalGuard) -> Result<ExitStatus> {
+        let (generation_tx, mut generation_rx) =
+            tokio::sync::mpsc::channel::<Result<GeneratedMessage, anyhow::Error>>(1);
         let (completion_tx, mut completion_rx) =
             tokio::sync::mpsc::channel::<Result<Vec<String>, anyhow::Error>>(1);
-        let mut task_spawned = false;
-        let mut completion_task_spawned = false;
+
+        let mut task_runner = TuiTaskRunner::new(
+            self.service.clone(),
+            self.completion_service.clone(),
+            generation_tx,
+            completion_tx,
+        );
 
         let mut events = EventStream::new();
         let mut ticker = tokio::time::interval(Duration::from_millis(100));
 
         loop {
+            // Render if dirty (delegated to renderer)
             if self.state.is_dirty() {
-                terminal.draw(|f| draw_ui(f, &mut self.state))?;
+                guard.terminal_mut().draw(|f| draw_ui(f, &mut self.state))?;
                 self.state.set_dirty(false);
             }
 
-            self.spawn_generation_task_if_needed(&tx, &mut task_spawned);
-            self.spawn_completion_task_if_needed(&completion_tx, &mut completion_task_spawned);
+            // Spawn tasks if needed (delegated to TuiTaskRunner)
+            if self.state.mode() == Mode::Generating && !task_runner.is_generation_spawned() {
+                let instructions = self.state.custom_instructions().to_string();
+                let filtered_context = self.state.get_filtered_context();
+                task_runner.spawn_generation_if_needed(true, instructions, filtered_context);
+            }
+            if self.state.mode() != Mode::Generating && task_runner.is_generation_spawned() {
+                task_runner.reset_generation_flag();
+            }
 
+            if let Some(prefix) = self.state.pending_completion_prefix().cloned()
+                && !task_runner.is_completion_spawned()
+            {
+                task_runner.spawn_completion_if_needed(Some(prefix));
+                self.state.set_pending_completion_prefix(None);
+            }
+
+            // Wait for events
             match self
-                .wait_for_events(&mut rx, &mut completion_rx, &mut events, &mut ticker)
+                .wait_for_events(
+                    &mut generation_rx,
+                    &mut completion_rx,
+                    &mut events,
+                    &mut ticker,
+                )
                 .await?
             {
                 LoopResult::Continue => {}
@@ -151,75 +141,17 @@ impl TuiCommit {
         }
     }
 
-    fn spawn_generation_task_if_needed(
-        &mut self,
-        tx: &tokio::sync::mpsc::Sender<Result<GeneratedMessage, anyhow::Error>>,
-        task_spawned: &mut bool,
-    ) {
-        if self.state.mode() == Mode::Generating && !*task_spawned {
-            let service = self.service.clone();
-            let instructions = self.state.custom_instructions().to_string();
-            let filtered_context = self.state.get_filtered_context();
-            let tx = tx.clone();
-
-            tokio::spawn(async move {
-                let result = if let Some(context) = filtered_context {
-                    service
-                        .generate_message_with_context(&instructions, context)
-                        .await
-                } else {
-                    service.generate_message(&instructions).await
-                };
-                let _ = tx.send(result).await;
-            });
-
-            *task_spawned = true;
-        }
-    }
-
-    fn spawn_completion_task_if_needed(
-        &mut self,
-        completion_tx: &tokio::sync::mpsc::Sender<Result<Vec<String>, anyhow::Error>>,
-        completion_task_spawned: &mut bool,
-    ) {
-        if let Some(prefix) = self.state.pending_completion_prefix().cloned()
-            && !*completion_task_spawned
-        {
-            let completion_service = self.completion_service.clone();
-            let prefix = prefix.clone();
-            let completion_tx = completion_tx.clone();
-
-            tokio::spawn(async move {
-                match completion_service.complete_message(&prefix, 0.5).await {
-                    Ok(completed_message) => {
-                        let _ = completion_tx.send(Ok(vec![completed_message.title])).await;
-                    }
-                    Err(_e) => {
-                        let suggestions = vec![
-                            format!("{}: add new feature", prefix),
-                            format!("{}: fix bug", prefix),
-                            format!("{}: update documentation", prefix),
-                        ];
-                        let _ = completion_tx.send(Ok(suggestions)).await;
-                    }
-                }
-            });
-
-            *completion_task_spawned = true;
-            self.state.set_pending_completion_prefix(None);
-        }
-    }
-
     async fn wait_for_events(
         &mut self,
-        rx: &mut tokio::sync::mpsc::Receiver<Result<GeneratedMessage, anyhow::Error>>,
+        generation_rx: &mut tokio::sync::mpsc::Receiver<Result<GeneratedMessage, anyhow::Error>>,
         completion_rx: &mut tokio::sync::mpsc::Receiver<Result<Vec<String>, anyhow::Error>>,
         events: &mut EventStream,
         ticker: &mut tokio::time::Interval,
-    ) -> anyhow::Result<LoopResult> {
+    ) -> Result<LoopResult> {
         tokio::select! {
             biased;
 
+            // 1. Ticker tick
             _ = ticker.tick() => {
                 if self.state.mode() == Mode::Generating
                     && let Some(spinner) = self.state.spinner_mut() {
@@ -228,29 +160,29 @@ impl TuiCommit {
                     }
                 Ok(LoopResult::Continue)
             }
-            Some(result) = rx.recv() => {
+
+            // 2. Generation result
+            Some(result) = generation_rx.recv() => {
                 self.handle_generation_result(result);
                 Ok(LoopResult::Continue)
             }
+
+            // 3. Completion result
             Some(result) = completion_rx.recv() => {
                 self.handle_completion_result(result);
                 Ok(LoopResult::Continue)
             }
+
+            // 4. User input
             maybe_event = events.next() => {
                 if let Some(Ok(Event::Key(key))) = maybe_event
-                    && key.kind == crossterm::event::KeyEventKind::Press {
-                        let input_result = handle_input(self, key).await;
+                    && key.kind == KeyEventKind::Press {
+                        let input_result = handle_input_with_state(&mut self.state, key);
                         match input_result {
                             InputResult::Exit => Ok(LoopResult::Exit(ExitStatus::Cancelled)),
-                            InputResult::Commit(message) => match self.perform_commit(&message) {
-                                Ok(status) => Ok(LoopResult::Exit(status)),
-                                Err(e) => {
-                                    self.state.set_status(format!(
-                                        "Commit failed: {e}. Check your staged changes and try again."
-                                    ));
-                                    self.state.set_dirty(true);
-                                    Ok(LoopResult::Continue)
-                                }
+                            InputResult::Commit(message) => {
+                                let status = self.perform_commit_impl(&message);
+                                Ok(LoopResult::Exit(status))
                             },
                             InputResult::Continue => {
                                 self.state.set_dirty(true);
@@ -299,6 +231,46 @@ impl TuiCommit {
             }
         }
     }
+
+    fn handle_exit_result(result: Result<ExitStatus>) -> io::Result<()> {
+        match result {
+            Ok(exit_status) => match exit_status {
+                ExitStatus::Committed(message) => {
+                    println!("{message}");
+                }
+                ExitStatus::Cancelled => {
+                    println!("Commit operation cancelled. Your changes remain staged.");
+                }
+                ExitStatus::Error(error_message) => {
+                    eprintln!("An error occurred: {error_message}");
+                }
+            },
+            Err(e) => {
+                eprintln!("An unexpected error occurred: {e}");
+                return Err(io::Error::other(e.to_string()));
+            }
+        }
+
+        Ok(())
+    }
+
+    fn perform_commit_impl(&self, message: &str) -> ExitStatus {
+        match self.service.perform_commit(message, false, None) {
+            Ok(result) => {
+                let output = format_commit_result(&result, message);
+                ExitStatus::Committed(output)
+            }
+            Err(e) => ExitStatus::Error(e.to_string()),
+        }
+    }
+
+    pub fn handle_regenerate(&mut self) {
+        self.state.set_mode(Mode::Generating);
+        self.state.set_spinner(Some(SpinnerState::new()));
+        self.state
+            .set_status(String::from("Regenerating commit message..."));
+        self.state.set_dirty(true);
+    }
 }
 
 enum LoopResult {
@@ -306,23 +278,211 @@ enum LoopResult {
     Exit(ExitStatus),
 }
 
-impl TuiCommit {
-    pub fn handle_regenerate(&mut self) {
-        self.state.set_mode(Mode::Generating);
-        self.state.set_spinner(Some(SpinnerState::new()));
-        self.state
-            .set_status(String::from("Regenerating commit message..."));
-        self.state.set_dirty(true); // Make sure UI updates
+/// Handle input given only `TuiState`
+fn handle_input_with_state(state: &mut TuiState, key: KeyEvent) -> InputResult {
+    match state.mode() {
+        Mode::Normal => handle_normal_mode(state, key),
+        Mode::EditingMessage => handle_editing_message_mode(state, key),
+        Mode::EditingInstructions => handle_editing_instructions_mode(state, key),
+        Mode::Generating => InputResult::Continue,
+        Mode::Help => handle_help_mode(state, key),
+        Mode::Completing => handle_completing_mode(state, key),
+        Mode::ContextSelection => handle_context_selection_mode(state, key),
     }
+}
 
-    pub fn perform_commit(&self, message: &str) -> Result<ExitStatus, Error> {
-        match self.service.perform_commit(message, false, None) {
-            Ok(result) => {
-                let output = format_commit_result(&result, message);
-                Ok(ExitStatus::Committed(output))
-            }
-            Err(e) => Ok(ExitStatus::Error(e.to_string())),
+fn handle_normal_mode(state: &mut TuiState, key: KeyEvent) -> InputResult {
+    use crossterm::event::KeyCode;
+    match key.code {
+        KeyCode::Char('q') | KeyCode::Esc => InputResult::Exit,
+        KeyCode::Enter => {
+            let message = format!(
+                "{}\n\n{}",
+                state.current_message().title,
+                state.current_message().message
+            );
+            InputResult::Commit(message)
         }
+        KeyCode::Char('E') => {
+            state.set_mode(Mode::EditingMessage);
+            state.set_status(
+                "Editing commit message... Press 'Esc' to finish, 'Tab' for completion",
+            );
+            InputResult::Continue
+        }
+        KeyCode::Char('I') => {
+            state.set_mode(Mode::EditingInstructions);
+            if !state.is_instructions_visible() {
+                state.toggle_instructions_visibility();
+            }
+            state.set_status("Editing instructions... Press 'Esc' to finish");
+            InputResult::Continue
+        }
+        KeyCode::Char('R') => {
+            state.set_mode(Mode::Generating);
+            state.set_spinner(Some(SpinnerState::new()));
+            state.set_status("Regenerating commit message...");
+            state.set_dirty(true);
+            InputResult::Continue
+        }
+        KeyCode::Char('?') => {
+            state.set_mode(Mode::Help);
+            InputResult::Continue
+        }
+        KeyCode::Char('C') => {
+            state.set_mode(Mode::ContextSelection);
+            state.set_status(
+                "Select context: 'Space' toggle, 'Tab' switch category, 'Enter' confirm, 'Esc' cancel",
+            );
+            InputResult::Continue
+        }
+        KeyCode::Left => {
+            state.previous_message();
+            state.set_status(format!(
+                " Message {}/{}",
+                state.current_index() + 1,
+                state.messages().len()
+            ));
+            InputResult::Continue
+        }
+        KeyCode::Right => {
+            state.next_message();
+            state.set_status(format!(
+                " Message {}/{}",
+                state.current_index() + 1,
+                state.messages().len()
+            ));
+            InputResult::Continue
+        }
+        KeyCode::Up => {
+            state.message_textarea_mut().scroll((-1, 0));
+            state.set_dirty(true);
+            InputResult::Continue
+        }
+        KeyCode::Down => {
+            state.message_textarea_mut().scroll((1, 0));
+            state.set_dirty(true);
+            InputResult::Continue
+        }
+        _ => InputResult::Continue,
+    }
+}
+
+fn handle_editing_message_mode(state: &mut TuiState, key: KeyEvent) -> InputResult {
+    use crossterm::event::KeyCode;
+    match key.code {
+        KeyCode::Esc => {
+            state.set_mode(Mode::Normal);
+            state.update_current_message_from_textarea();
+            state.set_status(" Edited message saved. Press 'Enter' to commit.");
+            InputResult::Continue
+        }
+        KeyCode::Tab => {
+            let (row, col) = state.message_textarea().cursor();
+            let lines = state.message_textarea().lines();
+            if row < lines.len() {
+                let line = &lines[row];
+                if col <= line.len() {
+                    let prefix = line[..col].to_string();
+                    if !prefix.trim().is_empty() {
+                        state.set_pending_completion_prefix(Some(prefix));
+                        state.set_mode(Mode::Completing);
+                        state.set_status("Generating completion suggestions...");
+                        state.set_dirty(true);
+                    }
+                }
+            }
+            InputResult::Continue
+        }
+        _ => {
+            state.message_textarea_mut().input(key);
+            state.set_dirty(true);
+            InputResult::Continue
+        }
+    }
+}
+
+fn handle_editing_instructions_mode(state: &mut TuiState, key: KeyEvent) -> InputResult {
+    use crossterm::event::KeyCode;
+    if key.code == KeyCode::Esc {
+        state.set_mode(Mode::Normal);
+        state.update_instructions_from_textarea();
+        state.set_status(" Instructions updated. Press 'R' to regenerate.");
+        InputResult::Continue
+    } else {
+        state.instructions_textarea_mut().input(key);
+        state.set_dirty(true);
+        InputResult::Continue
+    }
+}
+
+fn handle_help_mode(state: &mut TuiState, _key: KeyEvent) -> InputResult {
+    state.set_mode(Mode::Normal);
+    state.set_status("Press '?': help | 'Esc': exit");
+    InputResult::Continue
+}
+
+fn handle_completing_mode(state: &mut TuiState, key: KeyEvent) -> InputResult {
+    use crossterm::event::KeyCode;
+    match key.code {
+        KeyCode::Esc => {
+            state.set_mode(Mode::EditingMessage);
+            state.set_status("Completion cancelled.");
+            state.set_completion_suggestions(Vec::new());
+            InputResult::Continue
+        }
+        KeyCode::Enter => {
+            if !state.completion_suggestions().is_empty() {
+                let suggestion = state.completion_suggestions()[state.completion_index()].clone();
+                state.message_textarea_mut().insert_str(&suggestion);
+                state.set_completion_suggestions(Vec::new());
+                state.set_mode(Mode::EditingMessage);
+                state.set_status(" Completion applied.");
+            }
+            InputResult::Continue
+        }
+        KeyCode::Tab | KeyCode::Down => {
+            state.next_completion();
+            InputResult::Continue
+        }
+        KeyCode::BackTab | KeyCode::Up => {
+            state.previous_completion();
+            InputResult::Continue
+        }
+        _ => InputResult::Continue,
+    }
+}
+
+fn handle_context_selection_mode(state: &mut TuiState, key: KeyEvent) -> InputResult {
+    use crossterm::event::KeyCode;
+    match key.code {
+        KeyCode::Esc => {
+            state.set_mode(Mode::Normal);
+            state.set_status("Context selection cancelled.");
+            InputResult::Continue
+        }
+        KeyCode::Enter => {
+            state.set_mode(Mode::Normal);
+            state.set_status(" Context updated. Press 'R' to regenerate with new context.");
+            InputResult::Continue
+        }
+        KeyCode::Up => {
+            state.move_selection_up();
+            InputResult::Continue
+        }
+        KeyCode::Down => {
+            state.move_selection_down();
+            InputResult::Continue
+        }
+        KeyCode::Tab => {
+            state.next_category();
+            InputResult::Continue
+        }
+        KeyCode::Char(' ') => {
+            state.toggle_current_selection();
+            InputResult::Continue
+        }
+        _ => InputResult::Continue,
     }
 }
 
@@ -344,32 +504,13 @@ pub async fn run_tui_commit(
     .await
 }
 
-pub enum ExitStatus {
-    Committed(String),
-    Cancelled,
-    Error(String),
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::commands::commit::types::GeneratedMessage;
 
     #[test]
-    fn test_panic_hook_setup() {
-        // Test that the panic hook code compiles and the closure is valid
-        // Note: Actual panic hook testing is challenging due to global state
-        #[allow(unused_variables)]
-        #[allow(clippy::no_effect_underscore_binding)]
-        let _closure = |panic_info: &panic::PanicHookInfo| {
-            let _ = crossterm::terminal::disable_raw_mode();
-        };
-        // If this compiles, the setup is correct
-    }
-
-    #[test]
     fn test_regeneration_adds_new_message() {
-        // Test that regeneration adds a new message and switches to it
         let initial_messages = vec![
             GeneratedMessage {
                 title: "Initial commit".to_string(),
@@ -386,16 +527,13 @@ mod tests {
         assert_eq!(state.current_index(), 0);
         assert_eq!(state.messages()[0].title, "Initial commit");
 
-        // Simulate regeneration result: add new message
         let new_message = GeneratedMessage {
             title: "Regenerated commit".to_string(),
             message: "Regenerated message".to_string(),
         };
 
-        // This simulates the logic in the main loop when regeneration succeeds
         state.add_message(new_message);
 
-        // Verify the message was added and we're viewing it
         assert_eq!(state.messages().len(), 3, "Should add a new message");
         assert_eq!(
             state.current_index(),
@@ -421,24 +559,19 @@ mod tests {
 
     #[test]
     fn test_regeneration_with_empty_messages() {
-        // Test regeneration when messages vector is empty (edge case)
         let initial_messages = vec![];
         let mut state = TuiState::new(initial_messages, "test instructions".to_string());
 
-        // TuiState::new should create a default message when initial_messages is empty
         assert_eq!(state.messages().len(), 1);
         assert_eq!(state.current_index(), 0);
 
-        // Simulate regeneration result
         let new_message = GeneratedMessage {
             title: "New commit".to_string(),
             message: "New message".to_string(),
         };
 
-        // This simulates the logic in the main loop
         state.add_message(new_message);
 
-        // Verify the message was added
         assert_eq!(state.messages().len(), 2, "Should add new message");
         assert_eq!(state.current_index(), 1, "Should switch to new message");
         assert_eq!(state.messages()[1].title, "New commit");
@@ -446,7 +579,6 @@ mod tests {
 
     #[test]
     fn test_regeneration_always_adds_message() {
-        // Test that regeneration always adds a new message regardless of current_index
         let initial_messages = vec![GeneratedMessage {
             title: "First commit".to_string(),
             message: "First message".to_string(),
@@ -461,10 +593,8 @@ mod tests {
             message: "New message".to_string(),
         };
 
-        // This simulates the logic in the main loop - always add new message
         state.add_message(new_message);
 
-        // Should add the message
         assert_eq!(state.messages().len(), 2);
         assert_eq!(state.current_index(), 1);
         assert_eq!(state.messages()[1].title, "New commit");

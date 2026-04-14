@@ -1,4 +1,4 @@
-use crate::ui::SpinnerState;
+use crate::tui::spinner::SpinnerState;
 
 use anyhow::Result;
 use crossterm::{

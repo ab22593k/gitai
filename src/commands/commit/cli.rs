@@ -7,7 +7,8 @@ use crate::common::CommonParams;
 use crate::config::Config;
 use crate::llm::messages;
 use crate::tui::run_tui_commit;
-use crate::ui::{self, SpinnerState};
+use crate::tui::spinner::SpinnerState;
+use crate::ui;
 
 use anyhow::Result;
 use std::sync::Arc;

@@ -1,11 +1,11 @@
-#![allow(clippy::as_conversions)]
-
 //! TUI Design System
 //!
 //! This module implements a design token-based UI system with:
 //! - Color palette for consistent theming
 //! - Spacing tokens for standardized layout
 //! - Typography tokens for text styling
+
+#![allow(clippy::as_conversions)]
 
 use super::state::{Mode, TuiState};
 use super::theme::get_theme;
