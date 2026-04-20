@@ -1,40 +1,21 @@
-[package]
-name = "gitai"
-description = "Toolkit that translates git into interpretive dance routines"
+[workspace]
+resolver = "2"
+members = [
+    "crates/claw-core",
+    "crates/claw-message",
+    "crates/claw-pr",
+    "crates/claw-changelog",
+    "crates/claw-notes",
+    "crates/claw-wire",
+]
+
+[workspace.package]
 version = "0.1.5"
 edition = "2024"
 license = "MIT"
+authors = ["Abdulwahab"]
 
-[lib]
-name = "gitai"
-path = "src/lib.rs"
-
-[[bin]]
-name = "git-message"
-path = "src/bin/message.rs"
-
-[[bin]]
-name = "git-pr"
-path = "src/bin/pr.rs"
-
-[[bin]]
-name = "git-changelog"
-path = "src/bin/changelog.rs"
-
-[[bin]]
-name = "git-notes"
-path = "src/bin/notes.rs"
-
-[[bin]]
-name = "git-wire"
-path = "src/bin/wire.rs"
-
-
-
-[features]
-integration = []
-
-[dependencies]
+[workspace.dependencies]
 anyhow = "1.0.86"
 chrono = "0.4.38"
 clap = { version = "4.5.47", features = ["derive", "cargo"] }
@@ -71,70 +52,6 @@ tracing = "0.1.41"
 tracing-appender = "0.2.3"
 tracing-subscriber = { version = "0.3.20", features = ["json"] }
 
-[lints.rust]
-unsafe_code = "forbid"
-missing_docs = { level = "allow", priority = 1 }
-mismatched_lifetime_syntaxes = "warn"
-unused_visibilities = "warn"
-
-[lints.clippy]
-# Base lint groups
-all = { level = "deny", priority = 0 }
-style = { level = "warn", priority = 1 }
-perf = { level = "deny", priority = 1 }
-
-# Pedantic lints
-pedantic = { level = "deny", priority = 10 }
-
-# Documentation allowances
-missing_errors_doc = { level = "allow", priority = 20 }
-missing_panics_doc = { level = "allow", priority = 20 }
-missing_safety_doc = { level = "allow", priority = 20 }
-
-# Code style allowances - These remain allowed for pragmatic reasons
-module_name_repetitions = { level = "allow", priority = 21 }
-significant_drop_tightening = { level = "allow", priority = 21 }
-must_use_candidate = { level = "allow", priority = 21 }
-
-# Numeric casting and conversion warnings
-cast_precision_loss = { level = "warn", priority = 22 }
-cast_possible_truncation = { level = "warn", priority = 22 }
-cast_sign_loss = { level = "warn", priority = 22 }
-as_conversions = { level = "warn", priority = 22 }
-
-# Safety-critical denials
-out_of_bounds_indexing = { level = "deny", priority = 30 }
-enum_glob_use = { level = "deny", priority = 30 }
-unwrap_used = { level = "deny", priority = 30 }
-undocumented_unsafe_blocks = { level = "deny", priority = 30 }
-
-# Development/debugging lints
-dbg_macro = { level = "warn", priority = 31 }
-todo = { level = "warn", priority = 31 }
-
-# Async-specific lints (important for tokio-heavy codebase)
-future_not_send = { level = "warn", priority = 32 }
-async_yields_async = { level = "warn", priority = 32 }
-
-# String and collection efficiency
-implicit_clone = { level = "warn", priority = 33 }
-inefficient_to_string = { level = "warn", priority = 33 }
-string_lit_as_bytes = { level = "warn", priority = 33 }
-
-# Code complexity (helpful for maintainability)
-too_many_lines = { level = "warn", priority = 34 }
-cognitive_complexity = { level = "warn", priority = 34 }
-
-# Error handling improvements
-result_large_err = { level = "warn", priority = 35 }
-
-# Future considerations
-# expect_used = { level = "deny", priority = 30 }
-
-[package.metadata.docs.rs]
-all-features = true
-rustdoc-args = ["--cfg", "docsrs"]
-
 [profile.release]
 opt-level = 3
 lto = "thin"
@@ -150,3 +67,39 @@ overflow-checks = true
 lto = false
 incremental = true
 codegen-units = 256
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = { level = "allow", priority = 1 }
+mismatched_lifetime_syntaxes = "warn"
+unused_visibilities = "warn"
+
+[workspace.lints.clippy]
+all = { level = "deny", priority = 0 }
+style = { level = "warn", priority = 1 }
+perf = { level = "deny", priority = 1 }
+pedantic = { level = "deny", priority = 10 }
+missing_errors_doc = { level = "allow", priority = 20 }
+missing_panics_doc = { level = "allow", priority = 20 }
+missing_safety_doc = { level = "allow", priority = 20 }
+module_name_repetitions = { level = "allow", priority = 21 }
+significant_drop_tightening = { level = "allow", priority = 21 }
+must_use_candidate = { level = "allow", priority = 21 }
+cast_precision_loss = { level = "warn", priority = 22 }
+cast_possible_truncation = { level = "warn", priority = 22 }
+cast_sign_loss = { level = "warn", priority = 22 }
+as_conversions = { level = "warn", priority = 22 }
+out_of_bounds_indexing = { level = "deny", priority = 30 }
+enum_glob_use = { level = "deny", priority = 30 }
+unwrap_used = { level = "deny", priority = 30 }
+undocumented_unsafe_blocks = { level = "deny", priority = 30 }
+dbg_macro = { level = "warn", priority = 31 }
+todo = { level = "warn", priority = 31 }
+future_not_send = { level = "warn", priority = 32 }
+async_yields_async = { level = "warn", priority = 32 }
+implicit_clone = { level = "warn", priority = 33 }
+inefficient_to_string = { level = "warn", priority = 33 }
+string_lit_as_bytes = { level = "warn", priority = 33 }
+too_many_lines = { level = "warn", priority = 34 }
+cognitive_complexity = { level = "warn", priority = 34 }
+result_large_err = { level = "warn", priority = 35 }

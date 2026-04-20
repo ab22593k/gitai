@@ -1,0 +1,57 @@
+[package]
+name = "claw-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lib]
+name = "claw_core"
+path = "src/lib.rs"
+
+[dependencies]
+anyhow.workspace = true
+chrono.workspace = true
+clap.workspace = true
+colored.workspace = true
+console.workspace = true
+crossterm.workspace = true
+dirs.workspace = true
+futures.workspace = true
+git2.workspace = true
+llm.workspace = true
+log.workspace = true
+parking_lot.workspace = true
+rand.workspace = true
+ratatui.workspace = true
+regex.workspace = true
+reqwest.workspace = true
+schemars.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
+textwrap.workspace = true
+tokio.workspace = true
+tokio-retry.workspace = true
+tui-textarea.workspace = true
+unicode-width.workspace = true
+url.workspace = true
+cause.workspace = true
+temp-dir.workspace = true
+fs_extra.workspace = true
+folder_compare.workspace = true
+uuid.workspace = true
+env_logger.workspace = true
+tracing.workspace = true
+tracing-appender.workspace = true
+tracing-subscriber.workspace = true
+
+[features]
+integration = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints]
+workspace = true

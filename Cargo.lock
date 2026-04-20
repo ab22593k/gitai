@@ -329,6 +329,103 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a1d728cc89cf3aee9ff92b05e62b19ee65a02b5702cff7d5a377e32c6ae29d8d"
 
 [[package]]
+name = "claw-changelog"
+version = "0.1.5"
+dependencies = [
+ "anyhow",
+ "clap",
+ "claw-core",
+ "git2",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
+name = "claw-core"
+version = "0.1.5"
+dependencies = [
+ "anyhow",
+ "cause",
+ "chrono",
+ "clap",
+ "colored",
+ "console",
+ "crossterm",
+ "dirs",
+ "env_logger",
+ "folder_compare",
+ "fs_extra",
+ "futures",
+ "git2",
+ "llm",
+ "log",
+ "parking_lot",
+ "rand 0.10.0",
+ "ratatui",
+ "regex",
+ "reqwest 0.13.2",
+ "schemars",
+ "serde",
+ "serde_json",
+ "temp-dir",
+ "tempfile",
+ "textwrap",
+ "tokio",
+ "tokio-retry",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "tui-textarea",
+ "unicode-width 0.2.0",
+ "url",
+ "uuid",
+]
+
+[[package]]
+name = "claw-message"
+version = "0.1.5"
+dependencies = [
+ "anyhow",
+ "clap",
+ "claw-core",
+ "git2",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
+name = "claw-notes"
+version = "0.1.5"
+dependencies = [
+ "anyhow",
+ "clap",
+ "claw-core",
+ "tokio",
+]
+
+[[package]]
+name = "claw-pr"
+version = "0.1.5"
+dependencies = [
+ "anyhow",
+ "clap",
+ "claw-core",
+ "git2",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
+name = "claw-wire"
+version = "0.1.5"
+dependencies = [
+ "anyhow",
+ "clap",
+ "claw-core",
+ "tokio",
+]
+
+[[package]]
 name = "clipboard-win"
 version = "5.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -865,47 +962,6 @@ dependencies = [
  "openssl-probe 0.1.6",
  "openssl-sys",
  "url",
-]
-
-[[package]]
-name = "gitai"
-version = "0.1.5"
-dependencies = [
- "anyhow",
- "cause",
- "chrono",
- "clap",
- "colored",
- "console",
- "crossterm",
- "dirs",
- "env_logger",
- "folder_compare",
- "fs_extra",
- "futures",
- "git2",
- "llm",
- "log",
- "parking_lot",
- "rand 0.10.0",
- "ratatui",
- "regex",
- "reqwest 0.13.2",
- "schemars",
- "serde",
- "serde_json",
- "temp-dir",
- "tempfile",
- "textwrap",
- "tokio",
- "tokio-retry",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
- "tui-textarea",
- "unicode-width 0.2.0",
- "url",
- "uuid",
 ]
 
 [[package]]

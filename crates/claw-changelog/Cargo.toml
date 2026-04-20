@@ -1,0 +1,23 @@
+[package]
+name = "claw-changelog"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "git-changelog"
+path = "src/main.rs"
+
+[dependencies]
+claw-core = { path = "../claw-core" }
+anyhow.workspace = true
+clap.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+git2.workspace = true
+tempfile.workspace = true
+
+[lints]
+workspace = true
