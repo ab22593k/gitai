@@ -57,11 +57,13 @@ impl ChangeAnalysisEngine for DefaultAnalysisEngine {
 
                 let file_path = new_file.path().map_or_else(
                     || {
-                        old_file
-                            .path().map_or_else(|| {
+                        old_file.path().map_or_else(
+                            || {
                                 log::debug!("DiffDelta has neither old nor new file path");
                                 String::new()
-                            }, |p| p.to_string_lossy().into_owned())
+                            },
+                            |p| p.to_string_lossy().into_owned(),
+                        )
                     },
                     |p| p.to_string_lossy().into_owned(),
                 );
@@ -108,16 +110,20 @@ impl ChangeAnalysisEngine for DefaultAnalysisEngine {
                     }
                 }
 
-                let old_path = old_file
-                    .path().map_or_else(|| {
+                let old_path = old_file.path().map_or_else(
+                    || {
                         log::debug!("DiffDelta missing old file path for {:?}", delta.status());
                         String::new()
-                    }, |p| p.to_string_lossy().into_owned());
-                let new_path = new_file
-                    .path().map_or_else(|| {
+                    },
+                    |p| p.to_string_lossy().into_owned(),
+                );
+                let new_path = new_file.path().map_or_else(
+                    || {
                         log::debug!("DiffDelta missing new file path for {:?}", delta.status());
                         String::new()
-                    }, |p| p.to_string_lossy().into_owned());
+                    },
+                    |p| p.to_string_lossy().into_owned(),
+                );
 
                 let file_change = FileChange {
                     old_path,

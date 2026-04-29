@@ -32,14 +32,15 @@ async fn main() -> Result<()> {
     init_app();
 
     let args = NotesArgs::parse();
-    let repository_url = args.common.repository_url.clone();
+    let NotesArgs { mut common, params } = args;
+    let repository_url = std::mem::take(&mut common.repository_url);
 
     if let Err(e) = handlers::handle_notes(
-        args.common,
-        args.params.from,
-        args.params.to,
+        common,
+        params.from,
+        params.to,
         repository_url,
-        args.params.version_name,
+        params.version_name,
     )
     .await
     {
