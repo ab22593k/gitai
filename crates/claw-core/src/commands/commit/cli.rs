@@ -86,7 +86,6 @@ pub async fn handle_message_command(
 /// Handles the PR description generation command
 pub async fn handle_pr_command(
     common: CommonParams,
-    _print: bool,
     repository_url: Option<String>,
     from: Option<String>,
     to: Option<String>,
@@ -465,4 +464,75 @@ fn is_commitish_syntax(reference: &str) -> bool {
 /// Heuristic to determine if a reference looks like a commit hash (legacy function for backward compatibility)
 fn is_likely_commit_hash(reference: &str) -> bool {
     reference.len() >= 7 && reference.chars().all(|c| c.is_ascii_hexdigit())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_likely_commit_hash_valid() {
+        assert!(is_likely_commit_hash("abc1234"));
+        assert!(is_likely_commit_hash("deadbeef"));
+        assert!(is_likely_commit_hash("ABC1234"));
+        assert!(is_likely_commit_hash("a1b2c3d4e5f6"));
+    }
+
+    #[test]
+    fn test_is_likely_commit_hash_too_short() {
+        assert!(!is_likely_commit_hash("abc123"));
+        assert!(!is_likely_commit_hash("a1b2c3"));
+        assert!(!is_likely_commit_hash("abcdef"));
+    }
+
+    #[test]
+    fn test_is_likely_commit_hash_non_hex() {
+        assert!(!is_likely_commit_hash("abcdefg"));
+        assert!(!is_likely_commit_hash("1234567z"));
+        assert!(!is_likely_commit_hash("feature-branch"));
+    }
+
+    #[test]
+    fn test_is_commitish_syntax_tilde() {
+        assert!(is_commitish_syntax("HEAD~2"));
+        assert!(is_commitish_syntax("main~1"));
+        assert!(is_commitish_syntax("@~3"));
+    }
+
+    #[test]
+    fn test_is_commitish_syntax_caret() {
+        assert!(is_commitish_syntax("HEAD^"));
+        assert!(is_commitish_syntax("origin/main^"));
+        assert!(is_commitish_syntax("v1.0^"));
+    }
+
+    #[test]
+    fn test_is_commitish_syntax_at_sign() {
+        assert!(is_commitish_syntax("@"));
+        assert!(is_commitish_syntax("@~1"));
+        assert!(is_commitish_syntax("@{1}"));
+    }
+
+    #[test]
+    fn test_is_commitish_syntax_plain_branch() {
+        assert!(!is_commitish_syntax("main"));
+        assert!(!is_commitish_syntax("feature/add-login"));
+        assert!(!is_commitish_syntax("release-v2"));
+    }
+
+    #[test]
+    fn test_is_likely_commit_hash_or_commitish_combined() {
+        assert!(is_likely_commit_hash_or_commitish("abc1234"));
+        assert!(is_likely_commit_hash_or_commitish("HEAD~2"));
+        assert!(is_likely_commit_hash_or_commitish("@"));
+        assert!(!is_likely_commit_hash_or_commitish("main"));
+        assert!(!is_likely_commit_hash_or_commitish("feature/login"));
+        assert!(!is_likely_commit_hash_or_commitish("abc12"));
+    }
+
+    #[test]
+    fn test_is_likely_commit_hash_hex_edge_boundary() {
+        assert!(is_likely_commit_hash("1234567"));
+        assert!(!is_likely_commit_hash("123456"));
+    }
 }

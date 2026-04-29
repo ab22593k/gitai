@@ -85,13 +85,6 @@ pub struct MessageParams {
 
 #[derive(Args, Clone, Debug)]
 pub struct PrParams {
-    #[arg(
-        short,
-        long,
-        help = "Print the generated PR description to stdout and exit"
-    )]
-    pub print: bool,
-
     #[arg(long, help = "Starting branch, commit, or commitish for comparison")]
     pub from: Option<String>,
 

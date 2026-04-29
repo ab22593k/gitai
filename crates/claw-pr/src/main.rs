@@ -36,7 +36,6 @@ async fn main() -> Result<()> {
 
     if let Err(e) = handlers::handle_pr_command(
         args.common,
-        args.params.print,
         args.params.from,
         args.params.to,
         repository_url,

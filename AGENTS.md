@@ -3,6 +3,7 @@
 ## Build prerequisites
 
 `git2` uses vendored-openssl + vendored-libgit2 (C compilation). Build fails without:
+
 - C compiler (gcc/g++)
 - cmake
 - openssl-devel / openssl-dev
@@ -54,6 +55,7 @@ CI runs them in that order. All must pass.
 ## Architecture pointers
 
 Key design decisions documented in `docs/`:
+
 - `0001` — libgit2 over gitoxide (vendored build tradeoff)
 - `0002` — Config layering: env vars > local git config > global git config
 - `0004` — Enum-based provider dispatch (`ProviderKind`), not trait objects
@@ -74,3 +76,7 @@ cargo run --bin git-wire -- sync --url <repo> --rev main --src lib --dst vendor/
 cargo test -p claw-core
 cargo test -p claw-message
 ```
+
+### Rules:
+
+Every complex function must include a `why` comment explaining the business logic or external dependency that justified its implementation
