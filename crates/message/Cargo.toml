@@ -6,7 +6,7 @@ license.workspace = true
 authors.workspace = true
 
 [lib]
-name = "claw_message"
+name = "cloy_message"
 path = "src/lib.rs"
 
 [[bin]]

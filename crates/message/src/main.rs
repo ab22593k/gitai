@@ -1,14 +1,14 @@
 use anyhow::Result;
 use clap::Parser;
 use claw_core::{init_app, output::print_error};
-use claw_message::{CliArgs, CmsgConfig, MessageArgs, handle_message};
+use cloy_message::{CmsgConfig, CommonArgs, MessageArgs, handle_message};
 
 #[tokio::main]
 async fn main() -> Result<()> {
     init_app();
 
-    let cli_args = CliArgs::parse();
-    let CliArgs { mut common, params } = cli_args;
+    let cli_args = CommonArgs::parse();
+    let CommonArgs { mut common, params } = cli_args;
     let repository_url = std::mem::take(&mut common.repository_url);
 
     if let Err(e) = handle_message(

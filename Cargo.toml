@@ -2,7 +2,7 @@
 resolver = "2"
 members = [
     "crates/claw-core",
-    "crates/claw-message",
+    "crates/message",
     "crates/claw-pr",
     "crates/claw-changelog",
     "crates/claw-notes",

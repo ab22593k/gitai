@@ -1,9 +1,9 @@
 use clap::{CommandFactory, Parser};
-use claw_message::{CliArgs, CmsgConfig, MessageArgs};
+use cloy_message::{CmsgConfig, CommonArgs};
 
 #[test]
 fn verify_cli() {
-    CliArgs::command().debug_assert();
+    CommonArgs::command().debug_assert();
 }
 
 mod constraints {
@@ -11,13 +11,13 @@ mod constraints {
 
     #[test]
     fn prefix_requires_complete() {
-        let res = CliArgs::try_parse_from(["git-message", "--prefix", "test"]);
+        let res = CommonArgs::try_parse_from(["git-message", "--prefix", "test"]);
         assert!(res.is_err(), "--prefix without --complete should fail");
     }
 
     #[test]
     fn context_ratio_requires_complete() {
-        let res = CliArgs::try_parse_from(["git-message", "--context-ratio", "0.5"]);
+        let res = CommonArgs::try_parse_from(["git-message", "--context-ratio", "0.5"]);
         assert!(
             res.is_err(),
             "--context-ratio without --complete should fail"
@@ -26,20 +26,26 @@ mod constraints {
 
     #[test]
     fn prefix_with_complete_succeeds() {
-        let res = CliArgs::try_parse_from(["git-message", "--complete", "--prefix", "test"]);
+        let res = CommonArgs::try_parse_from(["git-message", "--complete", "--prefix", "test"]);
         assert!(res.is_ok(), "--complete --prefix should succeed");
     }
 
     #[test]
     fn context_ratio_with_complete_succeeds() {
-        let res = CliArgs::try_parse_from(["git-message", "--complete", "--context-ratio", "0.5"]);
+        let res =
+            CommonArgs::try_parse_from(["git-message", "--complete", "--context-ratio", "0.5"]);
         assert!(res.is_ok(), "--complete --context-ratio should succeed");
     }
 
     #[test]
     fn print_and_complete_together() {
-        let res =
-            CliArgs::try_parse_from(["git-message", "--print", "--complete", "--prefix", "feat"]);
+        let res = CommonArgs::try_parse_from([
+            "git-message",
+            "--print",
+            "--complete",
+            "--prefix",
+            "feat",
+        ]);
         assert!(
             res.is_ok(),
             "--print --complete --prefix should be valid (print completion output)"
@@ -48,19 +54,22 @@ mod constraints {
 
     #[test]
     fn context_ratio_rejects_out_of_range_low() {
-        let res = CliArgs::try_parse_from(["git-message", "--complete", "--context-ratio", "-1.0"]);
+        let res =
+            CommonArgs::try_parse_from(["git-message", "--complete", "--context-ratio", "-1.0"]);
         assert!(res.is_err(), "negative context ratio should be rejected");
     }
 
     #[test]
     fn context_ratio_rejects_out_of_range_high() {
-        let res = CliArgs::try_parse_from(["git-message", "--complete", "--context-ratio", "2.0"]);
+        let res =
+            CommonArgs::try_parse_from(["git-message", "--complete", "--context-ratio", "2.0"]);
         assert!(res.is_err(), "context ratio > 1.0 should be rejected");
     }
 
     #[test]
     fn context_ratio_boundary_low() {
-        let res = CliArgs::try_parse_from(["git-message", "--complete", "--context-ratio", "0.0"]);
+        let res =
+            CommonArgs::try_parse_from(["git-message", "--complete", "--context-ratio", "0.0"]);
         assert!(res.is_ok(), "0.0 is a valid boundary value");
         let args = res.expect("0.0 should parse");
         assert_eq!(args.params.context_ratio, Some(0.0));
@@ -68,7 +77,8 @@ mod constraints {
 
     #[test]
     fn context_ratio_boundary_high() {
-        let res = CliArgs::try_parse_from(["git-message", "--complete", "--context-ratio", "1.0"]);
+        let res =
+            CommonArgs::try_parse_from(["git-message", "--complete", "--context-ratio", "1.0"]);
         assert!(res.is_ok(), "1.0 is a valid boundary value");
         let args = res.expect("1.0 should parse");
         assert_eq!(args.params.context_ratio, Some(1.0));
@@ -76,7 +86,7 @@ mod constraints {
 
     #[test]
     fn prefix_empty_string() {
-        let res = CliArgs::try_parse_from(["git-message", "--complete", "--prefix", ""]);
+        let res = CommonArgs::try_parse_from(["git-message", "--complete", "--prefix", ""]);
         assert!(res.is_ok(), "empty --prefix should be accepted by parser");
         let args = res.expect("empty prefix should parse");
         assert_eq!(args.params.prefix, Some(String::new()));
@@ -84,7 +94,8 @@ mod constraints {
 
     #[test]
     fn prefix_with_unicode() {
-        let res = CliArgs::try_parse_from(["git-message", "--complete", "--prefix", "feat(🌐):"]);
+        let res =
+            CommonArgs::try_parse_from(["git-message", "--complete", "--prefix", "feat(🌐):"]);
         assert!(res.is_ok(), "unicode in --prefix should be accepted");
         let args = res.expect("unicode prefix should parse");
         assert_eq!(args.params.prefix, Some("feat(🌐):".to_string()));
@@ -92,13 +103,15 @@ mod constraints {
 
     #[test]
     fn context_ratio_rejects_nan() {
-        let res = CliArgs::try_parse_from(["git-message", "--complete", "--context-ratio", "NaN"]);
+        let res =
+            CommonArgs::try_parse_from(["git-message", "--complete", "--context-ratio", "NaN"]);
         assert!(res.is_err(), "NaN should be rejected");
     }
 
     #[test]
     fn context_ratio_rejects_inf() {
-        let res = CliArgs::try_parse_from(["git-message", "--complete", "--context-ratio", "inf"]);
+        let res =
+            CommonArgs::try_parse_from(["git-message", "--complete", "--context-ratio", "inf"]);
         assert!(res.is_err(), "inf should be rejected");
     }
 }
@@ -108,7 +121,7 @@ mod invalid_inputs {
 
     #[test]
     fn invalid_float() {
-        let res = CliArgs::try_parse_from([
+        let res = CommonArgs::try_parse_from([
             "git-message",
             "--complete",
             "--context-ratio",
@@ -119,25 +132,25 @@ mod invalid_inputs {
 
     #[test]
     fn invalid_detail_level() {
-        let res = CliArgs::try_parse_from(["git-message", "--detail-level", "bogus"]);
+        let res = CommonArgs::try_parse_from(["git-message", "--detail-level", "bogus"]);
         assert!(res.is_err(), "invalid --detail-level should fail");
     }
 
     #[test]
     fn invalid_theme() {
-        let res = CliArgs::try_parse_from(["git-message", "--theme", "bogus"]);
+        let res = CommonArgs::try_parse_from(["git-message", "--theme", "bogus"]);
         assert!(res.is_err(), "invalid --theme should fail");
     }
 
     #[test]
     fn unknown_flag() {
-        let res = CliArgs::try_parse_from(["git-message", "--nonexistent"]);
+        let res = CommonArgs::try_parse_from(["git-message", "--nonexistent"]);
         assert!(res.is_err(), "unknown flag should fail");
     }
 
     #[test]
     fn flag_after_positional() {
-        let res = CliArgs::try_parse_from(["git-message", "positional", "--print"]);
+        let res = CommonArgs::try_parse_from(["git-message", "positional", "--print"]);
         assert!(res.is_err(), "positional arguments should fail");
     }
 }
@@ -147,7 +160,7 @@ mod complex_combinations {
 
     #[test]
     fn print_complete_prefix_ratio() {
-        let res = CliArgs::try_parse_from([
+        let res = CommonArgs::try_parse_from([
             "git-message",
             "--print",
             "--complete",
@@ -166,14 +179,14 @@ mod complex_combinations {
 
     #[test]
     fn print_only() {
-        let res = CliArgs::try_parse_from(["git-message", "--print"]);
+        let res = CommonArgs::try_parse_from(["git-message", "--print"]);
         assert!(res.is_ok(), "--print alone should parse");
         assert!(res.expect("--print alone should unwrap").params.print);
     }
 
     #[test]
     fn complete_only() {
-        let res = CliArgs::try_parse_from(["git-message", "--complete"]);
+        let res = CommonArgs::try_parse_from(["git-message", "--complete"]);
         assert!(
             res.is_ok(),
             "--complete alone should parse (handler validates prefix)"
@@ -182,7 +195,7 @@ mod complex_combinations {
 
     #[test]
     fn all_enums_minimal_and_dark() {
-        let res = CliArgs::try_parse_from([
+        let res = CommonArgs::try_parse_from([
             "git-message",
             "--detail-level",
             "minimal",
@@ -196,7 +209,7 @@ mod complex_combinations {
 
     #[test]
     fn all_enums_detailed_and_light() {
-        let res = CliArgs::try_parse_from([
+        let res = CommonArgs::try_parse_from([
             "git-message",
             "--detail-level",
             "detailed",
@@ -208,7 +221,7 @@ mod complex_combinations {
 
     #[test]
     fn model_and_instructions() {
-        let res = CliArgs::try_parse_from([
+        let res = CommonArgs::try_parse_from([
             "git-message",
             "--model",
             "gemini-2.0-flash",
@@ -226,7 +239,7 @@ mod complex_combinations {
 
     #[test]
     fn complete_prefix_model_instructions() {
-        let res = CliArgs::try_parse_from([
+        let res = CommonArgs::try_parse_from([
             "git-message",
             "--complete",
             "--prefix",
@@ -249,7 +262,7 @@ mod common_params {
     #[test]
     fn repo_url() {
         let res =
-            CliArgs::try_parse_from(["git-message", "--repo", "https://github.com/test/repo"]);
+            CommonArgs::try_parse_from(["git-message", "--repo", "https://github.com/test/repo"]);
         assert!(res.is_ok(), "--repo should parse");
         let args = res.expect("--repo url should unwrap");
         assert_eq!(
@@ -260,7 +273,7 @@ mod common_params {
 
     #[test]
     fn repo_url_with_complete() {
-        let res = CliArgs::try_parse_from([
+        let res = CommonArgs::try_parse_from([
             "git-message",
             "--repo",
             "https://github.com/test/repo",
@@ -279,13 +292,13 @@ mod common_params {
 
     #[test]
     fn repo_url_short_form() {
-        let res = CliArgs::try_parse_from(["git-message", "-r", "https://github.com/test/repo"]);
+        let res = CommonArgs::try_parse_from(["git-message", "-r", "https://github.com/test/repo"]);
         assert!(res.is_ok(), "-r short form should parse");
     }
 
     #[test]
     fn instructions_short_form() {
-        let res = CliArgs::try_parse_from(["git-message", "-i", "focus on tests"]);
+        let res = CommonArgs::try_parse_from(["git-message", "-i", "focus on tests"]);
         assert!(res.is_ok(), "-i short form should parse");
         let args = res.expect("-i should unwrap");
         assert_eq!(args.common.instructions, Some("focus on tests".to_string()));
@@ -293,7 +306,7 @@ mod common_params {
 
     #[test]
     fn defaults() {
-        let res = CliArgs::try_parse_from(["git-message"]);
+        let res = CommonArgs::try_parse_from(["git-message"]);
         assert!(res.is_ok(), "no args should produce defaults");
         let args = res.expect("defaults should unwrap");
         assert!(!args.params.print);
@@ -307,11 +320,13 @@ mod common_params {
 }
 
 mod data_flow {
+    use cloy_message::MessageArgs;
+
     use super::*;
 
     #[test]
     fn print_flag_survives_into_cmsg_config() {
-        let res = CliArgs::try_parse_from(["git-message", "--print"]);
+        let res = CommonArgs::try_parse_from(["git-message", "--print"]);
         assert!(res.is_ok());
         let args = res.expect("--print should unwrap");
         let config = CmsgConfig {
@@ -325,7 +340,7 @@ mod data_flow {
 
     #[test]
     fn message_args_assembled_correctly_for_complete() {
-        let res = CliArgs::try_parse_from([
+        let res = CommonArgs::try_parse_from([
             "git-message",
             "--complete",
             "--prefix",
@@ -347,7 +362,7 @@ mod data_flow {
 
     #[test]
     fn message_args_for_default_no_flags() {
-        let res = CliArgs::try_parse_from(["git-message"]);
+        let res = CommonArgs::try_parse_from(["git-message"]);
         assert!(res.is_ok());
         let args = res.expect("default no flags should unwrap");
         let message_args = MessageArgs {

@@ -20,7 +20,7 @@ use claw_core::tui::run_tui_commit;
     after_help = args::get_dynamic_help(),
     styles = args::get_styles(),
 )]
-pub struct CliArgs {
+pub struct CommonArgs {
     #[command(flatten)]
     pub common: CommonParams,
 
@@ -212,12 +212,11 @@ pub async fn handle_message(
         let prefix_text = args
             .prefix
             .ok_or_else(|| anyhow::anyhow!("Prefix is required for completion mode"))?;
-        let context_ratio_val = args.context_ratio.unwrap_or(0.5);
 
         handle_completion_command(
             common,
             prefix_text,
-            Some(context_ratio_val),
+            args.context_ratio,
             MessageConfig {
                 print: config.print_only,
             },
