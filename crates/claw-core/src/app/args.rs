@@ -85,15 +85,6 @@ pub struct MessageParams {
 }
 
 #[derive(Args, Clone, Debug)]
-pub struct PrParams {
-    #[arg(long, help = "Starting branch, commit, or commitish for comparison")]
-    pub from: Option<String>,
-
-    #[arg(long, help = "Target branch, commit, or commitish for comparison")]
-    pub to: Option<String>,
-}
-
-#[derive(Args, Clone, Debug)]
 pub struct ChangelogParams {
     #[arg(long)]
     pub from: Option<String>,
@@ -193,13 +184,6 @@ pub struct WireSource {
 #[command(subcommand_negates_reqs = true)]
 #[command(subcommand_precedence_over_arg = true)]
 pub enum Gitai {
-    Pr {
-        #[command(flatten)]
-        common: CommonParams,
-
-        #[command(flatten)]
-        params: PrParams,
-    },
     Changelog {
         #[command(flatten)]
         common: CommonParams,

@@ -15,9 +15,7 @@ pub use config::Config;
 pub use config::ProviderConfig;
 pub use llm::context::FixedSizeBuffer;
 
-pub use commands::commit::types::{
-    GeneratedMessage, GeneratedPullRequest, format_commit_message, format_pull_request,
-};
+pub use commands::commit::types::{GeneratedMessage, format_commit_message};
 
 pub use sync::common::Parsed;
 pub use sync::common::parse::{parse_gitwire, save_to_gitwire};

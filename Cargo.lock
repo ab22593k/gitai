@@ -395,18 +395,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "claw-pr"
-version = "0.1.5"
-dependencies = [
- "anyhow",
- "clap",
- "claw-core",
- "git2",
- "tempfile",
- "tokio",
-]
-
-[[package]]
 name = "claw-wire"
 version = "0.1.5"
 dependencies = [
@@ -427,6 +415,21 @@ dependencies = [
 
 [[package]]
 name = "cloy-notes"
+version = "0.1.5"
+dependencies = [
+ "anyhow",
+ "clap",
+ "claw-core",
+ "colored",
+ "log",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "cloy-pr"
 version = "0.1.5"
 dependencies = [
  "anyhow",

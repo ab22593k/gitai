@@ -16,16 +16,16 @@ Ubuntu: `apt install -y gcc g++ make pkg-config libssl-dev cmake perl`
 ## Workspace layout
 
 ```
-claw-core          → library crate (ALL business logic lives here)
+claw-core          → library crate (shared business logic)
 claw-message       → git-message  (thin CLI wrapper, ~50 lines)
-claw-pr            → git-pr       (thin CLI wrapper)
 claw-changelog     → git-changelog (thin CLI wrapper)
-claw-notes         → git-notes   (thin CLI wrapper)
 claw-wire          → git-wire    (thin CLI wrapper)
-```
+crates/pr          → git-pr       (own models, prompts, generator)
+crates/notes       → git-notes    (own models, prompts, generator)
 
-All 5 binaries depend on `claw-core` only. Binary names differ from crate names.
-When adding functionality, edit `claw-core` — the binary crates are just arg parsers.
+All binaries depend on `claw-core` only. Binary names differ from crate names.
+When adding functionality to a command, edit its own crate first (pr, notes, etc.)
+Keep `claw-core` for genuinely shared code (Config, GitRepo, engine, LLM context).
 
 ## Verification commands
 

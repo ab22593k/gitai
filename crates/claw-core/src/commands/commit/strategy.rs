@@ -36,30 +36,6 @@ impl CommitPromptStrategy for CommitMessageStrategy {
     }
 }
 
-/// Strategy for generating pull request descriptions
-pub struct PullRequestStrategy {
-    pub commit_messages: Vec<String>,
-}
-
-impl PullRequestStrategy {
-    pub fn new(commit_messages: Vec<String>) -> Self {
-        Self { commit_messages }
-    }
-}
-
-impl CommitPromptStrategy for PullRequestStrategy {
-    fn create_system_prompt(&self, config: &Config) -> Result<String> {
-        super::prompt::create_pr_system_prompt(config)
-    }
-
-    fn create_user_prompt(&self, context: &CommitContext) -> Result<String> {
-        Ok(super::prompt::create_pr_user_prompt(
-            context,
-            &self.commit_messages,
-        ))
-    }
-}
-
 /// Strategy for completing partially typed commit messages
 pub struct CompletionStrategy {
     pub prefix: String,

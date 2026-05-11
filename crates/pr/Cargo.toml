@@ -1,5 +1,5 @@
 [package]
-name = "claw-pr"
+name = "cloy-pr"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -13,11 +13,12 @@ path = "src/main.rs"
 claw-core = { path = "../claw-core" }
 anyhow.workspace = true
 clap.workspace = true
+log.workspace = true
+schemars.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 tokio.workspace = true
-
-[dev-dependencies]
-git2.workspace = true
-tempfile.workspace = true
+colored.workspace = true
 
 [lints]
 workspace = true

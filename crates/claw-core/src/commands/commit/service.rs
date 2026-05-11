@@ -1,8 +1,6 @@
 use super::git_service_core::GitServiceCore;
-use super::strategy::{
-    CommitMessageStrategy, CommitPromptStrategy, CompletionStrategy, PullRequestStrategy,
-};
-use super::types::{GeneratedMessage, GeneratedPullRequest};
+use super::strategy::{CommitMessageStrategy, CommitPromptStrategy, CompletionStrategy};
+use super::types::GeneratedMessage;
 use crate::common::DetailLevel;
 use crate::config::Config;
 use crate::git::{CommitResult, GitRepo};
@@ -131,47 +129,6 @@ impl CommitService {
     ) -> Result<GeneratedMessage> {
         let strategy = CompletionStrategy::new(prefix.to_string(), context_ratio);
         self.generate(strategy, instructions, None).await
-    }
-
-    /// Generate a PR description for a commit range
-    pub async fn generate_pr_for_commit_range(
-        &self,
-        instructions: &str,
-        from: &str,
-        to: &str,
-    ) -> Result<GeneratedPullRequest> {
-        let context =
-            self.core
-                .repo()
-                .get_git_info_for_commit_range(self.core.config(), from, to)?;
-
-        let commit_messages = self.core.repo().get_commits_for_pr(from, to)?;
-        let strategy = PullRequestStrategy::new(commit_messages);
-
-        self.generate(strategy, instructions, Some(context)).await
-    }
-
-    /// Generate a PR description for branch comparison
-    pub async fn generate_pr_for_branch_diff(
-        &self,
-        instructions: &str,
-        base_branch: &str,
-        target_branch: &str,
-    ) -> Result<GeneratedPullRequest> {
-        let context = self.core.repo().get_git_info_for_branch_diff(
-            self.core.config(),
-            base_branch,
-            target_branch,
-        )?;
-
-        let commit_messages = self
-            .core
-            .repo()
-            .get_commits_for_pr(base_branch, target_branch)?;
-
-        let strategy = PullRequestStrategy::new(commit_messages);
-
-        self.generate(strategy, instructions, Some(context)).await
     }
 
     /// Performs a commit with the given message.

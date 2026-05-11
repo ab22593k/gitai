@@ -1,5 +1,4 @@
 use crate::commands::changelog::{ChangelogCommandConfig, handle_changelog_command};
-use crate::commands::commit;
 use crate::common::CommonParams;
 use crate::sync::{
     check,
@@ -31,9 +30,6 @@ pub async fn handle_command(command: Gitai, repository_url: Option<String>) -> R
             )
             .await
         }
-        Gitai::Pr { common, params } => {
-            handle_pr_command(common, params.from, params.to, repository_url).await
-        }
         Gitai::Wire(args) => handle_wire(args).await,
     }
 }
@@ -56,16 +52,6 @@ pub async fn handle_changelog(common: CommonParams, args: ChangelogArgs) -> Resu
         },
     )
     .await
-}
-
-pub async fn handle_pr_command(
-    common: CommonParams,
-    from: Option<String>,
-    to: Option<String>,
-    repository_url: Option<String>,
-) -> Result<()> {
-    debug!("Handling 'pr' command with common: {common:?}, from: {from:?}, to: {to:?}");
-    commit::handle_pr_command(common, repository_url, from, to).await
 }
 
 pub async fn handle_wire(args: WireArgs) -> Result<()> {

@@ -4,7 +4,7 @@ members = [
     "crates/claw-core",
     "crates/message",
     "crates/notes",
-    "crates/claw-pr",
+    "crates/pr",
     "crates/claw-changelog",
     "crates/claw-wire",
 ]
