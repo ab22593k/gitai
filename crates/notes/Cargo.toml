@@ -1,9 +1,13 @@
 [package]
-name = "claw-notes"
+name = "cloy-notes"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
+
+[lib]
+name = "notes"
+path = "src/lib.rs"
 
 [[bin]]
 name = "git-notes"
@@ -13,6 +17,11 @@ path = "src/main.rs"
 claw-core = { path = "../claw-core" }
 anyhow.workspace = true
 clap.workspace = true
+colored.workspace = true
+log.workspace = true
+schemars.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 tokio.workspace = true
 
 [lints]

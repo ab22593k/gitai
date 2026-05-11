@@ -3,9 +3,9 @@ resolver = "2"
 members = [
     "crates/claw-core",
     "crates/message",
+    "crates/notes",
     "crates/claw-pr",
     "crates/claw-changelog",
-    "crates/claw-notes",
     "crates/claw-wire",
 ]
 

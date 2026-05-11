@@ -1,12 +1,11 @@
-use super::common::generate_changes_content;
-use super::models::{
-    BreakingChange, ChangeMetrics, Highlight, ReleaseNotesResponse, Section, SectionItem,
-};
-use super::prompt;
-use crate::common::DetailLevel;
-use crate::config::Config;
-use crate::git::GitRepo;
+use crate::models::{Highlight, ReleaseNotesResponse, Section, SectionItem};
+use crate::prompt;
 use anyhow::Result;
+use claw_core::commands::changelog::common::generate_changes_content;
+use claw_core::commands::changelog::models::{BreakingChange, ChangeMetrics};
+use claw_core::common::DetailLevel;
+use claw_core::config::Config;
+use claw_core::git::GitRepo;
 use colored::Colorize;
 use std::fmt::Write as FmtWrite;
 use std::sync::Arc;

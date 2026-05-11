@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Parser;
 use claw_core::{init_app, output::print_error};
-use cloy_message::{CmsgConfig, CommonArgs, MessageArgs, handle_message};
+use message::{CmsgConfig, CommonArgs, MessageArgs, handle_message};
 
 #[tokio::main]
 async fn main() -> Result<()> {

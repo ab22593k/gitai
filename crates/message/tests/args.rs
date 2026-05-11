@@ -1,5 +1,5 @@
 use clap::{CommandFactory, Parser};
-use cloy_message::{CmsgConfig, CommonArgs};
+use message::{CmsgConfig, CommonArgs, MessageArgs};
 
 #[test]
 fn verify_cli() {
@@ -320,8 +320,6 @@ mod common_params {
 }
 
 mod data_flow {
-    use cloy_message::MessageArgs;
-
     use super::*;
 
     #[test]

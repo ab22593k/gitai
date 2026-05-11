@@ -1,14 +1,24 @@
 use anyhow::Result;
-use clap::{Parser, crate_authors, crate_version};
+use clap::{Args, Parser, crate_authors, crate_version};
 use claw_core::{
-    app::{
-        args::{self, NotesParams},
-        handlers,
-    },
+    app::args::{get_dynamic_help, get_styles},
     common::CommonParams,
     init_app,
     output::print_error,
 };
+use notes::handle_release_notes_command;
+
+#[derive(Args, Clone, Debug)]
+struct NotesParams {
+    #[arg(long, required = true)]
+    from: String,
+
+    #[arg(long)]
+    to: Option<String>,
+
+    #[arg(long, help = "Explicit version name to use in the release notes")]
+    version_name: Option<String>,
+}
 
 #[derive(Parser)]
 #[command(
@@ -16,8 +26,8 @@ use claw_core::{
     author = crate_authors!(),
     version = crate_version!(),
     about = "Generate release notes",
-    after_help = args::get_dynamic_help(),
-    styles = args::get_styles(),
+    after_help = get_dynamic_help(),
+    styles = get_styles(),
 )]
 struct NotesArgs {
     #[command(flatten)]
@@ -35,7 +45,7 @@ async fn main() -> Result<()> {
     let NotesArgs { mut common, params } = args;
     let repository_url = std::mem::take(&mut common.repository_url);
 
-    if let Err(e) = handlers::handle_notes(
+    if let Err(e) = handle_release_notes_command(
         common,
         params.from,
         params.to,

@@ -115,18 +115,6 @@ pub struct ChangelogParams {
 }
 
 #[derive(Args, Clone, Debug)]
-pub struct NotesParams {
-    #[arg(long, required = true)]
-    pub from: String,
-
-    #[arg(long)]
-    pub to: Option<String>,
-
-    #[arg(long, help = "Explicit version name to use in the release notes")]
-    pub version_name: Option<String>,
-}
-
-#[derive(Args, Clone, Debug)]
 pub struct WireArgs {
     #[command(subcommand)]
     pub command: WireCommand,
@@ -218,13 +206,6 @@ pub enum Gitai {
 
         #[command(flatten)]
         params: ChangelogParams,
-    },
-    Notes {
-        #[command(flatten)]
-        common: CommonParams,
-
-        #[command(flatten)]
-        params: NotesParams,
     },
     Wire(WireArgs),
 }

@@ -2,8 +2,8 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use clap::Parser;
-use cloy_message::{CmsgConfig, CommonArgs, handle_message};
 use git2::Repository;
+use message::{CmsgConfig, CommonArgs, MessageArgs, handle_message};
 use tempfile::TempDir;
 use tokio::sync::Mutex;
 use tokio::time::timeout;
@@ -88,8 +88,6 @@ fn make_handler_args(args: &[&str]) -> (CommonArgs, Option<String>) {
 }
 
 mod with_repo {
-    use cloy_message::MessageArgs;
-
     use super::*;
 
     #[tokio::test]
@@ -260,8 +258,6 @@ mod with_repo {
 }
 
 mod dispatch {
-    use cloy_message::MessageArgs;
-
     use super::*;
 
     #[tokio::test]

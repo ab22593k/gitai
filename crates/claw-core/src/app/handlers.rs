@@ -1,6 +1,4 @@
-use crate::commands::changelog::{
-    ChangelogCommandConfig, handle_changelog_command, handle_release_notes_command,
-};
+use crate::commands::changelog::{ChangelogCommandConfig, handle_changelog_command};
 use crate::commands::commit;
 use crate::common::CommonParams;
 use crate::sync::{
@@ -33,16 +31,6 @@ pub async fn handle_command(command: Gitai, repository_url: Option<String>) -> R
             )
             .await
         }
-        Gitai::Notes { common, params } => {
-            handle_notes(
-                common,
-                params.from,
-                params.to,
-                repository_url,
-                params.version_name,
-            )
-            .await
-        }
         Gitai::Pr { common, params } => {
             handle_pr_command(common, params.from, params.to, repository_url).await
         }
@@ -68,19 +56,6 @@ pub async fn handle_changelog(common: CommonParams, args: ChangelogArgs) -> Resu
         },
     )
     .await
-}
-
-pub async fn handle_notes(
-    common: CommonParams,
-    from: String,
-    to: Option<String>,
-    repository_url: Option<String>,
-    version_name: Option<String>,
-) -> Result<()> {
-    debug!(
-        "Handling 'notes' command with common: {common:?}, from: {from}, to: {to:?}, version_name: {version_name:?}"
-    );
-    handle_release_notes_command(common, from, to, repository_url, version_name).await
 }
 
 pub async fn handle_pr_command(

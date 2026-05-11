@@ -395,16 +395,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "claw-notes"
-version = "0.1.5"
-dependencies = [
- "anyhow",
- "clap",
- "claw-core",
- "tokio",
-]
-
-[[package]]
 name = "claw-pr"
 version = "0.1.5"
 dependencies = [
@@ -433,6 +423,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bde03770d3df201d4fb868f2c9c59e66a3e4e2bd06692a0fe701e7103c7e84d4"
 dependencies = [
  "error-code",
+]
+
+[[package]]
+name = "cloy-notes"
+version = "0.1.5"
+dependencies = [
+ "anyhow",
+ "clap",
+ "claw-core",
+ "colored",
+ "log",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]
