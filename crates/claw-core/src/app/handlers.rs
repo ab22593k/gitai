@@ -8,9 +8,7 @@ use crate::sync::{
     common::{Parsed, TargetConfig, infer_from_url, normalize_github_url, sequence},
 };
 
-use super::args::{
-    ChangelogArgs, CmsgConfig, Gitai, MessageArgs, WireArgs, WireCommand, WireSource,
-};
+use super::args::{ChangelogArgs, Gitai, WireArgs, WireCommand, WireSource};
 use crate::llm::engine::init_tracing_to_file;
 use anyhow::Result;
 use colored::Colorize;
@@ -20,21 +18,6 @@ pub async fn handle_command(command: Gitai, repository_url: Option<String>) -> R
     init_tracing_to_file();
 
     match command {
-        Gitai::Message { common, params } => {
-            handle_message(
-                common,
-                CmsgConfig {
-                    print_only: params.print,
-                },
-                repository_url,
-                MessageArgs {
-                    complete: params.complete,
-                    prefix: params.prefix,
-                    context_ratio: params.context_ratio,
-                },
-            )
-            .await
-        }
         Gitai::Changelog { common, params } => {
             handle_changelog(
                 common,
@@ -64,45 +47,6 @@ pub async fn handle_command(command: Gitai, repository_url: Option<String>) -> R
             handle_pr_command(common, params.from, params.to, repository_url).await
         }
         Gitai::Wire(args) => handle_wire(args).await,
-    }
-}
-
-pub async fn handle_message(
-    common: CommonParams,
-    config: CmsgConfig,
-    repository_url: Option<String>,
-    args: MessageArgs,
-) -> Result<()> {
-    debug!(
-        "Handling 'message' command with common: {common:?}, print: {}, complete: {}, prefix: {:?}, context_ratio: {:?}",
-        config.print_only, args.complete, args.prefix, args.context_ratio,
-    );
-
-    if args.complete {
-        let prefix_text = args
-            .prefix
-            .ok_or_else(|| anyhow::anyhow!("Prefix is required for completion mode"))?;
-        let context_ratio_val = args.context_ratio.unwrap_or(0.5);
-
-        commit::handle_completion_command(
-            common,
-            prefix_text,
-            Some(context_ratio_val),
-            commit::MessageConfig {
-                print: config.print_only,
-            },
-            repository_url,
-        )
-        .await
-    } else {
-        commit::handle_message_command(
-            common,
-            commit::MessageConfig {
-                print: config.print_only,
-            },
-            repository_url,
-        )
-        .await
     }
 }
 

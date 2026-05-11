@@ -1,87 +1,15 @@
 use super::service::CommitService;
-use super::types::{format_commit_message, format_pull_request};
-use crate::commands::commit::types;
-use crate::commands::common::service::{create_commit_service, create_completion_service};
-use crate::commands::common::{run_with_spinner, validate_staged_files};
+use super::types::format_pull_request;
+use crate::commands::common::run_with_spinner;
+use crate::commands::common::service::create_commit_service;
 use crate::common::CommonParams;
 use crate::config::Config;
 use crate::llm::messages;
 use crate::output;
-use crate::tui::run_tui_commit;
 use crate::tui::spinner::SpinnerState;
 
 use anyhow::Result;
 use std::sync::Arc;
-
-async fn generate_initial_message(
-    service: &CommitService,
-    instructions: &str,
-) -> Result<types::GeneratedMessage> {
-    let random_message = messages::get_waiting_message();
-    let spinner = output::create_tui_spinner(&random_message.text);
-    run_with_spinner(spinner, async || {
-        service.generate_message(instructions).await
-    })
-    .await
-}
-
-pub async fn handle_message_command(
-    common: CommonParams,
-    config: MessageConfig,
-    repository_url: Option<String>,
-) -> Result<()> {
-    let print = config.print;
-    let mut config = Config::load()?;
-    common.apply_to_config(&mut config)?;
-
-    let service = create_commit_service(&common, repository_url.clone(), &config).map_err(|e| {
-        output::print_error(&format!("Error: {e}"));
-        e
-    })?;
-
-    let completion_service =
-        create_completion_service(&common, repository_url, &config).map_err(|e| {
-            output::print_error(&format!("Error: {e}"));
-            e
-        })?;
-
-    let git_info = service.get_git_info().await?;
-
-    if git_info.staged_files.is_empty() {
-        validate_staged_files(&git_info);
-        return Ok(());
-    }
-
-    let effective_instructions = common
-        .instructions
-        .unwrap_or_else(|| config.instructions.clone());
-
-    let initial_message = generate_initial_message(&service, &effective_instructions).await?;
-
-    if print {
-        println!("{}", format_commit_message(&initial_message));
-        return Ok(());
-    }
-
-    if service.is_remote_repository() {
-        output::print_warning(
-            "Interactive commit not available for remote repositories. Using print mode instead.",
-        );
-        println!("{}", format_commit_message(&initial_message));
-        return Ok(());
-    }
-
-    run_tui_commit(
-        vec![initial_message],
-        effective_instructions,
-        service,
-        completion_service,
-        common.theme,
-    )
-    .await?;
-
-    Ok(())
-}
 
 /// Handles the PR description generation command
 pub async fn handle_pr_command(
@@ -101,107 +29,6 @@ pub async fn handle_pr_command(
 
     // Print the PR description to stdout
     println!("{}", format_pull_request(&pr_description));
-
-    Ok(())
-}
-
-pub struct MessageConfig {
-    pub print: bool,
-}
-
-/// Handles the commit message completion command
-pub async fn handle_completion_command(
-    common: CommonParams,
-    prefix: String,
-    context_ratio: Option<f32>,
-    config: MessageConfig,
-    repository_url: Option<String>,
-) -> Result<()> {
-    let print = config.print;
-
-    let mut config = Config::load()?;
-    common.apply_to_config(&mut config)?;
-
-    // Default context ratio to 0.5 (50%) if not specified
-    let context_ratio = context_ratio.unwrap_or(0.5);
-
-    // Validate context ratio
-    if !(0.0..=1.0).contains(&context_ratio) {
-        output::print_error("Context ratio must be between 0.0 and 1.0");
-        return Err(anyhow::anyhow!("Invalid context ratio: {context_ratio}"));
-    }
-
-    // Provide helpful information about context ratios
-    output::print_info(&format!(
-        "Completing message with prefix '{}' using {:.0}% context ratio",
-        prefix,
-        context_ratio * 100.0
-    ));
-
-    // Create the completion service
-    let service = create_completion_service(
-        &common,
-        repository_url,
-        &config,
-    ).map_err(|e| {
-        output::print_error(&format!("Error: {e}"));
-        output::print_info("\nPlease ensure the following:");
-        output::print_info("1. Git is installed and accessible from the command line.");
-        output::print_info(
-            "2. You are running this command from within a Git repository or provide a repository URL with --repo.",
-        );
-        e
-    })?;
-
-    let git_info = service.get_git_info().await?;
-
-    if git_info.staged_files.is_empty() {
-        output::print_warning(
-            "No staged changes. Please stage your changes before completing a commit message.",
-        );
-        output::print_info("You can stage changes using 'git add <file>' or 'git add .'");
-        return Ok(());
-    }
-
-    let _effective_instructions = common
-        .instructions
-        .unwrap_or_else(|| config.instructions.clone());
-
-    // Create spinner for completion generation
-    let random_message = messages::get_waiting_message();
-    let spinner = output::create_tui_spinner(&format!(
-        "{} - Completing commit message",
-        random_message.text
-    ));
-
-    // Generate completion with spinner display
-    let completed_message = run_with_spinner(spinner, async || {
-        service.complete_message(&prefix, context_ratio).await
-    })
-    .await?;
-
-    if print {
-        println!("{}", format_commit_message(&completed_message));
-        return Ok(());
-    }
-
-    // For completion, we don't support auto-commit since the user needs to review the completion
-    if service.is_remote_repository() {
-        output::print_warning(
-            "Completion not available for remote repositories. Using print mode instead.",
-        );
-        println!("{}", format_commit_message(&completed_message));
-        return Ok(());
-    }
-
-    // Show the completed message and let user decide
-    output::print_info(&format!("Prefix: {}", prefix));
-    output::print_info("Completed message:");
-    println!("{}", format_commit_message(&completed_message));
-
-    output::print_info(
-        "\nUse --print to output only the completed message, or --auto-commit to commit directly.",
-    );
 
     Ok(())
 }

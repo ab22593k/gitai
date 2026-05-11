@@ -78,7 +78,8 @@ pub struct MessageParams {
     #[arg(
         long,
         help = "Context ratio for completion (0.0 to 1.0, default: 0.5)",
-        requires = "complete"
+        requires = "complete",
+        value_parser = parse_context_ratio
     )]
     pub context_ratio: Option<f32>,
 }
@@ -204,13 +205,6 @@ pub struct WireSource {
 #[command(subcommand_negates_reqs = true)]
 #[command(subcommand_precedence_over_arg = true)]
 pub enum Gitai {
-    Message {
-        #[command(flatten)]
-        common: CommonParams,
-
-        #[command(flatten)]
-        params: MessageParams,
-    },
     Pr {
         #[command(flatten)]
         common: CommonParams,
@@ -266,13 +260,6 @@ pub fn get_dynamic_help() -> String {
 }
 
 #[derive(Clone, Debug)]
-pub struct MessageArgs {
-    pub complete: bool,
-    pub prefix: Option<String>,
-    pub context_ratio: Option<f32>,
-}
-
-#[derive(Clone, Debug)]
 pub struct ChangelogArgs {
     pub from: Option<String>,
     pub to: Option<String>,
@@ -283,7 +270,14 @@ pub struct ChangelogArgs {
     pub version_name: Option<String>,
 }
 
-#[derive(Clone, Debug)]
-pub struct CmsgConfig {
-    pub print_only: bool,
+fn parse_context_ratio(s: &str) -> Result<f32, String> {
+    let val: f32 = s
+        .parse()
+        .map_err(|_| format!("'{s}' is not a valid number"))?;
+    if !(0.0..=1.0).contains(&val) {
+        return Err(format!(
+            "context ratio must be between 0.0 and 1.0, got {val}"
+        ));
+    }
+    Ok(val)
 }

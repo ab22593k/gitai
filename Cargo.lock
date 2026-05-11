@@ -389,6 +389,7 @@ dependencies = [
  "clap",
  "claw-core",
  "git2",
+ "log",
  "tempfile",
  "tokio",
 ]
