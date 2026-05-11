@@ -18,10 +18,14 @@ Ubuntu: `apt install -y gcc g++ make pkg-config libssl-dev cmake perl`
 ```
 claw-core          → library crate (shared business logic)
 claw-message       → git-message  (thin CLI wrapper, ~50 lines)
-claw-changelog     → git-changelog (thin CLI wrapper)
+claw-changelog     → git-changelog (own models, prompts, generator)
 claw-wire          → git-wire    (thin CLI wrapper)
 crates/pr          → git-pr       (own models, prompts, generator)
 crates/notes       → git-notes    (own models, prompts, generator)
+
+All binaries depend on `claw-core` only. Binary names differ from crate names.
+When adding functionality to a command, edit its own crate first (pr, notes, changelog, etc.)
+Keep `claw-core` for genuinely shared code (Config, GitRepo, engine, LLM context).
 
 All binaries depend on `claw-core` only. Binary names differ from crate names.
 When adding functionality to a command, edit its own crate first (pr, notes, etc.)

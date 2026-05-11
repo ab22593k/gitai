@@ -1,4 +1,3 @@
-use crate::common::CommonParams;
 use crate::sync::common::Method;
 use clap::builder::{Styles, styling::AnsiColor};
 use clap::{Args, Parser, Subcommand, crate_version};
@@ -85,27 +84,6 @@ pub struct MessageParams {
 }
 
 #[derive(Args, Clone, Debug)]
-pub struct ChangelogParams {
-    #[arg(long)]
-    pub from: Option<String>,
-
-    #[arg(long)]
-    pub to: Option<String>,
-
-    #[arg(long, help = "Update the changelog file with the new changes")]
-    pub update: bool,
-
-    #[arg(long, help = "Auto-detect starting point and save to CHANGELOG.md")]
-    pub save: bool,
-
-    #[arg(long, help = "Path to the changelog file (defaults to CHANGELOG.md)")]
-    pub file: Option<String>,
-
-    #[arg(long, help = "Explicit version name to use in the changelog")]
-    pub version_name: Option<String>,
-}
-
-#[derive(Args, Clone, Debug)]
 pub struct WireArgs {
     #[command(subcommand)]
     pub command: WireCommand,
@@ -184,13 +162,6 @@ pub struct WireSource {
 #[command(subcommand_negates_reqs = true)]
 #[command(subcommand_precedence_over_arg = true)]
 pub enum Gitai {
-    Changelog {
-        #[command(flatten)]
-        common: CommonParams,
-
-        #[command(flatten)]
-        params: ChangelogParams,
-    },
     Wire(WireArgs),
 }
 
@@ -222,17 +193,6 @@ pub fn get_dynamic_help() -> String {
         .join(" • ");
 
     format!("\nAvailable LLM Providers: {providers_list}")
-}
-
-#[derive(Clone, Debug)]
-pub struct ChangelogArgs {
-    pub from: Option<String>,
-    pub to: Option<String>,
-    pub repository_url: Option<String>,
-    pub update: bool,
-    pub save: bool,
-    pub file: Option<String>,
-    pub version_name: Option<String>,
 }
 
 fn parse_context_ratio(s: &str) -> Result<f32, String> {

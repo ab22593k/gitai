@@ -1,57 +1,19 @@
-use crate::commands::changelog::{ChangelogCommandConfig, handle_changelog_command};
-use crate::common::CommonParams;
 use crate::sync::{
     check,
     common::{Parsed, TargetConfig, infer_from_url, normalize_github_url, sequence},
 };
 
-use super::args::{ChangelogArgs, Gitai, WireArgs, WireCommand, WireSource};
+use super::args::{Gitai, WireArgs, WireCommand, WireSource};
 use crate::llm::engine::init_tracing_to_file;
 use anyhow::Result;
 use colored::Colorize;
-use log::debug;
 
-pub async fn handle_command(command: Gitai, repository_url: Option<String>) -> Result<()> {
+pub async fn handle_command(command: Gitai, _repository_url: Option<String>) -> Result<()> {
     init_tracing_to_file();
 
     match command {
-        Gitai::Changelog { common, params } => {
-            handle_changelog(
-                common,
-                ChangelogArgs {
-                    from: params.from,
-                    to: params.to,
-                    repository_url,
-                    update: params.update,
-                    save: params.save,
-                    file: params.file,
-                    version_name: params.version_name,
-                },
-            )
-            .await
-        }
         Gitai::Wire(args) => handle_wire(args).await,
     }
-}
-
-pub async fn handle_changelog(common: CommonParams, args: ChangelogArgs) -> Result<()> {
-    debug!(
-        "Handling 'changelog' command with common: {common:?}, from: {:?}, to: {:?}, update: {}, save: {}, file: {:?}, version_name: {:?}",
-        args.from, args.to, args.update, args.save, args.file, args.version_name
-    );
-    handle_changelog_command(
-        common,
-        ChangelogCommandConfig {
-            from: args.from,
-            to: args.to,
-            repository_url: args.repository_url,
-            update_file: args.update,
-            save: args.save,
-            changelog_path: args.file,
-            version_name: args.version_name,
-        },
-    )
-    .await
 }
 
 pub async fn handle_wire(args: WireArgs) -> Result<()> {

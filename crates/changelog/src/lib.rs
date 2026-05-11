@@ -1,9 +1,13 @@
-use super::change_log::ChangelogGenerator;
-use crate::common::CommonParams;
-use crate::config::Config;
-use crate::git::GitRepo;
-use crate::output;
+pub mod change_log;
+#[allow(clippy::uninlined_format_args)]
+pub mod prompt;
+
+use crate::change_log::ChangelogGenerator;
 use anyhow::{Context, Result, anyhow};
+use claw_core::common::CommonParams;
+use claw_core::config::Config;
+use claw_core::git::GitRepo;
+use claw_core::output;
 use colored::Colorize;
 use std::env;
 use std::sync::Arc;
@@ -18,20 +22,6 @@ pub struct ChangelogCommandConfig {
     pub version_name: Option<String>,
 }
 
-/// Handles the changelog generation command.
-///
-/// This function orchestrates the process of generating a changelog based on the provided
-/// parameters. It sets up the necessary environment, creates a `GitRepo` instance,
-/// and delegates the actual generation to the `ChangelogGenerator`.
-///
-/// # Arguments
-///
-/// * `common` - Common parameters for the command, including configuration overrides.
-/// * `config` - Configuration for the changelog command.
-///
-/// # Returns
-///
-/// Returns a Result indicating success or containing an error if the operation failed.
 pub async fn handle_changelog_command(
     common: CommonParams,
     config: ChangelogCommandConfig,
@@ -46,14 +36,11 @@ pub async fn handle_changelog_command(
         version_name,
     } = config;
 
-    // Load and apply configuration
     let mut config = Config::load()?;
     common.apply_to_config(&mut config)?;
 
-    // Create a spinner to indicate progress
     let mut spinner = output::create_tui_spinner("Generating changelog...");
 
-    // Ensure we're in a git repository
     if let Err(e) = config.check_environment() {
         output::print_error(&format!("Error: {e}"));
         output::print_info("\nPlease ensure the following:");
@@ -65,10 +52,8 @@ pub async fn handle_changelog_command(
         return Err(e);
     }
 
-    // Use the repository URL from command line or common params
     let repo_url = repository_url.or(common.repository_url);
 
-    // Create a GitRepo instance based on the URL or current directory
     let git_repo = if let Some(url) = repo_url {
         Arc::new(GitRepo::clone_remote_repository(&url).context("Failed to clone repository")?)
     } else {
@@ -76,27 +61,22 @@ pub async fn handle_changelog_command(
         Arc::new(GitRepo::new(&repo_path).context("Failed to create GitRepo")?)
     };
 
-    // Keep a clone of the Arc for updating the changelog later if needed
     let git_repo_for_update = Arc::clone(&git_repo);
 
-    // Handle --save flag: auto-detect starting reference and update CHANGELOG.md
     let should_update_file = update_file || save;
     let changelog_file_path = if save {
-        // If --save is used, default to CHANGELOG.md in current directory
         changelog_path.or_else(|| Some("CHANGELOG.md".to_string()))
     } else {
         changelog_path
     };
 
-    // Resolve 'from' reference if not provided (for --save or manual use)
     let from_ref = if let Some(f) = from {
         Some(f)
     } else if save {
-        // Auto-detect the starting reference for --save
         output::print_info("Detecting latest tag...");
         match git_repo.get_latest_tag() {
             Ok(Some(tag)) => {
-                output::print_success(&format!("Found latest tag: {}", tag));
+                output::print_success(&format!("Found latest tag: {tag}"));
                 Some(tag)
             }
             Ok(None) => {
@@ -111,33 +91,27 @@ pub async fn handle_changelog_command(
             }
             Err(e) => {
                 output::print_error(&format!("Failed to get latest tag: {e}"));
-                return Err(anyhow!("Failed to detect latest tag: {}", e));
+                return Err(anyhow!("Failed to detect latest tag: {e}"));
             }
         }
     } else {
         None
     };
 
-    // Validate that we have a 'from' reference
     let from_ref = from_ref
         .ok_or_else(|| anyhow!("Starting reference (--from) is required when not using --save"))?;
 
-    // Set the default 'to' reference if not provided
     let to = to.unwrap_or_else(|| "HEAD".to_string());
 
     let detail_level = common.detail_level;
 
-    // Generate the changelog
     let changelog =
         ChangelogGenerator::generate(git_repo, &from_ref, &to, &config, detail_level).await?;
 
-    // Clear the spinner and display the result
     spinner.tick();
 
-    // Output the changelog with decorative borders
     output::print_bordered_content(&changelog);
 
-    // Update the changelog file if requested
     if should_update_file {
         let path = changelog_file_path.unwrap_or_else(|| "CHANGELOG.md".to_string());
         let mut update_spinner =

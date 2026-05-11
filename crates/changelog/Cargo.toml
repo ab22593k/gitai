@@ -1,9 +1,13 @@
 [package]
-name = "claw-changelog"
+name = "cloy-changelog"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
+
+[lib]
+name = "changelog"
+path = "src/lib.rs"
 
 [[bin]]
 name = "git-changelog"
@@ -12,12 +16,14 @@ path = "src/main.rs"
 [dependencies]
 claw-core = { path = "../claw-core" }
 anyhow.workspace = true
+chrono.workspace = true
 clap.workspace = true
+colored.workspace = true
+log.workspace = true
+regex.workspace = true
+schemars.workspace = true
+serde_json.workspace = true
 tokio.workspace = true
-
-[dev-dependencies]
-git2.workspace = true
-tempfile.workspace = true
 
 [lints]
 workspace = true

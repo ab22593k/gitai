@@ -1,9 +1,7 @@
-use super::{
-    change_analyzer::AnalyzedChange,
-    models::{ChangeMetrics, ChangelogResponse},
-};
-use crate::common::{DetailLevel, get_combined_instructions};
-use crate::config::Config;
+use claw_core::commands::changelog::change_analyzer::AnalyzedChange;
+use claw_core::commands::changelog::models::{ChangeMetrics, ChangelogResponse};
+use claw_core::common::{DetailLevel, get_combined_instructions};
+use claw_core::config::Config;
 use log::debug;
 use std::fmt::Write;
 
@@ -64,7 +62,6 @@ pub fn create_changelog_system_prompt(config: &Config) -> String {
     prompt
 }
 
-/// Common helper function to format metrics summary
 fn format_metrics_summary(prompt: &mut String, total_metrics: &ChangeMetrics) {
     prompt.push_str("Overall Changes:\n");
     writeln!(prompt, "Total commits: {}", total_metrics.total_commits).ok();
@@ -79,7 +76,6 @@ fn format_metrics_summary(prompt: &mut String, total_metrics: &ChangeMetrics) {
     write!(prompt, "Deletions: {}\n\n", total_metrics.deletions).ok();
 }
 
-/// Common helper function to format individual change details
 fn format_change_details(prompt: &mut String, change: &AnalyzedChange, detail_level: DetailLevel) {
     writeln!(prompt, "Commit: {}", change.commit_hash).ok();
     writeln!(prompt, "Message: {}", change.commit_message).ok();
@@ -102,12 +98,9 @@ fn format_change_details(prompt: &mut String, change: &AnalyzedChange, detail_le
     prompt.push('\n');
 }
 
-/// Helper function to format file changes based on detail level
 fn format_file_changes(prompt: &mut String, change: &AnalyzedChange, detail_level: DetailLevel) {
     match detail_level {
-        DetailLevel::Minimal => {
-            // For minimal detail, we don't include file-level changes
-        }
+        DetailLevel::Minimal => {}
         DetailLevel::Standard | DetailLevel::Detailed => {
             prompt.push_str("File changes:\n");
             for file_change in &change.file_changes {
@@ -127,7 +120,6 @@ fn format_file_changes(prompt: &mut String, change: &AnalyzedChange, detail_leve
     }
 }
 
-/// Helper function to add readme summary if available
 fn add_readme_summary(prompt: &mut String, readme_summary: Option<&str>) {
     if let Some(summary) = readme_summary {
         prompt.push_str("\nProject README Summary:\n");

@@ -1,11 +1,11 @@
 [workspace]
-resolver = "2"
+resolver = "3"
 members = [
     "crates/claw-core",
     "crates/message",
     "crates/notes",
     "crates/pr",
-    "crates/claw-changelog",
+    "crates/changelog",
     "crates/claw-wire",
 ]
 
