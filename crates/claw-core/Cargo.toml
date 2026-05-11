@@ -16,6 +16,7 @@ clap.workspace = true
 colored.workspace = true
 console.workspace = true
 crossterm.workspace = true
+cloy-prompts = { path = "../prompts" }
 dirs.workspace = true
 futures.workspace = true
 git2.workspace = true

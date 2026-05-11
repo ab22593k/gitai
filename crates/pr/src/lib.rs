@@ -1,8 +1,6 @@
 #[allow(clippy::uninlined_format_args)]
 pub mod models;
 pub mod pr;
-#[allow(clippy::uninlined_format_args)]
-pub mod prompt;
 
 use anyhow::{Context, Result};
 use claw_core::common::CommonParams;

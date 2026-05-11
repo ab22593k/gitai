@@ -1,29 +1,20 @@
 [package]
-name = "cloy-notes"
+name = "cloy-prompts"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
 
 [lib]
-name = "notes"
-path = "src/lib.rs"
-
-[[bin]]
-name = "git-notes"
-path = "src/main.rs"
+name = "prompts"
+path = "src/mod.rs"
 
 [dependencies]
-claw-core = { path = "../claw-core" }
-cloy-prompts = { path = "../prompts" }
 anyhow.workspace = true
-clap.workspace = true
-colored.workspace = true
 log.workspace = true
 schemars.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-tokio.workspace = true
 
 [lints]
 workspace = true

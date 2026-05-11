@@ -1,10 +1,9 @@
 #[allow(clippy::uninlined_format_args)]
 pub mod completion;
 mod git_service_core;
+pub mod prompt_helpers;
 pub mod types;
 
-#[allow(clippy::uninlined_format_args)]
-pub mod prompt;
 #[allow(clippy::uninlined_format_args)]
 pub mod service;
 #[allow(clippy::uninlined_format_args)]

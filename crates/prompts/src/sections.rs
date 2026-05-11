@@ -1,29 +1,14 @@
-//! Prompt section abstractions.
-//!
-//! Each section represents a logical part of a system or user prompt.
-//! Sections can be composed to build complete prompts.
-
 use schemars::JsonSchema;
 use serde::Serialize;
 use std::fmt::Write as _;
 
-use crate::common::get_combined_instructions;
-use crate::config::Config;
-use crate::llm::context::CommitContext;
-
-/// A single section of a prompt that can be rendered to a string.
 pub trait PromptSection {
-    /// Render this section to a string.
     fn render(&self) -> String;
 }
 
-// -- Concrete Section Implementations --
-
-/// Renders the `# PERSONA` section of a system prompt.
 pub struct PersonaSection(String);
 
 impl PersonaSection {
-    #[must_use]
     pub fn new(content: &str) -> Self {
         Self(content.to_string())
     }
@@ -35,11 +20,9 @@ impl PromptSection for PersonaSection {
     }
 }
 
-/// Renders the `# TASK` section of a system prompt.
 pub struct TaskSection(String);
 
 impl TaskSection {
-    #[must_use]
     pub fn new(content: &str) -> Self {
         Self(content.to_string())
     }
@@ -51,11 +34,9 @@ impl PromptSection for TaskSection {
     }
 }
 
-/// Renders the `# OPERATIONAL GUIDELINES` section as a numbered list.
 pub struct GuidelinesSection(Vec<String>);
 
 impl GuidelinesSection {
-    #[must_use]
     pub fn new(guidelines: &[&str]) -> Self {
         Self(guidelines.iter().map(ToString::to_string).collect())
     }
@@ -71,7 +52,6 @@ impl PromptSection for GuidelinesSection {
     }
 }
 
-/// Renders the `# OUTPUT SPECIFICATION` section with a JSON schema for type `T`.
 pub struct OutputSchemaSection<T: JsonSchema + Serialize>(std::marker::PhantomData<T>);
 
 impl<T: JsonSchema + Serialize> Default for OutputSchemaSection<T> {
@@ -81,7 +61,6 @@ impl<T: JsonSchema + Serialize> Default for OutputSchemaSection<T> {
 }
 
 impl<T: JsonSchema + Serialize> OutputSchemaSection<T> {
-    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -108,67 +87,60 @@ impl<T: JsonSchema + Serialize> PromptSection for OutputSchemaSection<T> {
     }
 }
 
-/// Renders the `# DATA CONTEXT` section from a `CommitContext`.
-pub struct DataContextSection<'a>(&'a CommitContext);
+pub struct DataContextSection {
+    branch: String,
+    staged_files: String,
+    recent_commits: String,
+}
 
-impl<'a> DataContextSection<'a> {
-    #[must_use]
-    pub fn new(ctx: &'a CommitContext) -> Self {
-        Self(ctx)
+impl DataContextSection {
+    pub fn new(branch: &str, staged_files: &str, recent_commits: &str) -> Self {
+        Self {
+            branch: branch.to_string(),
+            staged_files: staged_files.to_string(),
+            recent_commits: recent_commits.to_string(),
+        }
     }
 }
 
-impl PromptSection for DataContextSection<'_> {
+impl PromptSection for DataContextSection {
     fn render(&self) -> String {
-        let ctx = self.0;
         let mut parts = vec![String::from("# DATA CONTEXT\n")];
 
-        parts.push(format!("- **Branch:** `{}`\n", ctx.branch));
+        parts.push(format!("- **Branch:** `{}`\n", self.branch));
 
-        if !ctx.staged_files.is_empty() {
-            let files: String = ctx
-                .staged_files
-                .iter()
-                .map(|f| format!("  - `{}` ({})", f.path, f.change_type))
-                .collect::<Vec<_>>()
-                .join("\n");
-            parts.push(format!("- **Staged Change List:**\n{files}\n"));
+        if !self.staged_files.is_empty() {
+            parts.push(format!(
+                "- **Staged Change List:**\n{}\n",
+                self.staged_files
+            ));
         }
 
-        if !ctx.recent_commits.is_empty() {
-            let commits = ctx
-                .recent_commits
-                .iter()
-                .map(|c| {
-                    let short = &c.hash[..c.hash.len().min(7)];
-                    format!("  - `{short}` {}", c.message)
-                })
-                .collect::<Vec<_>>()
-                .join("\n");
-            parts.push(format!("- **Contextual History:**\n{commits}\n"));
+        if !self.recent_commits.is_empty() {
+            parts.push(format!(
+                "- **Contextual History:**\n{}\n",
+                self.recent_commits
+            ));
         }
 
         parts.join("\n")
     }
 }
 
-/// Renders the `# USER INSTRUCTIONS` section from config.
-pub struct UserInstructionsSection<'a>(&'a Config);
+pub struct UserInstructionsSection(String);
 
-impl<'a> UserInstructionsSection<'a> {
-    #[must_use]
-    pub fn new(config: &'a Config) -> Self {
-        Self(config)
+impl UserInstructionsSection {
+    pub fn new(instructions: &str) -> Self {
+        Self(instructions.to_string())
     }
 }
 
-impl PromptSection for UserInstructionsSection<'_> {
+impl PromptSection for UserInstructionsSection {
     fn render(&self) -> String {
-        let instructions = get_combined_instructions(self.0);
-        if instructions.is_empty() {
+        if self.0.is_empty() {
             String::from("# USER INSTRUCTIONS\n\nNo additional instructions provided.\n")
         } else {
-            format!("# USER INSTRUCTIONS\n{instructions}\n")
+            format!("# USER INSTRUCTIONS\n{}\n", self.0)
         }
     }
 }

@@ -2,12 +2,14 @@
 #![allow(clippy::as_conversions)]
 
 use super::git_service_core::GitServiceCore;
-use super::prompt::{create_completion_system_prompt, create_completion_user_prompt};
+use super::prompt_helpers;
 use super::types::GeneratedMessage;
+use crate::common::get_combined_instructions;
 use crate::config::Config;
 use crate::git::{CommitResult, GitRepo};
 use crate::llm::context::CommitContext;
 use crate::llm::engine;
+use prompts::commit as commit_prompts;
 
 use anyhow::Result;
 use std::path::Path;
@@ -90,10 +92,22 @@ impl CompletionService {
         context.author_history = context.get_enhanced_history(10);
 
         // Create system prompt for completion
-        let system_prompt = create_completion_system_prompt(&config_clone)?;
+        let schema = schemars::schema_for!(GeneratedMessage);
+        let schema_str = serde_json::to_string_pretty(&schema)?;
+        let instructions = get_combined_instructions(&config_clone);
+        let system_prompt =
+            commit_prompts::create_completion_system_prompt(&instructions, &schema_str);
 
         // Generate user prompt directly
-        let final_user_prompt = create_completion_user_prompt(&context, prefix, context_ratio);
+        let final_user_prompt = commit_prompts::create_completion_user_prompt(
+            prefix,
+            context_ratio,
+            &context.branch,
+            &prompt_helpers::format_staged_files(&context.staged_files),
+            &prompt_helpers::format_detailed_changes(&context.staged_files),
+            &prompt_helpers::format_recent_commits(&context.recent_commits),
+            &prompt_helpers::format_enhanced_author_history(&context.author_history, &context),
+        );
 
         let generated_message = engine::get_message::<GeneratedMessage>(
             &config_clone,

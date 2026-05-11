@@ -1,6 +1,6 @@
-use crate::prompt;
 use anyhow::{Context, Result};
 use chrono;
+use claw_core::commands::changelog::change_analyzer::AnalyzedChange;
 use claw_core::commands::changelog::common::generate_changes_content;
 use claw_core::commands::changelog::models::{
     BreakingChange, ChangeEntry, ChangeMetrics, ChangelogResponse, ChangelogType,
@@ -10,6 +10,7 @@ use claw_core::config::Config;
 use claw_core::git::GitRepo;
 use colored::Colorize;
 use log::debug;
+use prompts::changelog as changelog_prompts;
 use regex;
 use std::fmt::Write as FmtWrite;
 use std::fs;
@@ -33,8 +34,8 @@ impl ChangelogGenerator {
             to,
             config,
             detail_level,
-            prompt::create_changelog_system_prompt,
-            prompt::create_changelog_user_prompt,
+            system_prompt_adapter,
+            user_prompt_adapter,
         )
         .await?;
 
@@ -55,6 +56,110 @@ impl ChangelogGenerator {
         write_changelog_file(path, &updated_content, changelog_path)?;
         Ok(())
     }
+}
+
+fn system_prompt_adapter(config: &Config) -> String {
+    let schema = schemars::schema_for!(ChangelogResponse);
+    let schema_str = serde_json::to_string_pretty(&schema).unwrap_or_else(|_| String::from("{}"));
+    let instructions = claw_core::common::get_combined_instructions(config);
+    changelog_prompts::create_changelog_system_prompt(&instructions, &schema_str)
+}
+
+fn user_prompt_adapter(
+    changes: &[AnalyzedChange],
+    total_metrics: &ChangeMetrics,
+    detail_level: DetailLevel,
+    from: &str,
+    to: &str,
+    readme_summary: Option<&str>,
+) -> String {
+    let mut metrics_buf = String::new();
+    writeln!(metrics_buf, "Overall Changes:").ok();
+    writeln!(
+        metrics_buf,
+        "Total commits: {}",
+        total_metrics.total_commits
+    )
+    .ok();
+    writeln!(
+        metrics_buf,
+        "Files changed: {}",
+        total_metrics.files_changed
+    )
+    .ok();
+    writeln!(
+        metrics_buf,
+        "Total lines changed: {}",
+        total_metrics.total_lines_changed
+    )
+    .ok();
+    writeln!(metrics_buf, "Insertions: {}", total_metrics.insertions).ok();
+    writeln!(metrics_buf, "Deletions: {}\n", total_metrics.deletions).ok();
+
+    let mut changes_buf = String::new();
+    for change in changes {
+        writeln!(changes_buf, "Commit: {}", change.commit_hash).ok();
+        writeln!(changes_buf, "Message: {}", change.commit_message).ok();
+        writeln!(changes_buf, "Type: {:?}", change.change_type).ok();
+        writeln!(
+            changes_buf,
+            "Breaking Change: {}",
+            change.is_breaking_change
+        )
+        .ok();
+        writeln!(
+            changes_buf,
+            "Associated Issues: {}",
+            change.associated_issues.join(", ")
+        )
+        .ok();
+        if let Some(pr) = &change.pull_request {
+            writeln!(changes_buf, "Pull Request: {pr}").ok();
+        }
+        writeln!(changes_buf, "Impact score: {:.2}", change.impact_score).ok();
+
+        match detail_level {
+            DetailLevel::Minimal => {}
+            DetailLevel::Standard | DetailLevel::Detailed => {
+                changes_buf.push_str("File changes:\n");
+                for file_change in &change.file_changes {
+                    writeln!(
+                        changes_buf,
+                        "  - {} ({:?})",
+                        file_change.new_path, file_change.change_type
+                    )
+                    .ok();
+                    if detail_level == DetailLevel::Detailed {
+                        for analysis in &file_change.analysis {
+                            writeln!(changes_buf, "    * {analysis}").ok();
+                        }
+                    }
+                }
+            }
+        }
+        changes_buf.push('\n');
+    }
+
+    let detail_req = match detail_level {
+        DetailLevel::Minimal => {
+            "EXIGENCY: Extreme technical brevity. Focus only on architectural shifts."
+        }
+        DetailLevel::Standard => {
+            "EXIGENCY: Provide a balanced technical narrative of all significant changes."
+        }
+        DetailLevel::Detailed => {
+            "EXIGENCY: Exhaustive technical documentation. Explain the 'Why' for major file changes."
+        }
+    };
+
+    changelog_prompts::create_changelog_user_prompt(
+        from,
+        to,
+        &metrics_buf,
+        &changes_buf,
+        readme_summary,
+        detail_req,
+    )
 }
 
 fn get_commit_date(git_repo: &Arc<GitRepo>, to_ref: &str) -> String {

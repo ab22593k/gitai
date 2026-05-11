@@ -1,6 +1,5 @@
 pub mod models;
 pub mod notes;
-pub mod prompt;
 
 use crate::notes::ReleaseNotesGenerator;
 use anyhow::{Context, Result};

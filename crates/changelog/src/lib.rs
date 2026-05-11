@@ -1,6 +1,4 @@
 pub mod change_log;
-#[allow(clippy::uninlined_format_args)]
-pub mod prompt;
 
 use crate::change_log::ChangelogGenerator;
 use anyhow::{Context, Result, anyhow};

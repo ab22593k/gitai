@@ -11,6 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 claw-core = { path = "../claw-core" }
+cloy-prompts = { path = "../prompts" }
 anyhow.workspace = true
 clap.workspace = true
 log.workspace = true

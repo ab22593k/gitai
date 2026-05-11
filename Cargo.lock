@@ -336,6 +336,7 @@ dependencies = [
  "cause",
  "chrono",
  "clap",
+ "cloy-prompts",
  "colored",
  "console",
  "crossterm",
@@ -399,6 +400,7 @@ dependencies = [
  "chrono",
  "clap",
  "claw-core",
+ "cloy-prompts",
  "colored",
  "log",
  "regex",
@@ -414,6 +416,7 @@ dependencies = [
  "anyhow",
  "clap",
  "claw-core",
+ "cloy-prompts",
  "colored",
  "log",
  "schemars",
@@ -429,12 +432,24 @@ dependencies = [
  "anyhow",
  "clap",
  "claw-core",
+ "cloy-prompts",
  "colored",
  "log",
  "schemars",
  "serde",
  "serde_json",
  "tokio",
+]
+
+[[package]]
+name = "cloy-prompts"
+version = "0.1.5"
+dependencies = [
+ "anyhow",
+ "log",
+ "schemars",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

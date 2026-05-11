@@ -1,12 +1,13 @@
 use crate::models::{Highlight, ReleaseNotesResponse, Section, SectionItem};
-use crate::prompt;
 use anyhow::Result;
+use claw_core::commands::changelog::change_analyzer::AnalyzedChange;
 use claw_core::commands::changelog::common::generate_changes_content;
 use claw_core::commands::changelog::models::{BreakingChange, ChangeMetrics};
 use claw_core::common::DetailLevel;
 use claw_core::config::Config;
 use claw_core::git::GitRepo;
 use colored::Colorize;
+use prompts::notes as notes_prompts;
 use std::fmt::Write as FmtWrite;
 use std::sync::Arc;
 
@@ -15,19 +16,6 @@ pub struct ReleaseNotesGenerator;
 
 impl ReleaseNotesGenerator {
     /// Generates release notes for the specified range of commits.
-    ///
-    /// # Arguments
-    ///
-    /// * `git_repo` - `Arc<GitRepo>` instance
-    /// * `from` - Starting point for the release notes (e.g., a commit hash or tag)
-    /// * `to` - Ending point for the release notes (e.g., a commit hash, tag, or "HEAD")
-    /// * `config` - Configuration object containing LLM settings
-    /// * `detail_level` - Level of detail for the release notes (Minimal, Standard, or Detailed)
-    /// * `version_name` - Optional explicit version name to use instead of detecting from Git
-    ///
-    /// # Returns
-    ///
-    /// A Result containing the generated release notes as a String, or an error
     pub async fn generate(
         git_repo: Arc<GitRepo>,
         from: &str,
@@ -42,8 +30,8 @@ impl ReleaseNotesGenerator {
             to,
             config,
             detail_level,
-            prompt::create_release_notes_system_prompt,
-            prompt::create_release_notes_user_prompt,
+            system_prompt_adapter,
+            user_prompt_adapter,
         )
         .await?;
 
@@ -54,6 +42,110 @@ impl ReleaseNotesGenerator {
     }
 }
 
+fn system_prompt_adapter(config: &Config) -> String {
+    let schema = schemars::schema_for!(ReleaseNotesResponse);
+    let schema_str = serde_json::to_string_pretty(&schema).unwrap_or_else(|_| String::from("{}"));
+    let instructions = claw_core::common::get_combined_instructions(config);
+    notes_prompts::create_release_notes_system_prompt(&instructions, &schema_str)
+}
+
+fn user_prompt_adapter(
+    changes: &[AnalyzedChange],
+    total_metrics: &ChangeMetrics,
+    detail_level: DetailLevel,
+    from: &str,
+    to: &str,
+    readme_summary: Option<&str>,
+) -> String {
+    let mut metrics_buf = String::new();
+    writeln!(metrics_buf, "Overall Changes:").ok();
+    writeln!(
+        metrics_buf,
+        "Total commits: {}",
+        total_metrics.total_commits
+    )
+    .ok();
+    writeln!(
+        metrics_buf,
+        "Files changed: {}",
+        total_metrics.files_changed
+    )
+    .ok();
+    writeln!(
+        metrics_buf,
+        "Total lines changed: {}",
+        total_metrics.total_lines_changed
+    )
+    .ok();
+    writeln!(metrics_buf, "Insertions: {}", total_metrics.insertions).ok();
+    writeln!(metrics_buf, "Deletions: {}\n", total_metrics.deletions).ok();
+
+    let mut changes_buf = String::new();
+    for change in changes {
+        writeln!(changes_buf, "Commit: {}", change.commit_hash).ok();
+        writeln!(changes_buf, "Message: {}", change.commit_message).ok();
+        writeln!(changes_buf, "Type: {:?}", change.change_type).ok();
+        writeln!(
+            changes_buf,
+            "Breaking Change: {}",
+            change.is_breaking_change
+        )
+        .ok();
+        writeln!(
+            changes_buf,
+            "Associated Issues: {}",
+            change.associated_issues.join(", ")
+        )
+        .ok();
+        if let Some(pr) = &change.pull_request {
+            writeln!(changes_buf, "Pull Request: {pr}").ok();
+        }
+        writeln!(changes_buf, "Impact score: {:.2}", change.impact_score).ok();
+
+        match detail_level {
+            DetailLevel::Minimal => {}
+            DetailLevel::Standard | DetailLevel::Detailed => {
+                changes_buf.push_str("File changes:\n");
+                for file_change in &change.file_changes {
+                    writeln!(
+                        changes_buf,
+                        "  - {} ({:?})",
+                        file_change.new_path, file_change.change_type
+                    )
+                    .ok();
+                    if detail_level == DetailLevel::Detailed {
+                        for analysis in &file_change.analysis {
+                            writeln!(changes_buf, "    * {analysis}").ok();
+                        }
+                    }
+                }
+            }
+        }
+        changes_buf.push('\n');
+    }
+
+    let detail_req = match detail_level {
+        DetailLevel::Minimal => {
+            "EXIGENCY: Brief technical summary focusing on critical capabilities."
+        }
+        DetailLevel::Standard => {
+            "EXIGENCY: Balanced overview of new technical features and architectural improvements."
+        }
+        DetailLevel::Detailed => {
+            "EXIGENCY: Comprehensive technical narrative including deep context and rationale."
+        }
+    };
+
+    notes_prompts::create_release_notes_user_prompt(
+        from,
+        to,
+        &metrics_buf,
+        &changes_buf,
+        readme_summary,
+        detail_req,
+    )
+}
+
 /// Formats the `ReleaseNotesResponse` into human-readable release notes
 fn format_release_notes_response(
     response: &ReleaseNotesResponse,
@@ -61,7 +153,6 @@ fn format_release_notes_response(
 ) -> String {
     let mut formatted = String::new();
 
-    // Add header
     let version = match version_name {
         Some(name) => name.to_string(),
         None => response
@@ -87,11 +178,9 @@ fn format_release_notes_response(
     )
     .expect("writing to string should never fail");
 
-    // --- Summary ---
     write!(formatted, "{}\n\n", response.summary.bright_cyan())
         .expect("writing to string should never fail");
 
-    // --- highlights ---
     if !response.highlights.is_empty() {
         formatted.push_str(&"## ✨ Highlights\n\n".bright_magenta().bold().to_string());
         for highlight in &response.highlights {
@@ -99,12 +188,10 @@ fn format_release_notes_response(
         }
     }
 
-    // --- changes by section ---
     for section in &response.sections {
         formatted.push_str(&format_section(section));
     }
 
-    // --- breaking changes ---
     if !response.breaking_changes.is_empty() {
         formatted.push_str(&"## ⚠️ Breaking Changes\n\n".bright_red().bold().to_string());
         for breaking_change in &response.breaking_changes {
@@ -112,7 +199,6 @@ fn format_release_notes_response(
         }
     }
 
-    // --- upgrade notes ---
     if !response.upgrade_notes.is_empty() {
         formatted.push_str(&"## 🔧 Upgrade Notes\n\n".yellow().bold().to_string());
         for note in &response.upgrade_notes {
@@ -121,14 +207,12 @@ fn format_release_notes_response(
         formatted.push('\n');
     }
 
-    // --- metrics ---
     formatted.push_str(&"## 📊 Metrics\n\n".bright_blue().bold().to_string());
     formatted.push_str(&format_metrics(&response.metrics));
 
     formatted
 }
 
-/// Formats a highlight
 fn format_highlight(highlight: &Highlight) -> String {
     format!(
         "### {}\n\n{}\n\n",
@@ -137,7 +221,6 @@ fn format_highlight(highlight: &Highlight) -> String {
     )
 }
 
-/// Formats a section
 fn format_section(section: &Section) -> String {
     let mut formatted = format!("## {}\n\n", section.title.bright_blue().bold());
     for item in &section.items {
@@ -147,7 +230,6 @@ fn format_section(section: &Section) -> String {
     formatted
 }
 
-/// Formats a section item
 fn format_section_item(item: &SectionItem) -> String {
     let mut formatted = format!("- {}", item.description);
 
@@ -169,7 +251,6 @@ fn format_section_item(item: &SectionItem) -> String {
     formatted
 }
 
-/// Formats a breaking change
 fn format_breaking_change(breaking_change: &BreakingChange) -> String {
     format!(
         "- {} ({})\n",
@@ -178,7 +259,6 @@ fn format_breaking_change(breaking_change: &BreakingChange) -> String {
     )
 }
 
-/// Formats the change metrics
 fn format_metrics(metrics: &ChangeMetrics) -> String {
     format!(
         "- Total Commits: {}\n- Files Changed: {}\n- Insertions: {}\n- Deletions: {}\n",

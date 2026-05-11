@@ -1,7 +1,10 @@
-use crate::common::DetailLevel;
+use super::prompt_helpers;
+use super::types::GeneratedMessage;
+use crate::common::{DetailLevel, get_combined_instructions};
 use crate::config::Config;
 use crate::llm::context::CommitContext;
 use anyhow::Result;
+use prompts::commit as commit_prompts;
 
 /// Trait for defining how to generate prompts for commit-related operations
 pub trait CommitPromptStrategy: Send + Sync {
@@ -25,13 +28,35 @@ impl CommitMessageStrategy {
 
 impl CommitPromptStrategy for CommitMessageStrategy {
     fn create_system_prompt(&self, config: &Config) -> Result<String> {
-        super::prompt::create_system_prompt(config)
+        let schema = schemars::schema_for!(GeneratedMessage);
+        let schema_str = serde_json::to_string_pretty(&schema)?;
+        let instructions = get_combined_instructions(config);
+        Ok(commit_prompts::create_system_prompt(
+            &instructions,
+            &schema_str,
+        ))
     }
 
     fn create_user_prompt(&self, context: &CommitContext) -> Result<String> {
-        Ok(super::prompt::create_user_prompt(
-            context,
-            self.detail_level,
+        let detail_instruction = match self.detail_level {
+            DetailLevel::Minimal => {
+                "EXIGENCY: Keep it technical and concise. A subsystem subject and a single paragraph of technical reasoning."
+            }
+            DetailLevel::Standard => {
+                "EXIGENCY: Provide a multi-paragraph technical justification explaining the problem and solution."
+            }
+            DetailLevel::Detailed => {
+                "EXIGENCY: Exhaustive technical documentation. Explain the state before/after, the logic flow, and architectural implications."
+            }
+        };
+
+        Ok(commit_prompts::create_user_prompt(
+            &context.branch,
+            &prompt_helpers::format_staged_files(&context.staged_files),
+            &prompt_helpers::format_detailed_changes(&context.staged_files),
+            &prompt_helpers::format_recent_commits(&context.recent_commits),
+            &prompt_helpers::format_enhanced_author_history(&context.author_history, context),
+            detail_instruction,
         ))
     }
 }
@@ -53,14 +78,24 @@ impl CompletionStrategy {
 
 impl CommitPromptStrategy for CompletionStrategy {
     fn create_system_prompt(&self, config: &Config) -> Result<String> {
-        super::prompt::create_completion_system_prompt(config)
+        let schema = schemars::schema_for!(GeneratedMessage);
+        let schema_str = serde_json::to_string_pretty(&schema)?;
+        let instructions = get_combined_instructions(config);
+        Ok(commit_prompts::create_completion_system_prompt(
+            &instructions,
+            &schema_str,
+        ))
     }
 
     fn create_user_prompt(&self, context: &CommitContext) -> Result<String> {
-        Ok(super::prompt::create_completion_user_prompt(
-            context,
+        Ok(commit_prompts::create_completion_user_prompt(
             &self.prefix,
             self.context_ratio,
+            &context.branch,
+            &prompt_helpers::format_staged_files(&context.staged_files),
+            &prompt_helpers::format_detailed_changes(&context.staged_files),
+            &prompt_helpers::format_recent_commits(&context.recent_commits),
+            &prompt_helpers::format_enhanced_author_history(&context.author_history, context),
         ))
     }
 }

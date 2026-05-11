@@ -1,12 +1,14 @@
 use crate::models::GeneratedPullRequest;
-use crate::prompt;
 use anyhow::Result;
+use claw_core::common::get_combined_instructions;
 use claw_core::config::Config;
 use claw_core::git::GitRepo;
+use claw_core::llm::context::CommitContext;
 use claw_core::llm::engine;
 use claw_core::llm::messages;
 use claw_core::output;
 use claw_core::tui::spinner::SpinnerState;
+use prompts::pr as pr_prompts;
 use std::sync::Arc;
 
 pub struct PullRequestStrategy {
@@ -19,11 +21,31 @@ impl PullRequestStrategy {
     }
 
     pub fn create_system_prompt(&self, config: &Config) -> Result<String> {
-        prompt::create_pr_system_prompt(config)
+        let schema = schemars::schema_for!(GeneratedPullRequest);
+        let schema_str = serde_json::to_string_pretty(&schema)?;
+        let instructions = get_combined_instructions(config);
+        Ok(pr_prompts::create_pr_system_prompt(
+            &instructions,
+            &schema_str,
+        ))
     }
 
-    pub fn create_user_prompt(&self, context: &claw_core::llm::context::CommitContext) -> String {
-        prompt::create_pr_user_prompt(context, &self.commit_messages)
+    pub fn create_user_prompt(&self, context: &CommitContext) -> String {
+        let commits_section = if self.commit_messages.is_empty() {
+            "No commits in current range.".to_string()
+        } else {
+            self.commit_messages.join("\n")
+        };
+
+        let detailed_changes = format_detailed_changes(&context.staged_files);
+        let recent_commits = format_recent_commits(&context.recent_commits);
+
+        pr_prompts::create_pr_user_prompt(
+            &context.branch,
+            &commits_section,
+            &detailed_changes,
+            &recent_commits,
+        )
     }
 }
 
@@ -341,6 +363,136 @@ async fn handle_no_parameters(
         provider_name,
     )
     .await
+}
+
+use claw_core::llm::context::{ChangeType, RecentCommit, StagedFile};
+
+const MAX_DIFF_LENGTH: usize = 2000;
+const MAX_FILE_CONTENT_LENGTH: usize = 5000;
+const MAX_FILES_FOR_DETAILED_CHANGES: usize = 30;
+
+fn format_recent_commits(commits: &[RecentCommit]) -> String {
+    commits
+        .iter()
+        .map(|commit| {
+            format!(
+                "{} - {}",
+                &commit.hash[..commit.hash.len().min(7)],
+                commit.message
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn format_detailed_changes(files: &[StagedFile]) -> String {
+    let mut all_sections = Vec::new();
+
+    let added_count = files
+        .iter()
+        .filter(|f| matches!(f.change_type, ChangeType::Added))
+        .count();
+    let modified_count = files
+        .iter()
+        .filter(|f| matches!(f.change_type, ChangeType::Modified))
+        .count();
+    let deleted_count = files
+        .iter()
+        .filter(|f| matches!(f.change_type, ChangeType::Deleted))
+        .count();
+
+    let summary = format!(
+        "CHANGE SUMMARY:\n- {} file(s) added\n- {} file(s) modified\n- {} file(s) deleted\n- {} total file(s) changed",
+        added_count,
+        modified_count,
+        deleted_count,
+        files.len()
+    );
+    all_sections.push(summary);
+
+    let displayed_files = if files.len() > MAX_FILES_FOR_DETAILED_CHANGES {
+        all_sections.push(format!(
+            "NOTE: Only first {} files out of {} are shown in detail below.",
+            MAX_FILES_FOR_DETAILED_CHANGES,
+            files.len()
+        ));
+        &files[..MAX_FILES_FOR_DETAILED_CHANGES]
+    } else {
+        files
+    };
+
+    let diff_section = displayed_files
+        .iter()
+        .map(|file| {
+            let truncated_diff = truncate_smartly(&file.diff, MAX_DIFF_LENGTH);
+
+            format!(
+                "File: {}\nChange Type: {}\n\nDiff:\n{}",
+                file.path,
+                format_change_type(&file.change_type),
+                truncated_diff
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n---\n\n");
+
+    all_sections.push(format!(
+        "=== DIFFS ({} files) ===\n\n{}",
+        displayed_files.len(),
+        diff_section
+    ));
+
+    let content_files: Vec<_> = displayed_files
+        .iter()
+        .filter(|file| file.change_type == ChangeType::Added && file.content.is_some())
+        .collect();
+
+    if !content_files.is_empty() {
+        let content_section = content_files
+            .iter()
+            .filter_map(|file| {
+                let content = file.content.as_ref()?;
+                let truncated_content = truncate_smartly(content, MAX_FILE_CONTENT_LENGTH);
+                Some(format!(
+                    "File: {}\nFull File Content:\n{}\n\n--- End of File ---",
+                    file.path, truncated_content
+                ))
+            })
+            .collect::<Vec<_>>()
+            .join("\n\n---\n\n");
+
+        all_sections.push(format!(
+            "=== FULL FILE CONTENTS ({} files) ===\n\n{}",
+            content_files.len(),
+            content_section
+        ));
+    }
+
+    all_sections.join("\n\n====================\n\n")
+}
+
+fn format_change_type(change_type: &ChangeType) -> String {
+    match change_type {
+        ChangeType::Added => "Added".to_string(),
+        ChangeType::Modified => "Modified".to_string(),
+        ChangeType::Deleted => "Deleted".to_string(),
+        ChangeType::Renamed { from, .. } => format!("Renamed from {from}"),
+        ChangeType::Copied { from, .. } => format!("Copied from {from}"),
+    }
+}
+
+fn truncate_smartly(text: &str, max_len: usize) -> String {
+    if text.len() <= max_len {
+        return text.to_string();
+    }
+
+    let mut result = String::with_capacity(max_len + 50);
+    for line in text.lines() {
+        result.push_str(line);
+        result.push('\n');
+    }
+
+    result
 }
 
 fn is_likely_commit_hash_or_commitish(reference: &str) -> bool {

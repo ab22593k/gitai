@@ -5,6 +5,7 @@ members = [
     "crates/message",
     "crates/notes",
     "crates/pr",
+    "crates/prompts",
     "crates/changelog",
     "crates/wire",
 ]
