@@ -383,16 +383,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "claw-wire"
-version = "0.1.5"
-dependencies = [
- "anyhow",
- "clap",
- "claw-core",
- "tokio",
-]
-
-[[package]]
 name = "clipboard-win"
 version = "5.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -445,6 +435,31 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+]
+
+[[package]]
+name = "cloy-wire"
+version = "0.1.5"
+dependencies = [
+ "anyhow",
+ "cause",
+ "chrono",
+ "clap",
+ "claw-core",
+ "colored",
+ "dirs",
+ "env_logger",
+ "folder_compare",
+ "fs_extra",
+ "git2",
+ "log",
+ "regex",
+ "serde",
+ "serde_json",
+ "temp-dir",
+ "tempfile",
+ "tokio",
+ "uuid",
 ]
 
 [[package]]

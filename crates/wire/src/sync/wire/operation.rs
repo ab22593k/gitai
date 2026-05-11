@@ -3,9 +3,9 @@ use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 
-use crate::git::GhostRefManager;
-use crate::git::GitRepo;
 use cause::{Cause, cause};
+use claw_core::git::GhostRefManager;
+use claw_core::git::GitRepo;
 use fs_extra::{copy_items, dir::CopyOptions};
 use log::{debug, error, info};
 use tokio::task::JoinSet;

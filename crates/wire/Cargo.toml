@@ -1,0 +1,38 @@
+[package]
+name = "cloy-wire"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lib]
+name = "wire"
+path = "src/lib.rs"
+
+[[bin]]
+name = "git-wire"
+path = "src/main.rs"
+
+[dependencies]
+claw-core = { path = "../claw-core" }
+anyhow.workspace = true
+cause.workspace = true
+chrono.workspace = true
+clap.workspace = true
+colored.workspace = true
+dirs.workspace = true
+env_logger.workspace = true
+folder_compare.workspace = true
+fs_extra.workspace = true
+git2.workspace = true
+log.workspace = true
+regex.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+temp-dir.workspace = true
+tempfile.workspace = true
+tokio.workspace = true
+uuid.workspace = true
+
+[lints]
+workspace = true

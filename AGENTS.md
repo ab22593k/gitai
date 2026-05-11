@@ -19,7 +19,7 @@ Ubuntu: `apt install -y gcc g++ make pkg-config libssl-dev cmake perl`
 claw-core          → library crate (shared business logic)
 claw-message       → git-message  (thin CLI wrapper, ~50 lines)
 claw-changelog     → git-changelog (own models, prompts, generator)
-claw-wire          → git-wire    (thin CLI wrapper)
+claw-wire          → git-wire    (own sync engine, CLI)  
 crates/pr          → git-pr       (own models, prompts, generator)
 crates/notes       → git-notes    (own models, prompts, generator)
 

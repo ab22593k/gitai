@@ -1,13 +1,7 @@
 use anyhow::Result;
 use clap::Parser;
-use claw_core::{
-    app::{
-        args::{self, WireArgs},
-        handlers,
-    },
-    init_app,
-    output::print_error,
-};
+use claw_core::{init_app, output::print_error};
+use wire::sync_wire::{WireArgs, handle_wire};
 
 #[derive(Parser)]
 #[command(
@@ -15,7 +9,7 @@ use claw_core::{
     version,
     author,
     about = "Synchronize code from remote repositories",
-    styles = args::get_styles(),
+    styles = claw_core::app::args::get_styles(),
 )]
 struct WireCli {
     #[command(flatten)]
@@ -28,7 +22,7 @@ async fn main() -> Result<()> {
 
     let cli = WireCli::parse();
 
-    if let Err(e) = handlers::handle_wire(cli.args).await {
+    if let Err(e) = handle_wire(cli.args).await {
         print_error(&format!("Error: {e}"));
         std::process::exit(1);
     }

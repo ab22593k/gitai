@@ -6,7 +6,7 @@ members = [
     "crates/notes",
     "crates/pr",
     "crates/changelog",
-    "crates/claw-wire",
+    "crates/wire",
 ]
 
 [workspace.package]

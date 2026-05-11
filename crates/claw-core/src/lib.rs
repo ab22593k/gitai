@@ -5,10 +5,7 @@ pub mod config;
 pub mod git;
 pub mod llm;
 pub mod output;
-pub mod sync;
 pub mod tui;
-
-pub use crate::app::{App, Gitai, handle_command, parse_args};
 
 pub use ::llm::LLMProvider;
 pub use config::Config;
@@ -17,15 +14,9 @@ pub use llm::context::FixedSizeBuffer;
 
 pub use commands::commit::types::{GeneratedMessage, format_commit_message};
 
-pub use sync::common::Parsed;
-pub use sync::common::parse::{parse_gitwire, save_to_gitwire};
-pub use sync::{
-    CacheManager, CachedRepository, RepositoryConfiguration, WireOperation, init_logger,
-};
-
 pub use llm::engine::init_tracing_to_file;
 
 pub fn init_app() {
-    init_logger();
+    env_logger::init();
     init_tracing_to_file();
 }
