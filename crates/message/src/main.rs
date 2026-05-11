@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-use claw_core::{init_app, output::print_error};
+use cloy::{init_app, output::print_error};
 use message::{CmsgConfig, CommonArgs, MessageArgs, handle_message};
 
 #[tokio::main]

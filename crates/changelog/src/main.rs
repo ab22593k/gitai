@@ -1,7 +1,7 @@
 use anyhow::Result;
 use changelog::{ChangelogCommandConfig, handle_changelog_command};
 use clap::{Args, Parser, crate_authors, crate_version};
-use claw_core::{
+use cloy::{
     app::args::{get_dynamic_help, get_styles},
     common::CommonParams,
     init_app,

@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use claw_core::commands::changelog::models::{BreakingChange, ChangeMetrics};
+use cloy::commands::changelog::models::{BreakingChange, ChangeMetrics};
 
 /// Represents the structured response for release notes
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]

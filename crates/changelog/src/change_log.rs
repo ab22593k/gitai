@@ -1,13 +1,13 @@
 use anyhow::{Context, Result};
 use chrono;
-use claw_core::commands::changelog::change_analyzer::AnalyzedChange;
-use claw_core::commands::changelog::common::generate_changes_content;
-use claw_core::commands::changelog::models::{
+use cloy::commands::changelog::change_analyzer::AnalyzedChange;
+use cloy::commands::changelog::common::generate_changes_content;
+use cloy::commands::changelog::models::{
     BreakingChange, ChangeEntry, ChangeMetrics, ChangelogResponse, ChangelogType,
 };
-use claw_core::common::DetailLevel;
-use claw_core::config::Config;
-use claw_core::git::GitRepo;
+use cloy::common::DetailLevel;
+use cloy::config::Config;
+use cloy::git::GitRepo;
 use colored::Colorize;
 use log::debug;
 use prompts::changelog as changelog_prompts;
@@ -61,7 +61,7 @@ impl ChangelogGenerator {
 fn system_prompt_adapter(config: &Config) -> String {
     let schema = schemars::schema_for!(ChangelogResponse);
     let schema_str = serde_json::to_string_pretty(&schema).unwrap_or_else(|_| String::from("{}"));
-    let instructions = claw_core::common::get_combined_instructions(config);
+    let instructions = cloy::common::get_combined_instructions(config);
     changelog_prompts::create_changelog_system_prompt(&instructions, &schema_str)
 }
 

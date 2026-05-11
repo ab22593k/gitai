@@ -4,8 +4,8 @@ use std::path::Path;
 use std::sync::Arc;
 
 use cause::{Cause, cause};
-use claw_core::git::GhostRefManager;
-use claw_core::git::GitRepo;
+use cloy::git::GhostRefManager;
+use cloy::git::GitRepo;
 use fs_extra::{copy_items, dir::CopyOptions};
 use log::{debug, error, info};
 use tokio::task::JoinSet;

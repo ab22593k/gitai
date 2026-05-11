@@ -14,7 +14,7 @@ name = "git-message"
 path = "src/main.rs"
 
 [dependencies]
-claw-core = { path = "../claw-core" }
+cloy = { path = "../cloy" }
 anyhow.workspace = true
 clap.workspace = true
 log.workspace = true

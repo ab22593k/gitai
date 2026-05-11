@@ -10,7 +10,7 @@ name = "git-pr"
 path = "src/main.rs"
 
 [dependencies]
-claw-core = { path = "../claw-core" }
+cloy = { path = "../cloy" }
 cloy-prompts = { path = "../prompts" }
 anyhow.workspace = true
 clap.workspace = true

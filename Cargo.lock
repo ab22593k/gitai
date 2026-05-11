@@ -329,7 +329,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a1d728cc89cf3aee9ff92b05e62b19ee65a02b5702cff7d5a377e32c6ae29d8d"
 
 [[package]]
-name = "claw-core"
+name = "claw-message"
+version = "0.1.5"
+dependencies = [
+ "anyhow",
+ "clap",
+ "cloy",
+ "git2",
+ "log",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
+name = "clipboard-win"
+version = "5.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bde03770d3df201d4fb868f2c9c59e66a3e4e2bd06692a0fe701e7103c7e84d4"
+dependencies = [
+ "error-code",
+]
+
+[[package]]
+name = "cloy"
 version = "0.1.5"
 dependencies = [
  "anyhow",
@@ -371,35 +393,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "claw-message"
-version = "0.1.5"
-dependencies = [
- "anyhow",
- "clap",
- "claw-core",
- "git2",
- "log",
- "tempfile",
- "tokio",
-]
-
-[[package]]
-name = "clipboard-win"
-version = "5.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bde03770d3df201d4fb868f2c9c59e66a3e4e2bd06692a0fe701e7103c7e84d4"
-dependencies = [
- "error-code",
-]
-
-[[package]]
 name = "cloy-changelog"
 version = "0.1.5"
 dependencies = [
  "anyhow",
  "chrono",
  "clap",
- "claw-core",
+ "cloy",
  "cloy-prompts",
  "colored",
  "log",
@@ -415,7 +415,7 @@ version = "0.1.5"
 dependencies = [
  "anyhow",
  "clap",
- "claw-core",
+ "cloy",
  "cloy-prompts",
  "colored",
  "log",
@@ -431,7 +431,7 @@ version = "0.1.5"
 dependencies = [
  "anyhow",
  "clap",
- "claw-core",
+ "cloy",
  "cloy-prompts",
  "colored",
  "log",
@@ -460,7 +460,7 @@ dependencies = [
  "cause",
  "chrono",
  "clap",
- "claw-core",
+ "cloy",
  "colored",
  "dirs",
  "env_logger",

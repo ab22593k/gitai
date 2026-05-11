@@ -1,13 +1,13 @@
 use crate::models::GeneratedPullRequest;
 use anyhow::Result;
-use claw_core::common::get_combined_instructions;
-use claw_core::config::Config;
-use claw_core::git::GitRepo;
-use claw_core::llm::context::CommitContext;
-use claw_core::llm::engine;
-use claw_core::llm::messages;
-use claw_core::output;
-use claw_core::tui::spinner::SpinnerState;
+use cloy::common::get_combined_instructions;
+use cloy::config::Config;
+use cloy::git::GitRepo;
+use cloy::llm::context::CommitContext;
+use cloy::llm::engine;
+use cloy::llm::messages;
+use cloy::output;
+use cloy::tui::spinner::SpinnerState;
 use prompts::pr as pr_prompts;
 use std::sync::Arc;
 
@@ -52,7 +52,7 @@ impl PullRequestStrategy {
 async fn generate_pr(
     strategy: PullRequestStrategy,
     instructions: &str,
-    context: Option<claw_core::llm::context::CommitContext>,
+    context: Option<cloy::llm::context::CommitContext>,
     config: &Config,
     provider_name: &str,
 ) -> Result<GeneratedPullRequest> {
@@ -365,7 +365,7 @@ async fn handle_no_parameters(
     .await
 }
 
-use claw_core::llm::context::{ChangeType, RecentCommit, StagedFile};
+use cloy::llm::context::{ChangeType, RecentCommit, StagedFile};
 
 const MAX_DIFF_LENGTH: usize = 2000;
 const MAX_FILE_CONTENT_LENGTH: usize = 5000;

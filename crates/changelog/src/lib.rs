@@ -2,10 +2,10 @@ pub mod change_log;
 
 use crate::change_log::ChangelogGenerator;
 use anyhow::{Context, Result, anyhow};
-use claw_core::common::CommonParams;
-use claw_core::config::Config;
-use claw_core::git::GitRepo;
-use claw_core::output;
+use cloy::common::CommonParams;
+use cloy::config::Config;
+use cloy::git::GitRepo;
+use cloy::output;
 use colored::Colorize;
 use std::env;
 use std::sync::Arc;

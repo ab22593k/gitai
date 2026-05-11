@@ -1,15 +1,15 @@
 use anyhow::Result;
 use clap::{Parser, crate_authors, crate_version};
-use claw_core::app::args::{self, MessageParams};
-use claw_core::commands::commit::service::CommitService;
-use claw_core::commands::commit::types::{GeneratedMessage, format_commit_message};
-use claw_core::commands::common::service::{create_commit_service, create_completion_service};
-use claw_core::commands::common::{run_with_spinner, validate_staged_files};
-use claw_core::common::CommonParams;
-use claw_core::config::Config;
-use claw_core::llm::messages;
-use claw_core::output;
-use claw_core::tui::run_tui_commit;
+use cloy::app::args::{self, MessageParams};
+use cloy::commands::commit::service::CommitService;
+use cloy::commands::commit::types::{GeneratedMessage, format_commit_message};
+use cloy::commands::common::service::{create_commit_service, create_completion_service};
+use cloy::commands::common::{run_with_spinner, validate_staged_files};
+use cloy::common::CommonParams;
+use cloy::config::Config;
+use cloy::llm::messages;
+use cloy::output;
+use cloy::tui::run_tui_commit;
 
 #[derive(Parser)]
 #[command(

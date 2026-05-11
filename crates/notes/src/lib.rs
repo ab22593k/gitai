@@ -3,10 +3,10 @@ pub mod notes;
 
 use crate::notes::ReleaseNotesGenerator;
 use anyhow::{Context, Result};
-use claw_core::common::CommonParams;
-use claw_core::config::Config;
-use claw_core::git::GitRepo;
-use claw_core::output;
+use cloy::common::CommonParams;
+use cloy::config::Config;
+use cloy::git::GitRepo;
+use cloy::output;
 use std::env;
 use std::sync::Arc;
 

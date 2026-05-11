@@ -14,7 +14,7 @@ name = "git-wire"
 path = "src/main.rs"
 
 [dependencies]
-claw-core = { path = "../claw-core" }
+cloy = { path = "../cloy" }
 anyhow.workspace = true
 cause.workspace = true
 chrono.workspace = true

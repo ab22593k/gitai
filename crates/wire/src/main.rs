@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-use claw_core::{init_app, output::print_error};
+use cloy::{init_app, output::print_error};
 use wire::sync_wire::{WireArgs, handle_wire};
 
 #[derive(Parser)]
@@ -9,7 +9,7 @@ use wire::sync_wire::{WireArgs, handle_wire};
     version,
     author,
     about = "Synchronize code from remote repositories",
-    styles = claw_core::app::args::get_styles(),
+    styles = cloy::app::args::get_styles(),
 )]
 struct WireCli {
     #[command(flatten)]

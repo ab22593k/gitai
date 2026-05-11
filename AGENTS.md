@@ -16,20 +16,20 @@ Ubuntu: `apt install -y gcc g++ make pkg-config libssl-dev cmake perl`
 ## Workspace layout
 
 ```
-claw-core          → library crate (shared business logic)
+cloy               → library crate (shared business logic)
 claw-message       → git-message  (thin CLI wrapper, ~50 lines)
 claw-changelog     → git-changelog (own models, prompts, generator)
 claw-wire          → git-wire    (own sync engine, CLI)  
 crates/pr          → git-pr       (own models, prompts, generator)
 crates/notes       → git-notes    (own models, prompts, generator)
 
-All binaries depend on `claw-core` only. Binary names differ from crate names.
+All binaries depend on `cloy` only. Binary names differ from crate names.
 When adding functionality to a command, edit its own crate first (pr, notes, changelog, etc.)
-Keep `claw-core` for genuinely shared code (Config, GitRepo, engine, LLM context).
+Keep `cloy` for genuinely shared code (Config, GitRepo, engine, LLM context).
 
-All binaries depend on `claw-core` only. Binary names differ from crate names.
+All binaries depend on `cloy` only. Binary names differ from crate names.
 When adding functionality to a command, edit its own crate first (pr, notes, etc.)
-Keep `claw-core` for genuinely shared code (Config, GitRepo, engine, LLM context).
+Keep `cloy` for genuinely shared code (Config, GitRepo, engine, LLM context).
 
 ## Verification commands
 
@@ -52,9 +52,9 @@ CI runs them in that order. All must pass.
 
 ## Known discrepancies
 
-- **README says 5 LLM providers**; code only implements 2: `Google` and `OpenRouter`. The `ProviderKind` enum in `crates/claw-core/src/llm/provider.rs` is the single source of truth for provider identity.
+- **README says 5 LLM providers**; code only implements 2: `Google` and `OpenRouter`. The `ProviderKind` enum in `crates/cloy/src/llm/provider.rs` is the single source of truth for provider identity.
 - **README says `.gitwire.toml`**; the actual config file is `.gitwire` (git-config syntax, not TOML). Parsed via `git2::Config::open()`.
-- **`integration` feature flag** exists in `claw-core/Cargo.toml` but no code gates on it. `cargo test --features integration` is identical to `cargo test`.
+- **`integration` feature flag** exists in `cloy/Cargo.toml` but no code gates on it. `cargo test --features integration` is identical to `cargo test`.
 
 ## Architecture pointers
 
@@ -77,7 +77,7 @@ cargo run --bin git-wire -- sync --url <repo> --rev main --src lib --dst vendor/
 ## Testing a single crate
 
 ```sh
-cargo test -p claw-core
+cargo test -p cloy
 cargo test -p claw-message
 ```
 
