@@ -95,7 +95,7 @@ fn apply_gradient(text: &str, gradient: &[(u8, u8, u8)]) -> String {
             i * (gradient_len - 1) / (chars_len - 1)
         };
         let (r, g, b) = gradient[index];
-        write!(result, "{}", c.to_string().truecolor(r, g, b)).expect("String write is infallible");
+        let _ = write!(result, "{}", c.to_string().truecolor(r, g, b));
     }
     result
 }

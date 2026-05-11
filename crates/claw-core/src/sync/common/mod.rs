@@ -149,10 +149,6 @@ pub fn merge_parsed(target: &mut Parsed, source: &Parsed) {
     }
 }
 
-pub enum Target {
-    Declared(TargetConfig),
-}
-
 /// Helper function for path validation
 /// Returns true if path is sound (doesn't contain ., .., or .git)
 pub fn is_path_sound(path: &str) -> bool {

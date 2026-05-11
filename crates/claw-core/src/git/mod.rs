@@ -22,3 +22,4 @@ pub use utils::*;
 // Re-export type aliases to maintain backward compatibility
 pub use crate::llm::context::{RecentCommit, StagedFile};
 pub use files::RepoFilesInfo;
+pub use files::get_file_statuses;

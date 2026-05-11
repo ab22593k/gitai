@@ -5,7 +5,7 @@ use crate::commands::commit;
 use crate::common::CommonParams;
 use crate::sync::{
     check,
-    common::{Parsed, Target, TargetConfig, infer_from_url, normalize_github_url, sequence},
+    common::{Parsed, TargetConfig, infer_from_url, normalize_github_url, sequence},
 };
 
 use super::args::{
@@ -170,8 +170,7 @@ pub async fn handle_wire(args: WireArgs) -> Result<()> {
             let auto_save = has_cli_args && !no_save;
             let target_config =
                 build_target_config(target_name, &source, save || auto_save, append, global)?;
-            crate::sync::wire::operation::sync_with_caching(&Target::Declared(target_config), mode)
-                .await
+            crate::sync::wire::operation::sync_with_caching(&target_config, mode).await
         }
 
         WireCommand::Check {
@@ -185,7 +184,7 @@ pub async fn handle_wire(args: WireArgs) -> Result<()> {
             let auto_save = has_cli_args && !no_save;
             let target_config =
                 build_target_config(target_name, &source, save || auto_save, append, global)?;
-            check::check(&Target::Declared(target_config), &mode)
+            check::check(&target_config, &mode)
         }
     };
 

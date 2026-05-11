@@ -1,4 +1,4 @@
-use super::engine::{ChangeAnalysisEngine, DefaultAnalysisEngine};
+use super::engine::DefaultAnalysisEngine;
 use super::models::{ChangeMetrics, ChangelogType};
 use crate::git::GitRepo;
 use crate::llm::context::{ChangeType, RecentCommit};
@@ -34,23 +34,12 @@ pub struct FileChange {
 /// Analyzer for processing Git commits and generating detailed change information
 pub struct ChangeAnalyzer {
     git_repo: Arc<GitRepo>,
-    engine: Box<dyn ChangeAnalysisEngine>,
 }
 
 impl ChangeAnalyzer {
     /// Create a new `ChangeAnalyzer` instance
     pub fn new(git_repo: Arc<GitRepo>) -> Result<Self> {
-        Ok(Self {
-            git_repo,
-            engine: Box::new(DefaultAnalysisEngine),
-        })
-    }
-
-    /// Set a custom analysis engine
-    #[must_use]
-    pub fn with_engine(mut self, engine: Box<dyn ChangeAnalysisEngine>) -> Self {
-        self.engine = engine;
-        self
+        Ok(Self { git_repo })
     }
 
     /// Analyze commits between two Git references, streaming results via channel
@@ -64,14 +53,11 @@ impl ChangeAnalyzer {
         let from = from.to_string();
         let to = to.to_string();
 
-        // Since we need to use self.engine in the blocking task, we wrap the analyzer in Arc
-        // or just pass the engine if it's clonable. But trait objects are tricky.
-        // For now, we'll re-create the default engine or pass the Arc'd engine.
-        let engine = Arc::new(DefaultAnalysisEngine);
+        let engine = DefaultAnalysisEngine;
 
         let _ = tokio::task::spawn_blocking(move || {
             git_repo.get_commits_between_stream(&from, &to, |commit| {
-                let analyzed = Self::analyze_commit_inner(&git_repo, engine.as_ref(), commit)?;
+                let analyzed = Self::analyze_commit_inner(&git_repo, &engine, commit)?;
                 let _ = tx.blocking_send(Ok(analyzed));
                 Ok(())
             })
@@ -83,7 +69,7 @@ impl ChangeAnalyzer {
     /// Analyze a single commit (blocking)
     fn analyze_commit_inner(
         git_repo: &GitRepo,
-        engine: &dyn ChangeAnalysisEngine,
+        engine: &DefaultAnalysisEngine,
         commit: &RecentCommit,
     ) -> Result<AnalyzedChange> {
         let repo = git_repo.open_repo()?;

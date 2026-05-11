@@ -114,32 +114,24 @@ pub fn create_release_notes_system_prompt(config: &Config) -> String {
 /// Common helper function to format metrics summary
 fn format_metrics_summary(prompt: &mut String, total_metrics: &ChangeMetrics) {
     prompt.push_str("Overall Changes:\n");
-    writeln!(prompt, "Total commits: {}", total_metrics.total_commits)
-        .expect("writing to string should never fail");
-    writeln!(prompt, "Files changed: {}", total_metrics.files_changed)
-        .expect("writing to string should never fail");
+    writeln!(prompt, "Total commits: {}", total_metrics.total_commits).ok();
+    writeln!(prompt, "Files changed: {}", total_metrics.files_changed).ok();
     writeln!(
         prompt,
         "Total lines changed: {}",
         total_metrics.total_lines_changed
     )
     .expect("writing to string should never fail");
-    writeln!(prompt, "Insertions: {}", total_metrics.insertions)
-        .expect("writing to string should never fail");
-    write!(prompt, "Deletions: {}\n\n", total_metrics.deletions)
-        .expect("writing to string should never fail");
+    writeln!(prompt, "Insertions: {}", total_metrics.insertions).ok();
+    write!(prompt, "Deletions: {}\n\n", total_metrics.deletions).ok();
 }
 
 /// Common helper function to format individual change details
 fn format_change_details(prompt: &mut String, change: &AnalyzedChange, detail_level: DetailLevel) {
-    writeln!(prompt, "Commit: {}", change.commit_hash)
-        .expect("writing to string should never fail");
-    writeln!(prompt, "Message: {}", change.commit_message)
-        .expect("writing to string should never fail");
-    writeln!(prompt, "Type: {:?}", change.change_type)
-        .expect("writing to string should never fail");
-    writeln!(prompt, "Breaking Change: {}", change.is_breaking_change)
-        .expect("writing to string should never fail");
+    writeln!(prompt, "Commit: {}", change.commit_hash).ok();
+    writeln!(prompt, "Message: {}", change.commit_message).ok();
+    writeln!(prompt, "Type: {:?}", change.change_type).ok();
+    writeln!(prompt, "Breaking Change: {}", change.is_breaking_change).ok();
     writeln!(
         prompt,
         "Associated Issues: {}",
@@ -151,8 +143,7 @@ fn format_change_details(prompt: &mut String, change: &AnalyzedChange, detail_le
         writeln!(prompt, "Pull Request: {pr}").expect("writing to string should never fail");
     }
 
-    writeln!(prompt, "Impact score: {:.2}", change.impact_score)
-        .expect("writing to string should never fail");
+    writeln!(prompt, "Impact score: {:.2}", change.impact_score).ok();
 
     format_file_changes(prompt, change, detail_level);
     prompt.push('\n');
@@ -172,11 +163,10 @@ fn format_file_changes(prompt: &mut String, change: &AnalyzedChange, detail_leve
                     "  - {} ({:?})",
                     file_change.new_path, file_change.change_type
                 )
-                .expect("writing to string should never fail");
+                .ok();
                 if detail_level == DetailLevel::Detailed {
                     for analysis in &file_change.analysis {
-                        writeln!(prompt, "    * {analysis}")
-                            .expect("writing to string should never fail");
+                        writeln!(prompt, "    * {analysis}").ok();
                     }
                 }
             }

@@ -235,30 +235,29 @@ pub fn save_to_gitwire(
         .unwrap_or_default();
 
     if subsection.is_empty() {
-        writeln!(content, "[{GITWIRE_CONFIG_PREFIX}]").expect("String write is infallible");
+        let _ = writeln!(content, "[{GITWIRE_CONFIG_PREFIX}]");
     } else {
-        writeln!(content, "[{GITWIRE_CONFIG_PREFIX} \"{subsection}\"]")
-            .expect("String write is infallible");
+        let _ = writeln!(content, "[{GITWIRE_CONFIG_PREFIX} \"{subsection}\"]");
     }
 
-    writeln!(content, "    url = {}", entry.url).expect("String write is infallible");
+    let _ = writeln!(content, "    url = {}", entry.url);
 
     if !entry.rev.is_empty() {
-        writeln!(content, "    rev = {}", entry.rev).expect("String write is infallible");
+        let _ = writeln!(content, "    rev = {}", entry.rev);
     }
 
     if !entry.dst.is_empty() {
-        writeln!(content, "    dst = {}", entry.dst).expect("String write is infallible");
+        let _ = writeln!(content, "    dst = {}", entry.dst);
     }
 
     if !entry.src.is_empty() {
-        writeln!(content, "    src = {}", entry.src[0]).expect("String write is infallible");
+        let _ = writeln!(content, "    src = {}", entry.src[0]);
     }
 
     if let Some(ref dsc) = entry.dsc
         && !dsc.is_empty()
     {
-        writeln!(content, "    description = {dsc}").expect("String write is infallible");
+        let _ = writeln!(content, "    description = {dsc}");
     }
 
     if let Some(ref mtd) = entry.mtd {
@@ -267,13 +266,13 @@ pub fn save_to_gitwire(
             Method::ShallowNoSparse => "shallow_no_sparse",
             Method::Partial => "partial",
         };
-        writeln!(content, "    method = {method_str}").expect("String write is infallible");
+        let _ = writeln!(content, "    method = {method_str}");
     }
 
     if let Some(ref last_hash) = entry.last_sync_hash
         && !last_hash.is_empty()
     {
-        writeln!(content, "    last-sync-hash = {last_hash}").expect("String write is infallible");
+        let _ = writeln!(content, "    last-sync-hash = {last_hash}");
     }
 
     if let Some(ref strategy) = entry.merge_strategy {
@@ -283,8 +282,7 @@ pub fn save_to_gitwire(
             MergeStrategy::Manual => "manual",
             MergeStrategy::Ai => "ai",
         };
-        writeln!(content, "    merge-strategy = {strategy_str}")
-            .expect("String write is infallible");
+        let _ = writeln!(content, "    merge-strategy = {strategy_str}");
     }
 
     fs::write(&config_path, content)

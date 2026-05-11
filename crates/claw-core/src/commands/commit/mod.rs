@@ -42,7 +42,7 @@ pub fn format_commit_result(result: &CommitResult, message: &str) -> String {
         result.deletions,
         if result.deletions == 1 { "" } else { "s" }
     )
-    .expect("writing to string should never fail");
+    .ok();
 
     for (file, mode) in &result.new_files {
         writeln!(
@@ -51,7 +51,7 @@ pub fn format_commit_result(result: &CommitResult, message: &str) -> String {
             format_file_mode(*mode),
             file
         )
-        .expect("writing to string should never fail");
+        .ok();
     }
 
     output

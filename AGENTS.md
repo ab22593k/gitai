@@ -79,4 +79,5 @@ cargo test -p claw-message
 
 ### Rules:
 
-Every complex function must include a `why` comment explaining the business logic or external dependency that justified its implementation
+- Every complex function must include a `why` comment explaining the business logic or external dependency that justified its implementation
+- Structure every response to end with concrete forward-looking suggestions.

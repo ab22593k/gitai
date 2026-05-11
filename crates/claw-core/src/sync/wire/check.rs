@@ -7,7 +7,7 @@ use temp_dir::TempDir;
 
 use crate::sync::common::ErrorType::{CheckDifferenceExecution, CheckDifferenceStringReplace};
 use crate::sync::common::sequence::Operation;
-use crate::sync::common::{ErrorType, Parsed, Target, sequence};
+use crate::sync::common::{ErrorType, Parsed, TargetConfig, sequence};
 
 #[derive(Debug)]
 struct CheckOperation {}
@@ -24,10 +24,10 @@ impl Operation for CheckOperation {
     }
 }
 
-pub fn check(target: &Target, mode: &sequence::Mode) -> Result<bool, Cause<ErrorType>> {
+pub fn check(config: &TargetConfig, mode: &sequence::Mode) -> Result<bool, Cause<ErrorType>> {
     println!("git-wire check started\n");
     let operation: Arc<dyn Operation + Send + Sync + 'static> = Arc::new(CheckOperation {});
-    let result = sequence::sequence(target, &operation, mode)?;
+    let result = sequence::sequence(config, &operation, mode)?;
     Ok(result)
 }
 

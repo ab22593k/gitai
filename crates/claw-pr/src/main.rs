@@ -31,16 +31,12 @@ struct PrArgs {
 async fn main() -> Result<()> {
     init_app();
 
-    let args = PrArgs::parse();
-    let repository_url = args.common.repository_url.clone();
+    let cli_args = PrArgs::parse();
+    let PrArgs { mut common, params } = cli_args;
+    let repository_url = std::mem::take(&mut common.repository_url);
 
-    if let Err(e) = handlers::handle_pr_command(
-        args.common,
-        args.params.from,
-        args.params.to,
-        repository_url,
-    )
-    .await
+    if let Err(e) =
+        handlers::handle_pr_command(common, params.from, params.to, repository_url).await
     {
         print_error(&format!("Error: {e}"));
         std::process::exit(1);

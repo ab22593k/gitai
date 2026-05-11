@@ -46,6 +46,12 @@ fn git_clone(prefix: &str, path: &Path, parsed: &Parsed) -> Result<(), Cause<Err
     Ok(())
 }
 
+fn path_to_str<'a>(path: &'a Path, ctx: &str) -> Result<&'a str, Cause<ErrorType>> {
+    path.to_str().ok_or_else(|| {
+        cause!(GitCheckoutCommand).msg(format!("{ctx}: path contains invalid Unicode characters"))
+    })
+}
+
 fn git_checkout_partial(
     prefix: &str,
     path: &Path,
@@ -65,7 +71,7 @@ fn git_checkout_partial(
         let out = Command::new("git")
             .args([
                 "-C",
-                path.to_str().expect("Failed to convert path to string for git checkout; path contains invalid Unicode characters"),
+                path_to_str(path, "git checkout")?,
                 "checkout",
                 "--progress",
                 rev.as_ref(),
@@ -122,9 +128,7 @@ fn git_checkout_shallow_core(
         if let Err(e) = Command::new("git")
             .args([
                 "-C",
-                path.to_str().expect(
-                    "Failed to convert path to string for sparse checkout init; path contains invalid Unicode characters",
-                ),
+                path_to_str(path, "sparse checkout init")?,
                 "sparse-checkout",
                 "init",
                 "--no-cone",
@@ -146,15 +150,20 @@ fn git_checkout_shallow_core(
             let out = Command::new("git")
                 .args([
                     "-C",
-                    path.to_str()
-                        .expect("Failed to convert path to string for sparse checkout; path contains invalid Unicode characters"),
+                    path_to_str(path, "sparse checkout")?,
                     "sparse-checkout",
                     "add",
                     &sparse_path,
                 ])
                 .output();
 
-            let output = out.expect("Failed to execute git sparse-checkout command. Ensure 'git' is installed and in your PATH, and you have necessary permissions.");
+            let output = match out {
+                Ok(o) => o,
+                Err(e) => {
+                    log::debug!("Failed to execute git sparse-checkout: {e}");
+                    continue;
+                }
+            };
 
             if !output.status.success() {
                 // sparse-checkout command is optional, even if it failed,
@@ -174,7 +183,7 @@ fn git_checkout_shallow_core(
     let out = Command::new("git")
         .args([
             "-C",
-            path.to_str().expect("Failed to convert path to string for git fetch; path contains invalid Unicode characters"),
+            path_to_str(path, "git fetch")?,
             "fetch",
             "--depth",
             "1",
@@ -186,15 +195,16 @@ fn git_checkout_shallow_core(
         .map_err(|e| cause!(GitFetchCommand).src(e))?;
 
     if !out.status.success() {
-        let error = String::from_utf8(out.stderr)
-            .unwrap_or("Could not get even a error output of git fetch command".to_string());
+        let error = String::from_utf8(out.stderr).unwrap_or_else(|_| {
+            "Could not get even a error output of git fetch command".to_string()
+        });
         return Err(cause!(GitFetchCommandExitStatus, error));
     }
 
     let out = Command::new("git")
         .args([
             "-C",
-            path.to_str().expect("Failed to convert path to string for git checkout; path contains invalid Unicode characters"),
+            path_to_str(path, "git checkout")?,
             "checkout",
             "--progress",
             "FETCH_HEAD",
@@ -213,9 +223,9 @@ fn handle_git_output(
     if out.status.success() {
         Ok(())
     } else {
-        let error = String::from_utf8(out.stderr).unwrap_or(format!(
-            "Could not get even a error output of {command_name} command"
-        ));
+        let error = String::from_utf8(out.stderr).unwrap_or_else(|_| {
+            format!("Could not get even a error output of {command_name} command")
+        });
         Err(cause!(error_variant, error))
     }
 }
@@ -224,7 +234,7 @@ fn identify_commit_hash(path: &Path, parsed: &Parsed) -> Result<Option<String>, 
     let out = Command::new("git")
         .args([
             "-C",
-            path.to_str().expect("Failed to convert path to string for git ls-remote; path contains invalid Unicode characters"),
+            path_to_str(path, "git ls-remote")?,
             "ls-remote",
             "--heads",
             "--tags",
@@ -234,8 +244,9 @@ fn identify_commit_hash(path: &Path, parsed: &Parsed) -> Result<Option<String>, 
         .map_err(|e| cause!(GitLsRemoteCommand).src(e))?;
 
     if !out.status.success() {
-        let error = String::from_utf8(out.stderr)
-            .unwrap_or("Could not get even a error output of git ls-remote command".to_string());
+        let error = String::from_utf8(out.stderr).unwrap_or_else(|_| {
+            "Could not get even a error output of git ls-remote command".to_string()
+        });
         return Err(cause!(GitLsRemoteCommandExitStatus).msg(error));
     }
 

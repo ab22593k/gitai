@@ -31,19 +31,20 @@ struct CliArgs {
 async fn main() -> Result<()> {
     init_app();
 
-    let args = CliArgs::parse();
-    let repository_url = args.common.repository_url.clone();
+    let cli_args = CliArgs::parse();
+    let CliArgs { mut common, params } = cli_args;
+    let repository_url = std::mem::take(&mut common.repository_url);
 
     if let Err(e) = handlers::handle_changelog(
-        args.common,
+        common,
         ChangelogArgs {
-            from: args.params.from,
-            to: args.params.to,
+            from: params.from,
+            to: params.to,
             repository_url,
-            update: args.params.update,
-            save: args.params.save,
-            file: args.params.file,
-            version_name: args.params.version_name,
+            update: params.update,
+            save: params.save,
+            file: params.file,
+            version_name: params.version_name,
         },
     )
     .await

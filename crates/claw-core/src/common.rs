@@ -160,7 +160,7 @@ pub fn get_combined_instructions(config: &Config) -> String {
             "\n\nAdditional instructions for the request:\n{}\n\n",
             config.get_effective_instructions()
         )
-        .expect("write to string should not fail");
+        .ok();
     }
 
     prompt

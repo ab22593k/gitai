@@ -212,7 +212,7 @@ fn format_detailed_changes(files: &[StagedFile]) -> String {
     if !content_files.is_empty() {
         let content_section = content_files
             .iter()
-            .map(|file| {
+            .filter_map(|file| {
                 let change_indicator = match file.change_type {
                     ChangeType::Added | ChangeType::Deleted => "",
                     ChangeType::Modified => "✏️",
@@ -220,13 +220,12 @@ fn format_detailed_changes(files: &[StagedFile]) -> String {
                     ChangeType::Copied { .. } => "📋",
                 };
 
-                let content = file.content.as_ref().expect("content checked in filter");
+                let content = file.content.as_ref()?;
                 let truncated_content = truncate_smartly(content, MAX_FILE_CONTENT_LENGTH);
-
-                format!(
+                Some(format!(
                     "{} File: {}\nFull File Content:\n{}\n\n--- End of File ---",
                     change_indicator, file.path, truncated_content
-                )
+                ))
             })
             .collect::<Vec<_>>()
             .join("\n\n---\n\n");

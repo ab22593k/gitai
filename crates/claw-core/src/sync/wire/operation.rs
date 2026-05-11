@@ -13,9 +13,7 @@ use tokio::task::JoinSet;
 use crate::sync::cache::{
     fetcher::RepositoryFetcher, key_generator::CacheKeyGenerator, manager::CacheManager,
 };
-use crate::sync::common::{
-    ErrorType, MergeStrategy, Parsed, Target, TargetConfig, merge_parsed, parse,
-};
+use crate::sync::common::{ErrorType, MergeStrategy, Parsed, TargetConfig, merge_parsed, parse};
 use crate::sync::models::repo_config::RepositoryConfiguration;
 use crate::sync::models::wire_operation::WireOperation;
 
@@ -35,9 +33,8 @@ fn parsed_to_config(parsed: Parsed) -> RepositoryConfiguration {
 }
 
 fn get_repo_configs(
-    target: &Target,
+    config: &TargetConfig,
 ) -> Result<(String, Vec<RepositoryConfiguration>, Option<Parsed>), Cause<ErrorType>> {
-    let Target::Declared(config) = target;
     get_repo_configs_declared(config)
 }
 
@@ -149,13 +146,13 @@ fn validate_dest_path(
 
 // Enhanced sync functionality that integrates caching
 pub async fn sync_with_caching(
-    target: &Target,
+    config: &TargetConfig,
     _mode: crate::sync::common::sequence::Mode,
 ) -> Result<bool, Cause<ErrorType>> {
     info!("git-wire sync with caching started");
 
-    let (root_dir, repo_configs, cli_parsed_for_save) = get_repo_configs(target)?;
-    handle_save_config(target, cli_parsed_for_save.as_ref())?;
+    let (root_dir, repo_configs, cli_parsed_for_save) = get_repo_configs(config)?;
+    handle_save_config(config, cli_parsed_for_save.as_ref())?;
 
     let cache_manager = CacheManager::new();
     let fetcher = RepositoryFetcher;
@@ -177,18 +174,20 @@ pub async fn sync_with_caching(
     execute_wire_operations(&root_dir, &wire_operations)?;
 
     // Update .gitwire.toml with new hashes
-    update_sync_hashes(target, &wire_operations)?;
+    update_sync_hashes(config, &wire_operations)?;
 
     info!("git-wire sync with caching completed");
     Ok(true)
 }
 
-fn update_sync_hashes(target: &Target, ops: &[WireOperation]) -> Result<(), Cause<ErrorType>> {
+fn update_sync_hashes(
+    config: &TargetConfig,
+    ops: &[WireOperation],
+) -> Result<(), Cause<ErrorType>> {
     let root = std::env::current_dir()
         .or(Err(cause!(ErrorType::CurrentDirRetrieve)))?
         .clone();
 
-    let Target::Declared(config) = target;
     let gitwire_data = parse::parse_gitwire(&root, config.global)?;
 
     if let Some(mut file_items) = gitwire_data {
@@ -209,7 +208,6 @@ fn update_sync_hashes(target: &Target, ops: &[WireOperation]) -> Result<(), Caus
         }
 
         if updated {
-            let Target::Declared(config) = target;
             for item in &file_items {
                 parse::save_to_gitwire(&root, config.global, item, config.append_config)?;
             }
@@ -364,10 +362,9 @@ fn perform_integrated_sync(
 }
 
 fn handle_save_config(
-    target: &Target,
+    config: &TargetConfig,
     cli_parsed_for_save: Option<&Parsed>,
 ) -> Result<(), Cause<ErrorType>> {
-    let Target::Declared(config) = target;
     if config.save_config
         && let Some(parsed) = cli_parsed_for_save
     {

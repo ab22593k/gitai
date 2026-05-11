@@ -31,19 +31,20 @@ struct CliArgs {
 async fn main() -> Result<()> {
     init_app();
 
-    let args = CliArgs::parse();
-    let repository_url = args.common.repository_url.clone();
+    let cli_args = CliArgs::parse();
+    let CliArgs { mut common, params } = cli_args;
+    let repository_url = std::mem::take(&mut common.repository_url);
 
     if let Err(e) = handlers::handle_message(
-        args.common,
+        common,
         CmsgConfig {
-            print_only: args.params.print,
+            print_only: params.print,
         },
         repository_url,
         MessageArgs {
-            complete: args.params.complete,
-            prefix: args.params.prefix,
-            context_ratio: args.params.context_ratio,
+            complete: params.complete,
+            prefix: params.prefix,
+            context_ratio: params.context_ratio,
         },
     )
     .await
@@ -58,10 +59,91 @@ async fn main() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use clap::CommandFactory;
+    use clap::{CommandFactory, Parser};
 
     #[test]
     fn verify_cli() {
         CliArgs::command().debug_assert();
+    }
+
+    #[test]
+    fn test_cli_constraints() {
+        // --prefix requires --complete
+        let res = CliArgs::try_parse_from(["git-message", "--prefix", "test"]);
+        assert!(res.is_err(), "Should fail: --prefix requires --complete");
+
+        // --context-ratio requires --complete
+        let res = CliArgs::try_parse_from(["git-message", "--context-ratio", "0.5"]);
+        assert!(
+            res.is_err(),
+            "Should fail: --context-ratio requires --complete"
+        );
+
+        // --prefix and --complete should succeed
+        let res = CliArgs::try_parse_from(["git-message", "--complete", "--prefix", "test"]);
+        assert!(
+            res.is_ok(),
+            "Should succeed: --complete and --prefix together"
+        );
+
+        // --context-ratio and --complete should succeed
+        let res = CliArgs::try_parse_from(["git-message", "--complete", "--context-ratio", "0.5"]);
+        assert!(
+            res.is_ok(),
+            "Should succeed: --complete and --context-ratio together"
+        );
+    }
+
+    #[test]
+    fn test_cli_invalid_float() {
+        let res = CliArgs::try_parse_from([
+            "git-message",
+            "--complete",
+            "--context-ratio",
+            "not-a-float",
+        ]);
+        assert!(res.is_err(), "Should fail: --context-ratio must be a float");
+    }
+
+    #[test]
+    fn test_cli_complex_combinations() {
+        // Valid combination: print + complete + prefix + ratio
+        let res = CliArgs::try_parse_from([
+            "git-message",
+            "--print",
+            "--complete",
+            "--prefix",
+            "feat:",
+            "--context-ratio",
+            "0.7",
+        ]);
+        assert!(res.is_ok(), "Failed to parse args");
+        let args = res.expect("Failed to parse args");
+        assert!(args.params.print);
+        assert!(args.params.complete);
+        assert_eq!(args.params.prefix, Some("feat:".to_string()));
+        assert_eq!(args.params.context_ratio, Some(0.7));
+
+        // Valid: just print
+        let res = CliArgs::try_parse_from(["git-message", "--print"]);
+        assert!(res.is_ok(), "Failed to parse --print");
+        assert!(res.expect("Failed to parse --print").params.print);
+
+        // Valid: just complete (will fail in handler due to missing prefix, but CLI should allow)
+        let res = CliArgs::try_parse_from(["git-message", "--complete"]);
+        assert!(res.is_ok(), "Failed to parse --complete");
+    }
+
+    #[test]
+    fn test_common_params_mapping() {
+        // Test that global flags like --repo are parsed correctly
+        let res =
+            CliArgs::try_parse_from(["git-message", "--repo", "https://github.com/test/repo"]);
+        assert!(res.is_ok(), "Failed to parse --repo");
+        let args = res.expect("Failed to parse --repo");
+        assert_eq!(
+            args.common.repository_url,
+            Some("https://github.com/test/repo".to_string())
+        );
     }
 }

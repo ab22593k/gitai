@@ -17,32 +17,11 @@ static PR_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
         .expect("Failed to compile pull request regex pattern - this is a bug")
 });
 
-/// Trait for defining the logic to analyze code changes
-pub trait ChangeAnalysisEngine: Send + Sync {
-    /// Analyze changes for each file in the diff
-    fn analyze_file_changes(&self, diff: &Diff) -> Result<Vec<FileChange>>;
-
-    /// Calculate metrics for the diff
-    fn calculate_metrics(&self, diff: &Diff) -> Result<ChangeMetrics>;
-
-    /// Classify the type of change based on commit message and file changes
-    fn classify_change(&self, message: &str, file_changes: &[FileChange]) -> ChangelogType;
-
-    /// Detect if the change is a breaking change
-    fn detect_breaking_change(&self, message: &str, file_changes: &[FileChange]) -> bool;
-
-    /// Extract associated issue numbers from the commit message
-    fn extract_associated_issues(&self, message: &str) -> Vec<String>;
-
-    /// Extract pull request number from the commit message
-    fn extract_pull_request(&self, message: &str) -> Option<String>;
-}
-
-/// Default implementation of the change analysis engine
+/// Default analysis engine for code changes
 pub struct DefaultAnalysisEngine;
 
-impl ChangeAnalysisEngine for DefaultAnalysisEngine {
-    fn analyze_file_changes(&self, diff: &Diff) -> Result<Vec<FileChange>> {
+impl DefaultAnalysisEngine {
+    pub fn analyze_file_changes(&self, diff: &Diff) -> Result<Vec<FileChange>> {
         let mut file_changes = Vec::new();
 
         diff.foreach(
@@ -143,7 +122,7 @@ impl ChangeAnalysisEngine for DefaultAnalysisEngine {
         Ok(file_changes)
     }
 
-    fn calculate_metrics(&self, diff: &Diff) -> Result<ChangeMetrics> {
+    pub fn calculate_metrics(&self, diff: &Diff) -> Result<ChangeMetrics> {
         let stats = diff.stats()?;
         Ok(ChangeMetrics {
             total_commits: 1,
@@ -154,7 +133,7 @@ impl ChangeAnalysisEngine for DefaultAnalysisEngine {
         })
     }
 
-    fn classify_change(&self, message: &str, file_changes: &[FileChange]) -> ChangelogType {
+    pub fn classify_change(&self, message: &str, file_changes: &[FileChange]) -> ChangelogType {
         let message_lower = message.to_lowercase();
 
         // First, check the commit message
@@ -187,7 +166,7 @@ impl ChangeAnalysisEngine for DefaultAnalysisEngine {
         }
     }
 
-    fn detect_breaking_change(&self, message: &str, file_changes: &[FileChange]) -> bool {
+    pub fn detect_breaking_change(&self, message: &str, file_changes: &[FileChange]) -> bool {
         let message_lower = message.to_lowercase();
         if message_lower.contains("breaking change")
             || message_lower.contains("breaking-change")
@@ -207,14 +186,14 @@ impl ChangeAnalysisEngine for DefaultAnalysisEngine {
         })
     }
 
-    fn extract_associated_issues(&self, message: &str) -> Vec<String> {
+    pub fn extract_associated_issues(&self, message: &str) -> Vec<String> {
         ISSUE_RE
             .captures_iter(message)
             .map(|cap| format!("#{}", &cap[1]))
             .collect()
     }
 
-    fn extract_pull_request(&self, message: &str) -> Option<String> {
+    pub fn extract_pull_request(&self, message: &str) -> Option<String> {
         PR_RE
             .captures(message)
             .map(|cap| format!("PR #{}", &cap[1]))

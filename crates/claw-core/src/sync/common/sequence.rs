@@ -7,7 +7,6 @@ use temp_dir::TempDir;
 use super::ErrorType;
 use super::ErrorType::NoItemToOperate;
 use super::Parsed;
-use super::Target;
 use super::TargetConfig;
 use super::merge_parsed;
 
@@ -102,25 +101,23 @@ fn get_parsed_from_config(
 }
 
 pub fn sequence(
-    target: &Target,
+    config: &TargetConfig,
     operation: &Arc<dyn Operation + Send + Sync>,
     mode: &Mode,
 ) -> Result<bool, Cause<ErrorType>> {
-    let (rootdir, parsed, cli_parsed_for_save): (String, Vec<_>, Option<Parsed>) = match target {
-        Target::Declared(config) => {
-            let (root, items, cli_parsed) = get_parsed_from_config(config)?;
+    let (rootdir, parsed, cli_parsed_for_save): (String, Vec<_>, Option<Parsed>) = {
+        let (root, items, cli_parsed) = get_parsed_from_config(config)?;
 
-            if config.save_config
-                && let Some(ref p) = cli_parsed
-            {
-                let root_path = std::env::current_dir()
-                    .or(Err(cause!(ErrorType::CurrentDirRetrieve)))?
-                    .clone();
-                super::parse::save_to_gitwire(&root_path, config.global, p, config.append_config)?;
-            }
-
-            (root, items, cli_parsed)
+        if config.save_config
+            && let Some(ref p) = cli_parsed
+        {
+            let root_path = std::env::current_dir()
+                .or(Err(cause!(ErrorType::CurrentDirRetrieve)))?
+                .clone();
+            super::parse::save_to_gitwire(&root_path, config.global, p, config.append_config)?;
         }
+
+        (root, items, cli_parsed)
     };
 
     // cli_parsed_for_save is consumed above by the save_config branch;
@@ -217,7 +214,14 @@ fn parallel(
             .collect();
         results
             .into_iter()
-            .map(|h| h.join().expect("A thread panicked during execution"))
+            .map(|h| {
+                h.join().unwrap_or_else(|_| {
+                    Err(cause!(
+                        ErrorType::NoItemToOperate,
+                        "A thread panicked during execution"
+                    ))
+                })
+            })
             .collect()
     });
     println!("{}", ">> All check tasks have done!\n".to_string().blue());

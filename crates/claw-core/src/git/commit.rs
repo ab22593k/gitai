@@ -187,7 +187,7 @@ fn get_files_from_diff(repo: &Repository, diff: &mut git2::Diff<'_>) -> Result<V
 }
 
 /// Results from a commit operation
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CommitResult {
     pub branch: String,
     pub commit_hash: String,
@@ -275,7 +275,8 @@ pub fn amend_commit(
 
     let branch_name = repo.head()?.shorthand().unwrap_or("HEAD").to_string();
     let commit = repo.find_commit(commit_oid)?;
-    let short_hash = commit.id().to_string()[..7].to_string();
+    let hash_str = commit.id().to_string();
+    let short_hash = hash_str[..hash_str.len().min(7)].to_string();
 
     let index = repo.index()?;
     let parent_tree = if head_commit.parent_count() > 0 {
@@ -378,7 +379,8 @@ pub fn commit(repo: &Repository, message: &str, is_remote: bool) -> Result<Commi
     };
 
     let commit = repo.find_commit(commit_oid)?;
-    let short_hash = commit.id().to_string()[..7].to_string();
+    let hash_str = commit.id().to_string();
+    let short_hash = hash_str[..hash_str.len().min(7)].to_string();
 
     Ok(CommitResult {
         branch: branch_name,
@@ -728,7 +730,8 @@ pub fn get_commits_for_pr(repo: &Repository, from: &str, to: &str) -> Result<Vec
             let commit = repo.find_commit(oid)?;
             let message = commit.message().map(String::from).unwrap_or_default();
             let title = message.lines().next().unwrap_or_default();
-            Ok(format!("{}: {}", &oid.to_string()[..7], title))
+            let hash_str = oid.to_string();
+            Ok(format!("{}: {}", &hash_str[..hash_str.len().min(7)], title))
         })
         .collect();
 
@@ -803,10 +806,7 @@ pub fn extract_commit_range_info(
 }
 
 /// Helper function to strictly resolve a branch reference without fallbacks
-fn resolve_branch_strict<'a>(
-    repo: &'a Repository,
-    branch_name: &'a str,
-) -> Result<git2::Commit<'a>> {
+fn resolve_branch_strict<'a>(repo: &'a Repository, branch_name: &str) -> Result<git2::Commit<'a>> {
     match repo.revparse_single(branch_name) {
         Ok(obj) => Ok(obj.peel_to_commit()?),
         Err(e) => Err(anyhow!(
@@ -816,7 +816,7 @@ fn resolve_branch_strict<'a>(
 }
 
 /// Helper function to resolve a branch reference, trying common default names if the specified branch doesn't exist
-fn resolve_branch<'a>(repo: &'a Repository, branch_name: &'a str) -> Result<git2::Commit<'a>> {
+fn resolve_branch<'a>(repo: &'a Repository, branch_name: &str) -> Result<git2::Commit<'a>> {
     // Try the specified branch first
     if let Ok(obj) = repo.revparse_single(branch_name) {
         Ok(obj.peel_to_commit()?)
