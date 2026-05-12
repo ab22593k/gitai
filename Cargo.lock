@@ -402,10 +402,12 @@ dependencies = [
  "cloy",
  "cloy-prompts",
  "colored",
+ "git2",
  "log",
  "regex",
  "schemars",
  "serde_json",
+ "tempfile",
  "tokio",
 ]
 

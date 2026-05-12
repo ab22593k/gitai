@@ -15,13 +15,14 @@ Ubuntu: `apt install -y gcc g++ make pkg-config libssl-dev cmake perl`
 
 ## Workspace layout
 
-```
+```sh
 cloy               → library crate (shared business logic)
 claw-message       → git-message  (thin CLI wrapper, ~50 lines)
 claw-changelog     → git-changelog (own models, prompts, generator)
-claw-wire          → git-wire    (own sync engine, CLI)  
+claw-wire          → git-wire    (own sync engine, CLI)
 crates/pr          → git-pr       (own models, prompts, generator)
 crates/notes       → git-notes    (own models, prompts, generator)
+```
 
 All binaries depend on `cloy` only. Binary names differ from crate names.
 When adding functionality to a command, edit its own crate first (pr, notes, changelog, etc.)
